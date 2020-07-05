@@ -6,6 +6,10 @@ const (
 	OveyLong  string = ``
 
 	OveyNewUse   string = `new <args>`
-	OveyNewShort string = `Create new device`
+	OveyNewShort string = `Create a new virtual device`
 	OveyNewLong  string = ``
+
+	OveyDeleteUse   string = `delete <args>`
+	OveyDeleteShort string = `Delete a virtual device`
+	OveyDeleteLong  string = ``
 )

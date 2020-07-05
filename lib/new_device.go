@@ -15,7 +15,7 @@ func NewDevice(newDeviceName, parentDeviceName string) error {
 	defer ol.Close()
 
 	ae := netlink.NewAttributeEncoder()
-	ae.String(oveyAttributeNewDevice, newDeviceName)
+	ae.String(oveyAttributeVirtDevice, newDeviceName)
 	ae.String(oveyAttributeParentDevice, parentDeviceName)
 	data, err := ae.Encode()
 	if err != nil {

@@ -64,7 +64,7 @@ func (ol *oveyLink) NewRequest(command uint8, data []byte) *oveyRequest {
 			},
 			Data: data,
 		},
-		flags: netlink.Request,
+		flags: netlink.Request | netlink.Acknowledge,
 		link:  ol,
 	}
 
