@@ -59,6 +59,9 @@ impl GenlinkAdapter {
             None,
             true
         ).expect("netlink connect failed!");
+        // Please note that neli hangs in an endless loop when the family doesn't exist as of version
+        // 0.4.3. Wait until https://github.com/jbaublitz/neli/issues/87 gets resolved!
+        // will probably be very soon resolved with 0.4.4!
         let family_id = socket.resolve_genl_family(family_name).expect("Generic Family must exist!");
         Self {
             family_id,
