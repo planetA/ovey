@@ -1,5 +1,6 @@
-//! This module describes our interface to generic netlink that provides functions for our
-//! own protocol on top of generic netlink.
+//! This module describes our interface to generic netlink. It lets us send and receive
+//! data related to our specific domain via netlink. All functions fall under the constraints of
+//! the lib/crate "neli".
 
 use neli::socket::NlSocket;
 use neli::consts::{NlFamily, NlmF, Cmd, NlAttrType};
@@ -10,48 +11,59 @@ use std::{process, fmt};
 use std::fmt::{Debug, Display, Formatter};
 use neli::nlattr::Nlattr;
 
-// Implements the necessary trait for the "neli" lib on an enum called "Command".
-// Command corresponds to "enum Commands" in kernel module C code.
+// Implements the necessary trait for the "neli" lib on an enum called "OveyOperation".
+// Command corresponds to "enum OveyOperation" in kernel module C code.
 // Describes what callback function shall be invoked in the linux kernel module.
 impl_var_trait!(
-    Command, u8, Cmd,
+    OveyOperation, u8, Cmd,
     Unspec => 0,
-    Echo => 1
+    Echo => 1,
+    CreateDevice => 2,
+    DeleteDevice => 3
 );
-impl Display for Command {
+impl Display for OveyOperation {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Command::Unspec => write!(f, "Command::Unspec"),
-            Command::Echo => write!(f, "Command::Echo"),
-            _ =>  write!(f, "Command::<unknown>"),
+            OveyOperation::Unspec => write!(f, "OveyOperation::Unspec"),
+            OveyOperation::Echo => write!(f, "OveyOperation::Echo"),
+            OveyOperation::CreateDevice => write!(f, "OveyOperation::CreateDevice"),
+            OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice"),
+            _ =>  write!(f, "OveyOperation::<unknown>"),
         }
     }
 }
 
-// Implements the necessary trait for the "neli" lib on an enum called "ControlAttr".
-// Command corresponds to "enum Attributes" in kernel module C code.
+// Implements the necessary trait for the "neli" lib on an enum called "OveyAttribute".
+// Command corresponds to "enum OveyAttribute" in kernel module C code.
 // Describes the value type to data mappings inside the generic netlink packet payload.
 impl_var_trait!(
-    ControlAttr, u16, NlAttrType,
+    OveyAttribute, u16, NlAttrType,
     Unspec => 0,
-    Msg => 1
+    Msg => 1,
+    DeviceName => 2,
+    ParentDeviceName => 3
 );
-impl Display for ControlAttr {
+impl Display for OveyAttribute {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ControlAttr::Unspec => write!(f, "ControlAttr::Unspec"),
-            ControlAttr::Msg => write!(f, "ControlAttr::Msg"),
-            _ =>  write!(f, "ControlAttr::<unknown>"),
+            OveyAttribute::Unspec => write!(f, "OveyAttribute::Unspec"),
+            OveyAttribute::Msg => write!(f, "OveyAttribute::Msg"),
+            OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName"),
+            OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName"),
+            _ =>  write!(f, "OveyAttribute::<unknown>"),
         }
     }
 }
 
+/// Adapter between our userland code and the Linux kernel module via (generic) netlink.
 pub struct GenlinkAdapter {
     family_id: u16,
     socket: NlSocket,
 }
 
 impl GenlinkAdapter {
+
+    /// Starts the connection with the netlink family corresponding to the Ovey Linux kernel module.
     pub fn connect(family_name: &str) -> Self {
         let mut socket = NlSocket::connect(
             NlFamily::Generic,
@@ -69,15 +81,26 @@ impl GenlinkAdapter {
         }
     }
 
-    pub fn send<T: Nl + Debug>(&mut self, attr_type: ControlAttr, payload: T) {
-        println!("Sending '{}' with Payload {:?} via netlink", attr_type, payload);
-        let attr = Nlattr::new(
-            Some(payload.size() as u16),
-            attr_type,
-            payload
-        ).unwrap();
+    /// Sends a single attribute to kernel.
+    pub fn send_single(&mut self, op: OveyOperation, attr: Nlattr<OveyAttribute, Vec<u8>>) {
         let attrs = vec![attr];
-        let gen_nl_mhr = Genlmsghdr::new(Command::Echo, 1, attrs).unwrap();
+        self.send(op, attrs);
+    }
+
+    /// Sends a message to the kernel with a vector of data attributes.
+    pub fn send(&mut self, op: OveyOperation, attrs: Vec<Nlattr<OveyAttribute, Vec<u8>>>) {
+        println!("Sending via netlink: operation={}", op);
+        println!("    all attributes:");
+        for x in &attrs {
+            println!("    - {} with {} bytes", x.nla_type, x.payload.size());
+            // println!("    {} with {:#?}", x.nla_type, x.payload);
+        }
+
+        let gen_nl_mhr = Genlmsghdr::new(
+            op,
+            1,
+            attrs
+        ).unwrap();
         let nl_msh_flags = vec![NlmF::Request];
         let nl_msh = Nlmsghdr::new(
             None,
@@ -90,10 +113,17 @@ impl GenlinkAdapter {
         self.socket.send_nl(nl_msh).unwrap();
     }
 
-    pub fn recv_all(&mut self) -> Vec<Nlattr<ControlAttr, Vec<u8>>> {
+    /// Receives all attributes that kernel sent.
+    pub fn recv_all(&mut self) -> Vec<Nlattr<OveyAttribute, Vec<u8>>> {
         // u16: family type :)
-        let res = self.socket.recv_nl::<u16, Genlmsghdr::<Command, ControlAttr>>(None).unwrap();
-        assert_eq!(self.family_id, res.nl_type, "Received data from wrong family?! is={}, expected={}", res.nl_type, self.family_id);
+        let res = self.socket.recv_nl::<u16, Genlmsghdr::<OveyOperation, OveyAttribute>>(None).unwrap();
+
+        if self.family_id != res.nl_type {
+            // todo not quite sure yet what's the meaning of the nl_type
+            //  I think it always should be family number.. but there were cases
+            //  where it was 2 (NETLINK_USERSOCK).
+            println!("Received data from wrong family?! is={}, expected={}", res.nl_type, self.family_id);
+        };
 
         let mut data = vec![];
         res.nl_payload.get_attr_handle().iter().for_each(|x|
@@ -108,25 +138,35 @@ impl GenlinkAdapter {
         data
     }
 
-    pub fn recv_first_msg(&mut self) -> Option<String> {
-        // u16: family type :)
-        let res = self.socket.recv_nl::<u16, Genlmsghdr::<Command, ControlAttr>>(None).unwrap();
-        assert_eq!(self.family_id, res.nl_type, "Received data from wrong family?! is={}, expected={}", res.nl_type, self.family_id);
-
-        let mut ret: Option<String> = None;
-        // iterate through all received attributes
-        res.nl_payload.get_attr_handle().iter().for_each(|xattr| {
-            if ret.is_none() && ControlAttr::Msg == xattr.nla_type {
-                ret.replace(
-                    String::from_utf8(xattr.payload.clone()).unwrap()
-                );
-            }
-        });
-
-        ret
+    /// Returns the raw (not deserialized) data from the first attribute of the specified type.
+    pub fn recv_first_of_type_raw(&mut self, attr_type: OveyAttribute) -> Option<Vec<u8>> {
+        let data = self.recv_all();
+        let ele = data.into_iter()
+            .filter(|x| x.nla_type == attr_type)
+            .last();
+        ele.map(|x| x.payload)
     }
 
+
+    /// Returns the family id retrieved from the Kernel.
     pub fn family_id(&self) -> u16 {
         self.family_id
     }
+}
+
+/// Convenient function to construct a Nlattr struct to send data.
+pub fn build_nl_attr<T: Nl + Debug>(attr_type: OveyAttribute, payload: T) -> Nlattr<OveyAttribute, Vec<u8>> {
+    Nlattr::new(
+        // nla_len is updated anyway internally based on payload size
+        None,
+        attr_type,
+        payload
+    ).unwrap()
+}
+
+/// Convenient function to construct a vector of Nlattr structs to send data.
+pub fn build_nl_attrs<T: Nl + Debug>(attr_types: Vec<(OveyAttribute, T)>) -> Vec<Nlattr<OveyAttribute, Vec<u8>>> {
+    attr_types.into_iter()
+        .map(|x| build_nl_attr(x.0, x.1))
+        .collect()
 }

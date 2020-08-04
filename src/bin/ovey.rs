@@ -1,10 +1,10 @@
-use rdma_ovey::genlink::{GenlinkAdapter, ControlAttr};
+use rdma_ovey::genlink::{GenlinkAdapter, OveyOperation, build_nl_attrs, OveyAttribute, build_nl_attr};
 use clap::{App, Arg, SubCommand, ArgMatches};
 
 const FAMILY_NAME: &str = "rdma-ovey";
 
 fn main() {
-    let mut verbosity = 0;
+    let mut verbosity;
 
     // TODO this stucks if rdma-ovey doesn't exist? it should fail..
     let ga = GenlinkAdapter::connect(FAMILY_NAME);
@@ -24,17 +24,34 @@ fn main() {
 
 }
 
-fn create_new_device(verbosity: u64, matches: &ArgMatches, ga: GenlinkAdapter) {
-    let matches = matches.subcommand_matches("new").unwrap();
+fn create_new_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
     let new_device_name = matches.value_of("name").unwrap(); // unwrap because required
-    let parent_device_name = matches.value_of("parent");
+    let parent_device_name = matches.value_of("parent").unwrap();
     if verbosity > 0 {
-        println!("create new device: name={}, parent={}", new_device_name, parent_device_name.unwrap_or(""));
+        println!("sending request to create new device: name={}, parent={}", new_device_name, parent_device_name);
     }
+    ga.send(
+        OveyOperation::CreateDevice,
+        build_nl_attrs(
+            vec![
+                (OveyAttribute::DeviceName, new_device_name),
+                (OveyAttribute::ParentDeviceName, parent_device_name),
+            ]
+        )
+    );
+    println!("{:#?}", ga.recv_all());
 }
 
-fn delete_device(verbosity: u64, matches: &ArgMatches, ga: GenlinkAdapter) {
-
+fn delete_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
+    let device_name = matches.value_of("name").unwrap(); // unwrap
+    if verbosity > 0 {
+        println!("sending request to delete device: name={}", device_name);
+    }
+    ga.send_single(
+        OveyOperation::DeleteDevice,
+        build_nl_attr(OveyAttribute::DeviceName, device_name)
+    );
+    println!("{:#?}", ga.recv_all());
 }
 
 /// Parses the args and asserts that required args are in the proper order and format.
@@ -73,5 +90,13 @@ fn assert_and_get_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .required(true)
                 .help("device name")))
+        .subcommand(SubCommand::with_name("echo")
+            .display_order(1)
+            .about("sends a message via netlink and receives a message back")
+            .arg(Arg::with_name("value")
+                .long("value")
+                .takes_value(true)
+                .required(true)
+                .help("text to send to kernel")))
         .get_matches()
 }
