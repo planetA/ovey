@@ -17,14 +17,16 @@ fn main() {
 
 
     if let Some(matches) = matches.subcommand_matches("new") {
-        create_new_device(verbosity, matches, ga);
+        nl_create_new_device(verbosity, matches, ga);
     } else if let Some(matches) = matches.subcommand_matches("delete") {
-        delete_device(verbosity, matches, ga);
+        nl_delete_device(verbosity, matches, ga);
+    } else if let Some(matches) = matches.subcommand_matches("echo") {
+        nl_echo(verbosity, matches, ga);
     }
 
 }
 
-fn create_new_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
+fn nl_create_new_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
     let new_device_name = matches.value_of("name").unwrap(); // unwrap because required
     let parent_device_name = matches.value_of("parent").unwrap();
     if verbosity > 0 {
@@ -39,10 +41,10 @@ fn create_new_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapte
             ]
         )
     );
-    println!("{:#?}", ga.recv_all());
+    ga.recv_ack(OveyOperation::CreateDevice);
 }
 
-fn delete_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
+fn nl_delete_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
     let device_name = matches.value_of("name").unwrap(); // unwrap
     if verbosity > 0 {
         println!("sending request to delete device: name={}", device_name);
@@ -51,7 +53,23 @@ fn delete_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
         OveyOperation::DeleteDevice,
         build_nl_attr(OveyAttribute::DeviceName, device_name)
     );
-    println!("{:#?}", ga.recv_all());
+    // ga.recv_ack(OveyOperation::DeleteDevice);
+}
+
+fn nl_echo(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
+    let value = matches.value_of("value").unwrap(); // unwrap
+    if verbosity > 0 {
+        println!("sending echo request for value={}", value);
+    }
+    ga.send_single(
+        OveyOperation::Echo,
+        build_nl_attr(OveyAttribute::Msg, value)
+    );
+    // ga.recv_ack();
+    let msg = ga.recv_first_of_type_raw(OveyAttribute::Msg)
+        .map(|bytes| String::from_utf8(bytes).unwrap())
+        .unwrap();
+    println!("Received from kernel: {}", msg);
 }
 
 /// Parses the args and asserts that required args are in the proper order and format.

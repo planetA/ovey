@@ -23,12 +23,16 @@ impl_var_trait!(
 );
 impl Display for OveyOperation {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // weird hack but otherwise I can't get the numeric value of the
+        // enum -.-
+        // this doesn't work: https://stackoverflow.com/questions/31358826/how-do-i-convert-an-enum-reference-to-a-number
+        let numeric_value: u8 = unsafe { std::mem::transmute_copy(self) };
         match self {
-            OveyOperation::Unspec => write!(f, "OveyOperation::Unspec"),
-            OveyOperation::Echo => write!(f, "OveyOperation::Echo"),
-            OveyOperation::CreateDevice => write!(f, "OveyOperation::CreateDevice"),
-            OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice"),
-            _ =>  write!(f, "OveyOperation::<unknown>"),
+            OveyOperation::Unspec => write!(f, "OveyOperation::Unspec({})", numeric_value),
+            OveyOperation::Echo => write!(f, "OveyOperation::Echo({})", numeric_value),
+            OveyOperation::CreateDevice => write!(f, "OveyOperation::CreateDevice({})", numeric_value),
+            OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice({})", numeric_value),
+            _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
         }
     }
 }
@@ -45,12 +49,16 @@ impl_var_trait!(
 );
 impl Display for OveyAttribute {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // weird hack but otherwise I can't get the numeric value of the
+        // enum -.-
+        // this doesn't work: https://stackoverflow.com/questions/31358826/how-do-i-convert-an-enum-reference-to-a-number
+        let numeric_value: u8 = unsafe { std::mem::transmute_copy(self) };
         match self {
-            OveyAttribute::Unspec => write!(f, "OveyAttribute::Unspec"),
-            OveyAttribute::Msg => write!(f, "OveyAttribute::Msg"),
-            OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName"),
-            OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName"),
-            _ =>  write!(f, "OveyAttribute::<unknown>"),
+            OveyAttribute::Unspec => write!(f, "OveyAttribute::Unspec({})", numeric_value),
+            OveyAttribute::Msg => write!(f, "OveyAttribute::Msg({})", numeric_value),
+            OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName({})", numeric_value),
+            OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName({})", numeric_value),
+            _ =>  write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }
 }
@@ -122,7 +130,7 @@ impl GenlinkAdapter {
             // todo not quite sure yet what's the meaning of the nl_type
             //  I think it always should be family number.. but there were cases
             //  where it was 2 (NETLINK_USERSOCK).
-            println!("Received data from wrong family?! is={}, expected={}", res.nl_type, self.family_id);
+            println!("Received data from wrong family?! is={}, expected={}", res.nl_type.to_string(), self.family_id);
         };
 
         let mut data = vec![];
@@ -147,6 +155,24 @@ impl GenlinkAdapter {
         ele.map(|x| x.payload)
     }
 
+    /*// TODO don't use so far! Don't really know when to use this..
+    ///  ITs a wrapper abount neli#recv_ack() but it always returns false.
+    ///  Better it's to receive nl_attributes and check if there is some content
+    /*pub fn recv_ack(&mut self) {
+        self.socket.recv_ack().unwrap()
+    }*/*/
+
+    /// TODO doesn't work yet because returned op is always "4" and I don't know why
+    pub fn recv_ack(&mut self, op: OveyOperation) {
+        let res = self.socket.recv_nl::<u16, Genlmsghdr::<OveyOperation, OveyAttribute>>(None).unwrap();
+        let rec_op: OveyOperation = res.nl_payload.cmd;
+        assert_eq!(
+            op, rec_op,
+            "Kernel must ack operation {}! Actually {}",
+            op,
+            res.nl_payload.cmd
+        );
+    }
 
     /// Returns the family id retrieved from the Kernel.
     pub fn family_id(&self) -> u16 {
