@@ -1,19 +1,16 @@
-use rdma_ovey::genlink::{GenlinkAdapter, OveyOperation, build_nl_attrs, OveyAttribute, build_nl_attr};
+use rdma_ovey::ocp::{Ocp, OveyOperation, build_nl_attrs, OveyAttribute};
 use clap::{App, Arg, SubCommand, ArgMatches};
 
 const FAMILY_NAME: &str = "rdma-ovey";
 
 fn main() {
-    let mut verbosity;
-
-    // TODO this stucks if rdma-ovey doesn't exist? it should fail..
-    let ga = GenlinkAdapter::connect(FAMILY_NAME);
-    println!("Family id of {} is {}", FAMILY_NAME, ga.family_id());
-
     // if args are invalid this function will exit the program
     let matches = assert_and_get_args();
-    verbosity = matches.occurrences_of("v");
+    let verbosity = matches.occurrences_of("v") as u8;
     // println!("{:#?}", matches);
+
+    let ga = Ocp::connect(FAMILY_NAME, verbosity).unwrap();
+    println!("Family id of {} is {}", FAMILY_NAME, ga.family_id());
 
 
     if let Some(matches) = matches.subcommand_matches("new") {
@@ -26,13 +23,13 @@ fn main() {
 
 }
 
-fn nl_create_new_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
+fn nl_create_new_device(verbosity: u8, matches: &ArgMatches, mut ga: Ocp) {
     let new_device_name = matches.value_of("name").unwrap(); // unwrap because required
     let parent_device_name = matches.value_of("parent").unwrap();
     if verbosity > 0 {
         println!("sending request to create new device: name={}, parent={}", new_device_name, parent_device_name);
     }
-    ga.send(
+    let _res = ga.send_and_ack(
         OveyOperation::CreateDevice,
         build_nl_attrs(
             vec![
@@ -40,36 +37,33 @@ fn nl_create_new_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAda
                 (OveyAttribute::ParentDeviceName, parent_device_name),
             ]
         )
-    );
-    ga.recv_ack(OveyOperation::CreateDevice);
+    ).unwrap();
 }
 
-fn nl_delete_device(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
+fn nl_delete_device(verbosity: u8, matches: &ArgMatches, mut ga: Ocp) {
     let device_name = matches.value_of("name").unwrap(); // unwrap
     if verbosity > 0 {
         println!("sending request to delete device: name={}", device_name);
     }
-    ga.send_single(
+    let _res = ga.send_single_and_ack(
         OveyOperation::DeleteDevice,
-        build_nl_attr(OveyAttribute::DeviceName, device_name)
-    );
-    // ga.recv_ack(OveyOperation::DeleteDevice);
+        OveyAttribute::DeviceName,
+        device_name
+    ).unwrap();
 }
 
-fn nl_echo(verbosity: u64, matches: &ArgMatches, mut ga: GenlinkAdapter) {
+fn nl_echo(verbosity: u8, matches: &ArgMatches, mut ga: Ocp) {
     let value = matches.value_of("value").unwrap(); // unwrap
     if verbosity > 0 {
         println!("sending echo request for value={}", value);
     }
-    ga.send_single(
+    let res = ga.send_single_and_ack(
         OveyOperation::Echo,
-        build_nl_attr(OveyAttribute::Msg, value)
-    );
-    // ga.recv_ack();
-    let msg = ga.recv_first_of_type_raw(OveyAttribute::Msg)
-        .map(|bytes| String::from_utf8(bytes).unwrap())
-        .unwrap();
-    println!("Received from kernel: {}", msg);
+        OveyAttribute::Msg,
+        value
+    ).unwrap();
+
+    println!("Received from kernel: {}", res.get_msg().unwrap());
 }
 
 /// Parses the args and asserts that required args are in the proper order and format.
