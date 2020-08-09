@@ -195,15 +195,15 @@ impl Ocp {
         }
 
         let nl_msh = self.build_gnlmsg(op, attrs);
-
-        self.socket.send_nl(nl_msh).map_err(|x| format!("Send failed: {}", x))?;
+        self.socket.send_nl(nl_msh)
+            .map_err(|x| format!("Send failed: {}", x))?;
 
         // ack.nl_type == consts::Nlmsg::Error && ack.nl_payload.error == 0
         let res = self.socket.recv_nl::<u16, Genlmsghdr::<OveyOperation, OveyAttribute>>(None).unwrap();
 
-        // Do some validation I think is useful
-        // I personally think that recv_ack() by neli is not so good for purposes
-        // also as far as I know this part is refactored for neli 0.5.x
+        // Do some validation that is useful I think
+        // I personally think that recv_ack() by neli is not so good for our
+        // purposes;
         self.validate(op, &res)?;
 
         Ok(
@@ -246,7 +246,7 @@ impl Ocp {
         // I don't really know why netlink set's nl_type to four when there is an error (2)
         // because nl_type is also the numeric ID of the netlink family "NETLINK_USERSOCK" (2)
         if res.nl_type == 2 /*Nlmsg::Error as u16*/ {
-            return Err("Received Error!".to_string());
+            return Err("Received Error! Netlink Message Type is \"error\" (2) instead of our family".to_string());
         }
 
         if res.nl_type != self.family_id {
