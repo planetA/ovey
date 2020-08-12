@@ -1,5 +1,6 @@
 use rdma_ovey::ocp::{Ocp, OveyOperation, build_nl_attrs, OveyAttribute};
 use clap::{App, Arg, SubCommand, ArgMatches};
+use regex::Regex;
 
 const FAMILY_NAME: &str = "rdma-ovey";
 
@@ -66,49 +67,3 @@ fn nl_echo(verbosity: u8, matches: &ArgMatches, mut ga: Ocp) {
     println!("Received from kernel: {}", res.get_msg().unwrap());
 }
 
-/// Parses the args and asserts that required args are in the proper order and format.
-fn assert_and_get_args<'a>() -> ArgMatches<'a> {
-    App::new("Overlay RDMA network util")
-        .version("1.0")
-        .author("Philipp Schuster <philipp_johannes.schuster@tu-dresden.de>")
-        .about(
-            "Userland part of the 'ovey' project that creates virtual overlay rdma network devices"
-        )
-        .arg(Arg::with_name("v")
-            .short("v")
-            .multiple(true)
-            .help("Sets the level of verbosity"))
-        .subcommand(SubCommand::with_name("new")
-            .display_order(0)
-            .about("create virtual overlay rdma network device")
-            .arg(Arg::with_name("name")
-                .long("name")
-                .short("n")
-                .takes_value(true)
-                .required(true)
-                .help("device name"))
-            .arg(Arg::with_name("parent")
-                .long("parent")
-                .short("p")
-                .takes_value(true)
-                .required(true)
-                .help("parent device name")))
-        .subcommand(SubCommand::with_name("delete")
-            .display_order(1)
-            .about("remove virtual overlay rdma network device")
-            .arg(Arg::with_name("name")
-                .long("name")
-                .short("n")
-                .takes_value(true)
-                .required(true)
-                .help("device name")))
-        .subcommand(SubCommand::with_name("echo")
-            .display_order(1)
-            .about("sends a message via netlink and receives a message back")
-            .arg(Arg::with_name("value")
-                .long("value")
-                .takes_value(true)
-                .required(true)
-                .help("text to send to kernel")))
-        .get_matches()
-}

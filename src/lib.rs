@@ -4,3 +4,4 @@
 extern crate neli;
 
 pub mod ocp;
+pub mod cli;
