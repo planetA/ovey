@@ -1,6 +1,6 @@
 use rdma_ovey::ocp::{Ocp, OveyOperation, build_nl_attrs, OveyAttribute};
-use clap::{App, Arg, SubCommand, ArgMatches};
-use regex::Regex;
+use clap::ArgMatches;
+use rdma_ovey::cli::assert_and_get_args;
 
 const FAMILY_NAME: &str = "rdma-ovey";
 
