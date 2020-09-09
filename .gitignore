@@ -4,6 +4,7 @@
 # clion
 .idea
 *.iml
+cmake-build-debug/
 
 # vscode
 .vscode
