@@ -1,8 +1,8 @@
 use rdma_ovey::ocp::{Ocp, OveyOperation, build_nl_attrs, OveyAttribute};
 use clap::ArgMatches;
 use rdma_ovey::cli::assert_and_get_args;
-
-const FAMILY_NAME: &str = "rdma-ovey";
+use rdma_ovey::ocp::ocp_properties::{FAMILY_NAME, OveyOperation, OveyAttribute};
+use rdma_ovey::ocp::ocp_core::{Ocp, build_nl_attrs};
 
 fn main() {
     // if args are invalid this function will exit the program
@@ -20,6 +20,8 @@ fn main() {
         nl_delete_device(verbosity, matches, ga);
     } else if let Some(matches) = matches.subcommand_matches("echo") {
         nl_echo(verbosity, matches, ga);
+    } else {
+        panic!("Provide at least one subcommand!");
     }
 
 }

@@ -1,12 +1,11 @@
-//! This module describes all functions and constants related to our *Ovey Control Protocol* (OCP).
+//! This module describes all functions related to our *Ovey Control Protocol* (OCP).
 //! OCP includes all data that is transferred via generic netlink between the user component and
 //! the linux kernel module.
 //!
-//! All functions fall under the constraints of
-//! the lib/crate "neli".
+//! All functions fall under the constraints of the lib/crate "neli".
 
 use neli::socket::NlSocket;
-use neli::consts::{NlFamily, NlmF, Cmd, NlAttrType};
+use neli::consts::{NlFamily, NlmF};
 use neli::Nl;
 use neli::genl::Genlmsghdr;
 use neli::nl::Nlmsghdr;
@@ -14,57 +13,7 @@ use std::{process, fmt};
 use std::fmt::{Debug, Display, Formatter};
 use neli::nlattr::{Nlattr, AttrHandle};
 
-// Implements the necessary trait for the "neli" lib on an enum called "OveyOperation".
-// OveyOperation corresponds to "enum OveyOperation" in kernel module C code.
-// Describes what callback function shall be invoked in the linux kernel module.
-impl_var_trait!(
-    OveyOperation, u8, Cmd,
-    Unspec => 0,
-    Echo => 1,
-    CreateDevice => 2,
-    DeleteDevice => 3
-);
-impl Copy for OveyOperation {}
-impl Display for OveyOperation {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // weird hack but otherwise I can't get the numeric value of the enum -.-
-        // this doesn't work: https://stackoverflow.com/questions/31358826/how-do-i-convert-an-enum-reference-to-a-number
-        let numeric_value: u8 = unsafe { std::mem::transmute_copy(self) };
-        match self {
-            OveyOperation::Unspec => write!(f, "OveyOperation::Unspec({})", numeric_value),
-            OveyOperation::Echo => write!(f, "OveyOperation::Echo({})", numeric_value),
-            OveyOperation::CreateDevice => write!(f, "OveyOperation::CreateDevice({})", numeric_value),
-            OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice({})", numeric_value),
-            _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
-        }
-    }
-}
-
-// Implements the necessary trait for the "neli" lib on an enum called "OveyAttribute".
-// Command corresponds to "enum OveyAttribute" in kernel module C code.
-// Describes the value type to data mappings inside the generic netlink packet payload.
-impl_var_trait!(
-    OveyAttribute, u16, NlAttrType,
-    Unspec => 0,
-    Msg => 1,
-    DeviceName => 2,
-    ParentDeviceName => 3
-);
-impl Copy for OveyAttribute {}
-impl Display for OveyAttribute {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // weird hack but otherwise I can't get the numeric value of the enum -.-
-        // this doesn't work: https://stackoverflow.com/questions/31358826/how-do-i-convert-an-enum-reference-to-a-number
-        let numeric_value: u8 = unsafe { std::mem::transmute_copy(self) };
-        match self {
-            OveyAttribute::Unspec => write!(f, "OveyAttribute::Unspec({})", numeric_value),
-            OveyAttribute::Msg => write!(f, "OveyAttribute::Msg({})", numeric_value),
-            OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName({})", numeric_value),
-            OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName({})", numeric_value),
-            _ =>  write!(f, "OveyAttribute::<unknown>({})", numeric_value),
-        }
-    }
-}
+use super::ocp_properties::*;
 
 /// Struct that holds all the data that can be received via OCP from the kernel.
 pub struct OCPRecData {
@@ -243,12 +192,12 @@ impl Ocp {
     }
 
     fn validate(&self, op: OveyOperation, res: &OveyGNlMsg) -> Result<(), String> {
-        // I don't really know why netlink set's nl_type to four when there is an error (2)
-        // because nl_type is also the numeric ID of the netlink family "NETLINK_USERSOCK" (2)
+        // res.nl_type is either family id (good message) or NLMSG_ERROR (0x2) for a error message!
         if res.nl_type == 2 /*Nlmsg::Error as u16*/ {
             return Err("Received Error! Netlink Message Type is \"error\" (2) instead of our family".to_string());
         }
 
+        // should actually never happen, but catch anyway just to be safe
         if res.nl_type != self.family_id {
             return Err(
                 format!("Received data from wrong family?! is={}, expected={}", res.nl_type.to_string(), self.family_id)

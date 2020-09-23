@@ -65,7 +65,7 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
                 .validator(dev_name_validator)
                 .help(&format!("device name (\"{}\")", DEVICE_NAME_PATTERN))))
         .subcommand(SubCommand::with_name("echo")
-            .display_order(1)
+            .display_order(2)
             .about("sends a message via netlink and receives a message back")
             .arg(Arg::with_name("value")
                 .long("value")
