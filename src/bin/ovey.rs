@@ -1,4 +1,3 @@
-use rdma_ovey::ocp::{Ocp, OveyOperation, build_nl_attrs, OveyAttribute};
 use clap::ArgMatches;
 use rdma_ovey::cli::assert_and_get_args;
 use rdma_ovey::ocp::ocp_properties::{FAMILY_NAME, OveyOperation, OveyAttribute};
@@ -12,7 +11,6 @@ fn main() {
 
     let ga = Ocp::connect(FAMILY_NAME, verbosity).unwrap();
     println!("Family id of {} is {}", FAMILY_NAME, ga.family_id());
-
 
     if let Some(matches) = matches.subcommand_matches("new") {
         nl_create_new_device(verbosity, matches, ga);
