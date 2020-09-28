@@ -19,7 +19,7 @@ fn main() {
     } else if let Some(matches) = matches.subcommand_matches("echo") {
         nl_echo(verbosity, matches, ga);
     } else {
-        panic!("Provide at least one subcommand!");
+        eprintln!("Usage: ovey -h");
     }
 
 }
