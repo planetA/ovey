@@ -1,7 +1,8 @@
 use clap::ArgMatches;
 use rdma_ovey::cli::assert_and_get_args;
 use rdma_ovey::ocp::ocp_properties::{FAMILY_NAME, OveyOperation, OveyAttribute};
-use rdma_ovey::ocp::ocp_core::{Ocp, build_nl_attrs};
+use rdma_ovey::ocp::ocp_core::{Ocp, build_nl_attr};
+use rdma_ovey::verbs::guid_string_to_ube64;
 
 fn main() {
     // if args are invalid this function will exit the program
@@ -27,17 +28,31 @@ fn main() {
 fn nl_create_new_device(verbosity: u8, matches: &ArgMatches, mut ga: Ocp) {
     let new_device_name = matches.value_of("name").unwrap(); // unwrap because required
     let parent_device_name = matches.value_of("parent").unwrap();
+    let guid_str = matches.value_of("guid").unwrap();
     if verbosity > 0 {
         println!("sending request to create new device: name={}, parent={}", new_device_name, parent_device_name);
     }
+
+    // "real" big endian
+    let guid_be = guid_string_to_ube64(guid_str);
+    // host endianness
+    let guid_he = u64::from_be(guid_be);
+
     let _res = ga.send_and_ack(
         OveyOperation::CreateDevice,
-        build_nl_attrs(
+        vec![
+            build_nl_attr(OveyAttribute::DeviceName, new_device_name),
+            build_nl_attr(OveyAttribute::ParentDeviceName, parent_device_name),
+            build_nl_attr(OveyAttribute::NodeGuid, guid_he),
+        ]
+        // doesn't work due to conflicting generic type in build_nl_attrs
+        /*build_nl_attrs(
             vec![
                 (OveyAttribute::DeviceName, new_device_name),
                 (OveyAttribute::ParentDeviceName, parent_device_name),
+                (OveyAttribute::NodeGuid, guid),
             ]
-        )
+        )*/
     ).unwrap();
 }
 

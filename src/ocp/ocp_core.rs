@@ -18,17 +18,14 @@ use super::ocp_properties::*;
 /// Struct that holds all the data that can be received via OCP from the kernel.
 pub struct OCPRecData {
     msg: Option<String>,
-    device_name: Option<String>,
-    parent_device_name: Option<String>,
 }
 
 impl OCPRecData {
     /// Creates a new OCPRecData struct. It parses each attribute that neli received
-    /// via generic netlink to its proper Rust runtime type.
+    /// via generic netlink to its proper Rust runtime type. This is ONLY NECESSARY
+    /// for attributes we want to receive.
     pub fn new(h: AttrHandle<OveyAttribute>) -> Self {
         let mut msg = None;
-        let mut device_name = None;
-        let mut parent_device_name = None;
 
         h.iter().for_each(|x| {
             let payload = x.payload.clone();
@@ -38,37 +35,17 @@ impl OCPRecData {
                         String::from_utf8(payload).unwrap()
                     );
                 },
-                OveyAttribute::DeviceName => {
-                    device_name.replace(
-                        String::from_utf8(payload).unwrap()
-                    );
-                },
-                OveyAttribute::ParentDeviceName => {
-                    parent_device_name.replace(
-                        String::from_utf8(payload).unwrap()
-                    );
-                },
                 _ => {}
             }
         });
 
         OCPRecData {
             msg,
-            device_name,
-            parent_device_name,
         }
     }
 
     pub fn get_msg(&self) -> Option<&String> {
         self.msg.as_ref()
-    }
-
-    pub fn get_device_name(&self) -> Option<&String> {
-        self.device_name.as_ref()
-    }
-
-    pub fn get_parent_device_name(&self) -> Option<&String> {
-        self.parent_device_name.as_ref()
     }
 
 }
@@ -77,9 +54,12 @@ impl Display for OCPRecData {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "OCPRecData {{\n\
             \x20   msg: {:?}\n\
+        }}", self.msg)
+        /*write!(f, "OCPRecData {{\n\
+            \x20   msg: {:?}\n\
             \x20   device_name: {:?}\n\
             \x20   parent_device_name: {:?}\n\
-        }}", self.msg, self.device_name, self.parent_device_name)
+        }}", self.msg, self.device_name, self.parent_device_name)*/
     }
 }
 

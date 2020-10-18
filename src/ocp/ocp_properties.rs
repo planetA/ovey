@@ -1,6 +1,6 @@
 //! This module describes all constants and operations related to our *Ovey Control Protocol* (OCP).
 //! OCP includes all data that is transferred via generic netlink between the user component and
-//! the linux kernel module.
+//! the linux kernel module. Please refer to "ocp-properties.h" which acts as the main spec.
 
 use neli::consts::{Cmd, NlAttrType};
 use std::fmt;
@@ -43,7 +43,8 @@ impl_var_trait!(
     Unspec => 0,
     Msg => 1,
     DeviceName => 2,
-    ParentDeviceName => 3
+    ParentDeviceName => 3,
+    NodeGuid => 4
 );
 impl Copy for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
@@ -56,6 +57,7 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::Msg => write!(f, "OveyAttribute::Msg({})", numeric_value),
             OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName({})", numeric_value),
             OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName({})", numeric_value),
+            OveyAttribute::NodeGuid => write!(f, "OveyAttribute::NodeGuid({})", numeric_value),
             _ =>  write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }
