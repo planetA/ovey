@@ -33,9 +33,19 @@ pub fn guid_string_to_ube64(repr: &str) -> u64 {
     guid_be
 }
 
+pub fn guid_to_string(guid: u64) -> String {
+    let guid = u64::from_be(guid);
+    let p0 = guid >>  0 & 0xffff;
+    let p1 = guid >> 16 & 0xffff;
+    let p2 = guid >> 32 & 0xffff;
+    let p3 = guid >> 48 & 0xffff;
+
+    format!("{:04x}:{:04x}:{:04x}:{:04x}", p3, p2, p1, p0)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::verbs::guid_string_to_ube64;
+    use super::*;
 
     #[test]
     fn test_guid_string_to_ube64() {
@@ -52,6 +62,14 @@ mod tests {
         let expected = 0xdead_beef_0000_0000_u64;
         let input = "dead:beef:0000:0000";
         let actual = guid_string_to_ube64(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_guid_to_string() {
+        let input = 11117637053157146634_u64;
+        let expected = "0a00:27ff:fec7:499a";
+        let actual = guid_to_string(input);
         assert_eq!(expected, actual);
     }
 }
