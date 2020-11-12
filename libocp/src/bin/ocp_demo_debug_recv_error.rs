@@ -1,7 +1,7 @@
 //! Demo for DebugRespondError command.
 
-use rdma_ovey::ocp::ocp_core::Ocp;
-use rdma_ovey::ocp::ocp_properties::{OveyOperation, FAMILY_NAME};
+use libocp::ocp_core::Ocp;
+use libocp::ocp_properties::{FAMILY_NAME, OveyOperation};
 
 /// Demo for ECHO command.
 fn main() {

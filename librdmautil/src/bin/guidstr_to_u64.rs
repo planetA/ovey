@@ -1,4 +1,4 @@
-use rdma_ovey::verbs::guid_string_to_ube64;
+use librdmautil::guid_string_to_ube64;
 
 fn main() {
     let input = "0a00:27ff:fec7:499a";

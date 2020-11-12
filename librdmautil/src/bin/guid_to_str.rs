@@ -1,4 +1,4 @@
-use rdma_ovey::verbs::guid_to_string;
+use librdmautil::guid_to_string;
 
 fn main() {
     // input big endian

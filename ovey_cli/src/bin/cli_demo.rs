@@ -1,6 +1,6 @@
 //! This demo only tests the cli parsing without actual doing anything.
 
-use rdma_ovey::cli::assert_and_get_args;
+use ovey_cli::cli::assert_and_get_args;
 
 /// This demo only tests the cli parsing without actual doing anything.
 fn main() {

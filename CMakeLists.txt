@@ -4,5 +4,5 @@
 # the directory name.
 
 cmake_minimum_required(VERSION 3.0)
-project("Ovey userland CLI Tool (Rust)")
+project("Ovey userland tools (Rust)")
 

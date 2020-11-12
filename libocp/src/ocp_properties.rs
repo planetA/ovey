@@ -11,7 +11,7 @@ pub const FAMILY_NAME: &str = "rdma-ovey";
 // Implements the necessary trait for the "neli" lib on an enum called "OveyOperation".
 // OveyOperation corresponds to "enum OveyOperation" in kernel module C code.
 // Describes what callback function shall be invoked in the linux kernel module.
-impl_var_trait!(
+neli::impl_var_trait!(
     OveyOperation, u8, Cmd,
     Unspec => 0,
     Echo => 1,
@@ -38,7 +38,7 @@ impl fmt::Display for OveyOperation {
 // Implements the necessary trait for the "neli" lib on an enum called "OveyAttribute".
 // Command corresponds to "enum OveyAttribute" in kernel module C code.
 // Describes the value type to data mappings inside the generic netlink packet payload.
-impl_var_trait!(
+neli::impl_var_trait!(
     OveyAttribute, u16, NlAttrType,
     Unspec => 0,
     Msg => 1,
@@ -62,3 +62,6 @@ impl fmt::Display for OveyAttribute {
         }
     }
 }
+
+pub const DEVICE_NAME_PATTERN: &str = "ovey[0-9]+";
+pub const PARENT_DEVICE_NAME_PATTERN: &str = "[A-z]+[0-9]+";

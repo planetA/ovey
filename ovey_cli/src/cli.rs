@@ -2,10 +2,8 @@
 
 use clap::{ArgMatches, App, SubCommand, Arg};
 use regex::Regex;
-use crate::verbs::GUID_STRING_PATTERN;
-
-pub const DEVICE_NAME_PATTERN: &str = "ovey[0-9]+";
-pub const PARENT_DEVICE_NAME_PATTERN: &str = "[A-z]+[0-9]+";
+use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
+use librdmautil::GUID_STRING_PATTERN;
 
 /// Parses the args and asserts that required args are in the proper order and format.
 pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {

@@ -7,7 +7,21 @@ publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+# keep all projects in work space => only one single target/ dir
+members = [
+    "libocp",
+    "librdmautil",
+    "ovey_cli",
+    "ovey_coordinator",
+    "ovey_daemon"
+]
+
 [dependencies]
-neli = "0.4.4"  # netlink
-clap = "2.33.3" # command line parsing
-regex = "1.3.9"
+# keep all as dependencies for this dummy target
+# => cargo build will build all bins and libs
+"libocp" = { path = "./libocp" }
+"librdmautil" = { path = "./librdmautil" }
+"ovey_cli" = { path = "./ovey_cli" }
+"ovey_coordinator" = { path = "./ovey_coordinator" }
+"ovey_daemon" = { path = "./ovey_daemon" }
