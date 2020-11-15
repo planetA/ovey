@@ -5,6 +5,7 @@ use std::process::exit;
 use ovey_daemon::cli_rest_api::{OVEY_DAEMON_PORT, ROUTE_CREATE_DEVICE, ROUTE_DELETE_DEVICE};
 use actix_web::{middleware, web, HttpServer, App};
 use ovey_daemon::routes::{route_get_index, route_post_create_device, route_delete_delete_device};
+use actix_web::dev::Service;
 
 mod config;
 
@@ -17,7 +18,11 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     // check if all coordinators are up and valid
-    check_config_and_environment();
+    check_config_and_environment().await
+        .map_err(|e| {
+            eprintln!("{}", e);
+            std::io::ErrorKind::Other
+        })?;
 
     println!("Starting REST service on localhost:{}", OVEY_DAEMON_PORT);
 
@@ -37,54 +42,41 @@ async fn main() -> std::io::Result<()> {
         .await
 }
 
-fn check_config_and_environment() {
+async fn check_config_and_environment() -> Result<(), String> {
     let mut actual_up = 0;
     let expected_up = CONFIG.coordinators().len();
 
     if expected_up == 0 {
-        eprintln!("There is not a single Ovey coordinator configured.");
-        exit(-1);
+        return Err("There is not a single Ovey coordinator configured.".to_owned());
     }
 
     // check all hosts are available
-    CONFIG.coordinators().keys().for_each(|network| {
-        // url with scheme, like http://localhost or https://foobar.com/
-        // we make a Request to "/" and check if 200 OK is a response.
-        let host = CONFIG.coordinators().get(network).unwrap();
-        // http://localhost:13337
+    for (network, host) in CONFIG.coordinators() {
         let mut host = host.to_owned();
+        // e.g. http://localhost:13337
         host.push_str(&format!(":{}", OVEY_COORDINATOR_PORT));
 
-        let resp = reqwest::blocking::get(&host);
-        if resp.is_err() {
-            eprintln!("Ovey coordinator on configured host '{}' IS NOT UP.", &host);
+        let resp = reqwest::get(&host).await;
+        let resp = resp.map_err(|_| format!("Ovey coordinator on configured host '{}' IS NOT UP.", &host))?;
+        let resp = resp.json::<AllNetworksDtoType>().await;
+        let json = resp.map_err(|_| format!("Ovey coordinator @ host '{}' sent invalid response.", &host))?;
+
+        if json.contains_key(network) {
+            actual_up += 1;
         } else {
-            println!("Ovey Coordinator @ {} IS UP", host);
-
-            let resp = resp.unwrap();
-            let resp = resp.json::<AllNetworksDtoType>();
-
-            // check if the Ovey coordinator also has the right ovey network configured
-            if let Result::Ok(json) = resp {
-                if json.contains_key(network) {
-                    actual_up += 1;
-                } else {
-                    eprintln!(
-                        "Ovey coordinator on configured host '{}' does not know about network '{}'!",
-                        &host,
-                        network
-                    );
-                }
-            } else {
-                eprintln!("Ovey coordinator @ host '{}' sent invalid response.", &host);
-            }
+            eprintln!(
+                "Ovey coordinator on configured host '{}' does not know about network '{}'!",
+                &host,
+                network
+            );
         }
-    });
+    }
 
-    if actual_up != expected_up {
-        eprintln!("WARNING: Not all Ovey coordinators are available.");
+    return if actual_up != expected_up {
+        Err("WARNING: Not all Ovey coordinators are available.".to_owned())
     } else {
-        println!("INFO: All Ovey coordinators are available.")
+        println!("INFO: All Ovey coordinators are available.");
+        Ok(())
     }
 }
 

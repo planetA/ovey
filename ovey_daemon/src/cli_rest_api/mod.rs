@@ -5,11 +5,11 @@ use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use crate::cli_rest_api::validation::{validate_device_name, validate_parent_device_name, validate_guid};
-use uuid::Uuid;
 
 pub const OVEY_DAEMON_PORT: usize = OVEY_COORDINATOR_PORT + 1;
 
 pub mod validation;
+pub mod errors;
 
 /// A POST-Request to this URL creates an Ovey device inside the kernel.
 pub const ROUTE_CREATE_DEVICE: &str = "/device";

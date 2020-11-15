@@ -1,7 +1,6 @@
 use regex::Regex;
 use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
 use librdmautil::GUID_STRING_PATTERN;
-use crate::cli_rest_api::DeviceInput;
 
 pub fn validate_device_name(name: &str) -> Result<(), String> {
     validate_name(DEVICE_NAME_PATTERN, name)

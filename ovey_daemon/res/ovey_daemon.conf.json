@@ -1,8 +1,6 @@
 {
   "_comment": "Mapping from network id to IP/Domain of coordinator.",
   "coordinators": {
-    "c929e96d-6285-4528-b98e-b364d64790ae": "http://localhost",
-    "c929e96d-6285-4528-b98e-b364d64790a1": "http://localhost",
-    "c929e96d-6285-4528-b98e-b364d64790a0": "http://foobar"
+    "c929e96d-6285-4528-b98e-b364d64790ae": "http://localhost"
   }
 }
