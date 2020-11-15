@@ -1,44 +1,35 @@
 //! Utily functions related to ib devices and verbs.
 
+use crate::endianness::Endianness;
+
 /// String representation of a guid. e.g.: "0000:0000:0000:0000" or "abc0:afaf:34b5:0015"
 pub const GUID_STRING_PATTERN: &str = "[AaBbCcDdEeFf0-9]{4}(:[AaBbCcDdEeFf0-9]{4}){3}";
 
-/// Returns a big endian encoded u64 from a guid string.
-/// See `GUID_STRING_PATTERN`. NOTE: Please be aware that
-/// this value must first be transformed to "host endianness"
-/// if this should be transferred to kernel via OCP.
+pub mod endianness;
+
+/// Returns a big endian encoded u64 from a "big endian" guid hex string.
+/// See `GUID_STRING_PATTERN`.
 ///
 /// * `repr` String representation in big endian order
 pub fn guid_string_to_ube64(repr: &str) -> u64 {
-    let mut split = repr.split(":");
-    let gr0 = split.next().unwrap();
-    let gr1 = split.next().unwrap();
-    let gr2 = split.next().unwrap();
-    let gr3 = split.next().unwrap();
-
-    // each value only takes 16 bits, because each string only contains
-    // 4 hex digits
-    let p0 = u64::from_str_radix(gr0, 16).unwrap();
-    let p1 = u64::from_str_radix(gr1, 16).unwrap();
-    let p2 = u64::from_str_radix(gr2, 16).unwrap();
-    let p3 = u64::from_str_radix(gr3, 16).unwrap();
-
-    // construct u64 in big endian order
-    let mut guid_be = 0;
-    guid_be |= p3 << 0;
-    guid_be |= p2 << 16;
-    guid_be |= p1 << 32;
-    guid_be |= p0 << 48;
-
+    let hexstr = repr.replace(":", "");
+    // is already in big endian because string is
+    let guid_be = u64::from_str_radix(&hexstr, 16).unwrap();
     guid_be
 }
 
-pub fn guid_to_string(guid: u64) -> String {
-    let guid = u64::from_be(guid);
-    let p0 = guid >>  0 & 0xffff;
-    let p1 = guid >> 16 & 0xffff;
-    let p2 = guid >> 32 & 0xffff;
-    let p3 = guid >> 48 & 0xffff;
+/// Converts a guid in host endianess to big endian and calls
+/// `guid_be_to_string()`
+pub fn guid_he_to_string(mut guid_he: u64) -> String {
+    guid_be_to_string(Endianness::u64he_to_u64be(guid_he))
+}
+
+/// Converts a guid in big endian format to it's string representation.
+pub fn guid_be_to_string(guid_be: u64) -> String {
+    let p0 = guid_be >>  0 & 0xffff;
+    let p1 = guid_be >> 16 & 0xffff;
+    let p2 = guid_be >> 32 & 0xffff;
+    let p3 = guid_be >> 48 & 0xffff;
 
     format!("{:04x}:{:04x}:{:04x}:{:04x}", p3, p2, p1, p0)
 }
@@ -49,27 +40,30 @@ mod tests {
 
     #[test]
     fn test_guid_string_to_ube64() {
-        let expected = 720619920823896474_u64;
-        let expected_2 = 0x0a00_27ff_fec7_499a_u64;
+        let guid_he = 11117637053157146634;
+        let guid_be = Endianness::u64he_to_u64be(guid_he);
+        let expected = guid_be;
         let input = "0a00:27ff:fec7:499a";
         let actual = guid_string_to_ube64(input);
-        assert_eq!(expected, expected_2); // just check my assumption is wright
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_guid_string_to_ube64_2() {
-        let expected = 0xdead_beef_0000_0000_u64;
+        let expected_he = 0xdead_beef_0000_0000_u64;
+        let expected_be = Endianness::u64he_to_u64be(expected_he);
         let input = "dead:beef:0000:0000";
         let actual = guid_string_to_ube64(input);
-        assert_eq!(expected, actual);
+
+        assert_eq!(expected_he, actual, "{:x} != {:x}", expected_be, actual);
     }
 
     #[test]
-    fn test_guid_to_string() {
-        let input = 11117637053157146634_u64;
-        let expected = "0a00:27ff:fec7:499a";
-        let actual = guid_to_string(input);
+    fn test_guid_he_to_string() {
+        let input_he = 0xdead_beef_0000_0000_u64;
+        let input_be = Endianness::u64he_to_u64be(input_he);
+        let expected = "dead:beef:0000:0000";
+        let actual = guid_he_to_string(input_be);
         assert_eq!(expected, actual);
     }
 }

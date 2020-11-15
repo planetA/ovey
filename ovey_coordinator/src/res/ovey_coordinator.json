@@ -1,0 +1,9 @@
+{
+  "_comment": "initdata for ovey coordinator",
+  "networks": {
+    "c929e96d-6285-4528-b98e-b364d64790ae": [
+      "dead:beef:0bad:f00d",
+      "affe:cafe:c00f:ee00"
+    ]
+  }
+}

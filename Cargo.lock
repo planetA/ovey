@@ -1107,19 +1107,21 @@ dependencies = [
 [[package]]
 name = "ovey_coordinator"
 version = "0.1.0"
-
-[[package]]
-name = "ovey_daemon"
-version = "0.1.0"
 dependencies = [
  "actix-rt",
  "actix-web",
  "env_logger",
  "json",
+ "lazy_static",
+ "librdmautil",
  "serde",
  "serde_json",
  "uuid",
 ]
+
+[[package]]
+name = "ovey_daemon"
+version = "0.1.0"
 
 [[package]]
 name = "parking_lot"
