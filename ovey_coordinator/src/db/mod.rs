@@ -3,7 +3,7 @@
 use std::sync::Mutex;
 use std::collections::HashMap;
 use crate::data::{DBType, VirtualNetworkIdType, VirtualizedDevice, VirtualGuidType};
-use crate::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput};
+use crate::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, AllNetworksDtoType};
 use crate::rest::errors::CoordinatorRestError;
 use uuid::Uuid;
 
@@ -11,7 +11,7 @@ lazy_static::lazy_static! {
     pub static ref DB: Mutex<DBType> = Mutex::new(HashMap::new());
 }
 
-pub fn get_all_data() -> HashMap<VirtualNetworkIdType, Vec<VirtualizedDeviceDTO>> {
+pub fn get_all_data() -> AllNetworksDtoType {
     let data = &*DB.lock().unwrap();
     let mut all_data = HashMap::new();
     data.keys().for_each(|network_key| {

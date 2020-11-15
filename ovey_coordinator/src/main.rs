@@ -1,3 +1,6 @@
+//! Don't get confused. A Rust crate can be/export a library and a binary at the same time.
+//! This works because lib.rs and main.rs are handled as separate targets.
+
 use actix_web::{
     middleware, web, App, HttpServer,
 };
@@ -15,8 +18,8 @@ mod urls;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Init configuration: supported virtual networks of this coordinator:");
-    println!("{:#?}", CONFIG.networks());
+    println!("Ovey coordinator started with the following initial configuration:");
+    println!("{:#?}", *CONFIG);
 
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
@@ -43,6 +46,7 @@ mod tests {
     use super::*;
     use actix_web::dev::Service;
     use actix_web::{http, test, web, App};
+    use actix_web::http::Error;
 
     #[actix_rt::test]
     async fn test_index() -> Result<(), Error> {

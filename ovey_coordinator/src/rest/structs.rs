@@ -5,10 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 use librdmautil::endianness::Endianness;
-use crate::data::VirtualizedDevice;
+use crate::data::{VirtualizedDevice, VirtualNetworkIdType};
 use derive_builder::Builder;
+use std::collections::HashMap;
 
-#[derive(Deserialize, Debug, Builder)]
+#[derive(Serialize, Deserialize, Debug, Builder)]
 #[builder(setter(into))]
 pub struct VirtualizedDeviceInput {
     // name: especially helpful during development
@@ -30,7 +31,7 @@ impl VirtualizedDeviceInput {
 }
 
 /// The output for a virtualized device.
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct VirtualizedDeviceDTO {
     virtual_device_guid_string: String,
     virtual_device_guid_be: u64,
@@ -59,6 +60,9 @@ impl VirtualizedDeviceDTO {
         }
     }
 }
+
+/// This DTO exports all networks with all registered devices.
+pub type AllNetworksDtoType = HashMap<VirtualNetworkIdType, Vec<VirtualizedDeviceDTO>>;
 
 #[cfg(test)]
 mod tests {

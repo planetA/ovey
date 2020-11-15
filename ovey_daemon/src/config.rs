@@ -1,21 +1,16 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use std::fs::File;
 use std::io::Read;
-use uuid::Uuid;
+use ovey_coordinator::data::*;
 
 lazy_static::lazy_static! {
     pub static ref CONFIG: InitDataConfiguration = {
         let opt: Result<InitDataConfiguration, std::io::Error> = setup_init_config();
         if opt.is_err() {
-            panic!("Ovey coordinator needs an init configuration! {:#?}", opt.unwrap_err())
+            panic!("Ovey daemon needs an init configuration! {:#?}", opt.unwrap_err())
         }
         let cfg = opt.unwrap();
-
-        // register all networks
-        cfg.networks.keys().for_each(|key| {
-            crate::db::register_network(key.to_owned()).unwrap();
-        });
 
         cfg
     };
@@ -23,18 +18,19 @@ lazy_static::lazy_static! {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InitDataConfiguration {
-    networks: HashMap<Uuid, Vec<String>>
+    /// Mapping from virtual network id to url / REST-Service of the coordinator.
+    coordinators: HashMap<VirtualNetworkIdType, String>
 }
 
 impl InitDataConfiguration {
-    pub fn networks(&self) -> &HashMap<Uuid, Vec<String>> {
-        &self.networks
+    pub fn coordinators(&self) -> &HashMap<VirtualNetworkIdType, String> {
+        &self.coordinators
     }
 }
 
 fn setup_init_config() -> Result<InitDataConfiguration, std::io::Error> {
     // TODO ENv Var
-    let mut file = File::open("../ovey_coordinator/res/ovey_coordinator.conf.json")?;
+    let mut file = File::open("../ovey_daemon/res/ovey_daemon.conf.json")?;
     let mut file_content = String::new();
     let _length = file.read_to_string(&mut file_content)?;
 
