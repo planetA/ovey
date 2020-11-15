@@ -1,6 +1,6 @@
 [package]
 name = "ovey_cli"
-description = "OVEY: Binary Ovey CLI"
+description = "OVEY: Executable Ovey CLI"
 version = "0.1.0"
 authors = ["Philipp Schuster <philipp_johannes.schuster@mailbox.tu-dresden.de>"]
 edition = "2018"

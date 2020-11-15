@@ -1,6 +1,6 @@
 [package]
 name = "ovey_daemon"
-description = "OVEY: Binary Ovey Deamon"
+description = "OVEY: Executable Ovey Deamon. Communicates with Ovey Coordinators. Offers a REST-API for OVEY CLI."
 version = "0.1.0"
 authors = ["Philipp Schuster <philipp_johannes.schuster@mailbox.tu-dresden.de>"]
 edition = "2018"
