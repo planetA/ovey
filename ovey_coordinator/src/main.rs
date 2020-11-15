@@ -3,14 +3,15 @@ use actix_web::{
 };
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use config::CONFIG;
-use crate::routes::urls::{ROUTE_POST_ADD_DEVICE_URL, ROUTE_GET_CONFIG_URL};
-use crate::routes::handlers;
+use crate::urls::{ROUTE_POST_ADD_DEVICE_URL, ROUTE_GET_CONFIG_URL};
+use crate::routes::{route_config, route_add_device, route_index};
 
 mod config;
 mod rest;
 mod data;
 mod db;
 mod routes;
+mod urls;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -27,10 +28,10 @@ async fn main() -> std::io::Result<()> {
             // enable logger
             .wrap(middleware::Logger::default())
             .data(web::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
-            .service(web::resource(ROUTE_GET_CONFIG_URL).route(web::get().to(handlers::route_config)))
+            .service(web::resource(ROUTE_GET_CONFIG_URL).route(web::get().to(route_config)))
             //.service(web::resource("/network/{network}").route(web::get().to(route_add_device)))
-            .service(web::resource(ROUTE_POST_ADD_DEVICE_URL).route(web::post().to(handlers::route_add_device)))
-            .service(web::resource("/").route(web::get().to(handlers::route_index)))
+            .service(web::resource(ROUTE_POST_ADD_DEVICE_URL).route(web::post().to(route_add_device)))
+            .service(web::resource("/").route(web::get().to(route_index)))
     })
         .bind(format!("localhost:{}", OVEY_COORDINATOR_PORT))?
         .run()

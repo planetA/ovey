@@ -1,13 +1,7 @@
-//! Public exports of ovey_coordinator.
+//! Public exports of ovey_coordinator. Needed for ovey_daemon.
 
 pub const OVEY_COORDINATOR_PORT: usize = 13337;
 
-/*mod rest;
-mod routes;
-mod data;
-
-// Export the layout of *Input-Structs and *Dto-Structs.
-pub use rest::structs;
-
-// export all urls.
-pub use routes::urls;*/
+pub mod rest; // Export the layout of *Input-Structs and *Dto-Structs.
+pub mod urls; // export all urls.
+mod data;     // without it the others don't build

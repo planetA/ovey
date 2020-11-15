@@ -6,8 +6,10 @@
 use serde::{Deserialize, Serialize};
 use librdmautil::endianness::Endianness;
 use crate::data::VirtualizedDevice;
+use derive_builder::Builder;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Builder)]
+#[builder(setter(into))]
 pub struct VirtualizedDeviceInput {
     // name: especially helpful during development
     virtual_device_guid_string: String,
@@ -56,4 +58,22 @@ impl VirtualizedDeviceDTO {
             physical_device_guid_le
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn builder_works() {
+        // see https://crates.io/crates/derive_builder
+        let foo = VirtualizedDeviceInputBuilder::default()
+            .virtual_device_guid_string("1000:0000:0000:0000")
+            .physical_device_guid_string("3000:0000:0000:0000")
+            .build()
+            .unwrap();
+        println!("{:#?}", foo);
+    }
+
 }
