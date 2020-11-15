@@ -1,4 +1,5 @@
-//! Handles all routes/controllers. Functions that get invoked on a specific route.
+//! Handles all routes/controllers. Functions that get invoked on a specific route from
+//! Ovey daemon requests.
 
 use actix_web::{HttpResponse, HttpRequest, web};
 

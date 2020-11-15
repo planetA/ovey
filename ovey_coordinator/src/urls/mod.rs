@@ -1,4 +1,4 @@
-//! Route paths/urls.
+//! Route paths/urls for the REST-API for Ovey Daemon.
 
 /// Returns the configuration of the coordinator.
 pub const ROUTE_GET_CONFIG_URL: &str = "/config";

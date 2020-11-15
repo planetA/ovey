@@ -1333,6 +1333,7 @@ dependencies = [
  "clap",
  "libocp",
  "librdmautil",
+ "ovey_daemon",
  "regex",
 ]
 
@@ -1356,9 +1357,15 @@ dependencies = [
 name = "ovey_daemon"
 version = "0.1.0"
 dependencies = [
+ "actix-rt",
+ "actix-web",
+ "derive_builder",
+ "env_logger",
  "json",
- "lazy_static",
+ "libocp",
+ "librdmautil",
  "ovey_coordinator",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
