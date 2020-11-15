@@ -6,8 +6,8 @@ POST http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device
 Content-Type: application/json
 
 {
-  "virtual_device_guid_string": "dead:affe:c0fe:1234",
-  "physical_device_guid_string": "dead:affe:afaf:1234"
+  "virtual_device_guid_string": "dead:beef:0bad:f00d",
+  "physical_device_guid_string": "f000:0000:0000:1234"
 }
 
 ###

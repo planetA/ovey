@@ -3,7 +3,9 @@
 use std::sync::Mutex;
 use std::collections::HashMap;
 use crate::data::{DBType, VirtualNetworkIdType, VirtualizedDevice, VirtualGuidType};
-use crate::rest::{VirtualizedDeviceDTO, VirtualizedDeviceInput};
+use crate::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput};
+use crate::rest::errors::CoordinatorRestError;
+use uuid::Uuid;
 
 lazy_static::lazy_static! {
     pub static ref DB: Mutex<DBType> = Mutex::new(HashMap::new());
@@ -50,17 +52,29 @@ pub fn register_network(id: VirtualNetworkIdType) -> Result<(), String> {
 }
 
 /// Assigns a virtualized rdma device to a virtualized network.
-pub fn add_device_to_network(network_id: &VirtualNetworkIdType, dev: VirtualizedDeviceInput) -> Result<VirtualizedDeviceDTO, String> {
+pub fn add_device_to_network(network_id: &VirtualNetworkIdType, dev: VirtualizedDeviceInput) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+    // validate first
+    check_device_is_allowed(network_id, &dev.virtual_device_guid_string().to_owned())?;
+
     let id = &dev.virtual_device_guid_string().to_owned();
     {
         let mut db = DB.lock().unwrap();
         if !db.contains_key(&network_id) {
-            return Err(format!("Network with id {} doesn't exists!", network_id));
+            // should never happen; on program init all keys are created
+            return Err(
+                CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned())
+            );
         }
+
 
         let network = db.get_mut(&network_id).unwrap();
         if network.contains_key(dev.virtual_device_guid_string()) {
-            return Err(format!("Virtual device with guid {} is already registered in virtual network {}!", dev.virtual_device_guid_string(), network_id));
+            return Err(
+                CoordinatorRestError::VirtDeviceAlreadyRegistered(
+                    network_id.to_owned(),
+                    dev.virtual_device_guid_string().to_owned()
+                )
+            );
         }
 
         network.insert(dev.virtual_device_guid_string().to_owned(), VirtualizedDevice::new(dev));
@@ -70,4 +84,19 @@ pub fn add_device_to_network(network_id: &VirtualNetworkIdType, dev: Virtualized
     let dto = get_device(network_id, id).unwrap();
 
     Ok(dto)
+}
+
+pub fn check_device_is_allowed(network_id: &Uuid, device_id: &VirtualGuidType) -> Result<(), CoordinatorRestError> {
+    // validate device guid
+    let devs = crate::config::CONFIG.networks().get(network_id);
+    if devs.is_none() {
+        return Err(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()));
+    }
+
+    let devs = devs.unwrap();
+    if !devs.contains(device_id) {
+        Err(CoordinatorRestError::VirtDeviceGuidNotSupported(network_id.to_owned(), device_id.to_owned()))
+    } else {
+        Ok(())
+    }
 }

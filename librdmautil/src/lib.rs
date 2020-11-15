@@ -20,7 +20,7 @@ pub fn guid_string_to_ube64(repr: &str) -> u64 {
 
 /// Converts a guid in host endianess to big endian and calls
 /// `guid_be_to_string()`
-pub fn guid_he_to_string(mut guid_he: u64) -> String {
+pub fn guid_he_to_string(guid_he: u64) -> String {
     guid_be_to_string(Endianness::u64he_to_u64be(guid_he))
 }
 

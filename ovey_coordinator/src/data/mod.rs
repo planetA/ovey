@@ -2,7 +2,7 @@
 
 use uuid::Uuid;
 use std::collections::HashMap;
-use crate::rest::VirtualizedDeviceInput;
+use crate::rest::structs::VirtualizedDeviceInput;
 
 /// A guid is a big endian encoded u64.
 pub type GuidType = u64;
@@ -33,9 +33,6 @@ pub struct VirtualizedDevice {
 }
 
 impl VirtualizedDevice {
-
-
-
     pub fn virtual_device_name(&self) -> &Option<String> {
         &self.virtual_device_name
     }

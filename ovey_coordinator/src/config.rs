@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::fs::File;
 use std::io::Read;
-use std::fmt::Display;
-use serde::export::Formatter;
 use uuid::Uuid;
 
 lazy_static::lazy_static! {
@@ -37,7 +34,7 @@ impl InitDataConfiguration {
 
 fn setup_init_config() -> Result<InitDataConfiguration, std::io::Error> {
     // TODO ENv Var
-    let mut file = File::open("../ovey_coordinator/src/res/ovey_coordinator.json")?;
+    let mut file = File::open("../ovey_coordinator/res/ovey_coordinator.json")?;
     let mut file_content = String::new();
     let _length = file.read_to_string(&mut file_content)?;
 
