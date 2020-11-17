@@ -24,7 +24,7 @@ pub enum CoordinatorRestError {
     #[display(fmt = "The given virtual guid '{}' is already registered in the virtual network '{}'.", _1, _0)]
     VirtDeviceAlreadyRegistered(Uuid, String),
     /// Means that the virtual device is supported by the coordinator but not yet registered/activated.
-    #[display(fmt = "The virtual device with guid '{}' not yet registered in the virtual network '{}'.", _1, _0)]
+    #[display(fmt = "The virtual device with guid '{}' is not registered in the virtual network '{}'.", _1, _0)]
     VirtDeviceNotYetRegistered(Uuid, String)
 
 }

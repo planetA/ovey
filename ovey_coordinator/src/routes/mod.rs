@@ -4,7 +4,7 @@
 use actix_web::{HttpResponse, HttpRequest, web};
 
 use crate::rest::structs::VirtualizedDeviceInput;
-use crate::db::{get_all_data, add_device_to_network, get_device, get_device_data};
+use crate::db::{get_all_data, add_device_to_network, get_device, get_device_data, delete_device_from_network};
 use crate::config::CONFIG;
 use crate::rest::errors::CoordinatorRestError;
 use ovey_coordinator::data::VirtualGuidType;
@@ -31,4 +31,11 @@ pub async fn route_add_device(input: web::Json<VirtualizedDeviceInput>,
     add_device_to_network(&network_uuid, input.into_inner())?;
     let dto = get_device(&network_uuid, &guid).unwrap();
     Ok(HttpResponse::Ok().json(dto))
+}
+
+
+pub async fn route_delete_device(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, VirtualGuidType)>)
+    -> Result<actix_web::HttpResponse, CoordinatorRestError> {
+    delete_device_from_network(&network_uuid, &virt_dev_id)
+        .map(|dto| HttpResponse::Ok().json(dto))
 }

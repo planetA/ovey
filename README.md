@@ -33,3 +33,8 @@ It contains tools written in Rust for the following components (binaries):
 ## Definition of a virtual network (it's meta data)
 - has a UUID (v4)
 - knows all virtual guids (=virtual devices) that are allowed in that network
+
+## Input validation inside Ovey infrastructure and REST communication
+- Ovey daemon validates data from cli
+- cli validates information by itself too (validates user input)
+- coordinator trusts data from daemon (so far because this is a PoC and no production ready software)

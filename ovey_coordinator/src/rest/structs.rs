@@ -96,6 +96,8 @@ mod tests {
         let foo = VirtualizedCreateDeviceInputBuilder::default()
             .virtual_device_guid_string("1000:0000:0000:0000")
             .physical_device_guid_string("3000:0000:0000:0000")
+            .parent_device_name("rxe0")
+            .device_name("ovey0")
             .build()
             .unwrap();
         println!("{:#?}", foo);

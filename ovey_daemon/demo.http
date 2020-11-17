@@ -1,0 +1,20 @@
+# immitates the creation of a create device request from CLI
+POST http://localhost:13338/device
+Content-Type: application/json
+
+{
+  "network_id": "c929e96d-6285-4528-b98e-b364d64790ae",
+  "virt_guid": "dead:beef:0bad:f00d",
+  "device_name": "ovey0",
+  "parent_device_name": "rxe0"
+}
+
+###
+# immitates the deletion of a create device request from CLI
+DELETE http://localhost:13338/device
+Content-Type: application/json
+
+{
+  "network_id": "c929e96d-6285-4528-b98e-b364d64790ae",
+  "virt_guid": "dead:beef:0bad:f00d"
+}

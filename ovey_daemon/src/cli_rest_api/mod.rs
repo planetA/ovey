@@ -11,42 +11,52 @@ pub const OVEY_DAEMON_PORT: usize = OVEY_COORDINATOR_PORT + 1;
 pub mod validation;
 pub mod errors;
 
-/// A POST-Request to this URL creates an Ovey device inside the kernel.
-pub const ROUTE_CREATE_DEVICE: &str = "/device";
-/// A DELETE-Request to this URL delete an Ovey device inside the kernel.
-pub const ROUTE_DELETE_DEVICE: &str = "/device";
+/// URL to manage devices. GET, POST, DELETE, ...
+pub const ROUTE_DEVICE: &str = "/device";
 /// A GET-Request to this URL tests an OCP Echo Message (to test OCP netlink communication).
-pub const ROUTE_KERNEL_ECHO: &str = "/kernel/echo";
+pub const ROUTE_KERNEL_ECHO: &str = "/ocp/kernel/echo";
 
+/// Payload for the REST interface of ovey daemon to create a device in both: coordinator and kernel
 #[derive(Serialize, Deserialize, Debug, Builder, Default)]
 #[builder(setter(into), build_fn(validate = "Self::validate"))]
-pub struct DeviceInput {
-    network: VirtualNetworkIdType,
+pub struct CreateDeviceInput {
+    network_id: VirtualNetworkIdType,
     virt_guid: VirtualGuidType,
     device_name: String,
-    parent_device_name: String
+    parent_device_name: String,
 }
 
-impl DeviceInput {
-
-    /// Constructs a new instance from an existing with an intermediate step
-    /// via the builder. Advantage: If this comes from REST (deserialized)
-    /// we can validate it easily again by constructing a new version of it.
-    pub fn new(di: &DeviceInput) -> Self {
-       // construct a new instance with the builder as middleware -> validation :)
-        DeviceInputBuilder::default()
-            .virt_guid(di.virt_guid.to_owned())
-            .device_name(di.device_name.to_owned())
-            .parent_device_name(di.parent_device_name.to_owned())
-            .network(di.network.to_owned())
-            .build()
-            .unwrap()
+impl CreateDeviceInput {
+    pub fn network_id(&self) -> VirtualNetworkIdType {
+        self.network_id
+    }
+    pub fn virt_guid(&self) -> &str {
+        &self.virt_guid
+    }
+    pub fn device_name(&self) -> &str {
+        &self.device_name
+    }
+    pub fn parent_device_name(&self) -> &str {
+        &self.parent_device_name
     }
 }
 
 // comes from code generation
 // https://docs.rs/derive_builder/0.9.0/derive_builder/
-impl DeviceInputBuilder {
+impl CreateDeviceInputBuilder {
+    /// Constructs a new instance from an existing with an intermediate step
+    /// via the builder. Advantage: If this comes from REST (deserialized)
+    /// we can validate it easily again by constructing a new version of it.
+    pub fn rebuild(input: CreateDeviceInput) -> Result<CreateDeviceInput, String> {
+        // construct a new instance with the builder as middleware -> validation :)
+        CreateDeviceInputBuilder::default()
+            .virt_guid(input.virt_guid.to_owned())
+            .device_name(input.device_name.to_owned())
+            .parent_device_name(input.parent_device_name.to_owned())
+            .network_id(input.network_id.to_owned())
+            .build()
+    }
+
     fn validate(&self) -> Result<(), String> {
         // it's okay to skip none values: that they are set is checked anyways by the builder
         if let Some(ref val) = self.device_name {
@@ -62,16 +72,56 @@ impl DeviceInputBuilder {
     }
 }
 
+/// Payload for the REST interface of ovey daemon to delete a device in both: the kernel and the coordinator.
+#[derive(Serialize, Deserialize, Debug, Builder, Default)]
+#[builder(setter(into), build_fn(validate = "Self::validate"))]
+pub struct DeleteDeviceInput {
+    network_id: VirtualNetworkIdType,
+    virt_guid: VirtualGuidType,
+}
+
+impl DeleteDeviceInput {
+    pub fn network_id(&self) -> VirtualNetworkIdType {
+        self.network_id
+    }
+    pub fn virt_guid(&self) -> &str {
+        &self.virt_guid
+    }
+}
+
+// comes from code generation
+// https://docs.rs/derive_builder/0.9.0/derive_builder/
+impl DeleteDeviceInputBuilder {
+    /// Constructs a new instance from an existing with an intermediate step
+    /// via the builder. Advantage: If this comes from REST (deserialized)
+    /// we can validate it easily again by constructing a new version of it.
+    pub fn rebuild(input: DeleteDeviceInput) -> Result<DeleteDeviceInput, String> {
+        // construct a new instance with the builder as middleware -> validation :)
+        DeleteDeviceInputBuilder::default()
+            .virt_guid(input.virt_guid.to_owned())
+            .network_id(input.network_id.to_owned())
+            .build()
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        if let Some(ref val) = self.virt_guid {
+            validate_guid(val)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn builder_works() {
         // comes from code generation
         // see https://crates.io/crates/derive_builder
-        let foo = DeviceInputBuilder::default()
+        let foo = CreateDeviceInputBuilder::default()
             .virt_guid("dead:beef:0bad:f00d")
             .device_name("ovey0")
             .parent_device_name("rxe0")
@@ -80,7 +130,7 @@ mod tests {
             .unwrap();
         println!("{:#?}", foo);
 
-        let new = DeviceInput::new(&foo);
+        let new = CreateDeviceInputBuilder::rebuild(foo).unwrap();
     }
 
 }

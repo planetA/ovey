@@ -96,6 +96,17 @@ pub fn add_device_to_network(network_id: &VirtualNetworkIdType, dev: Virtualized
     Ok(dto)
 }
 
+/// Returns the old device as DTO on success, otherwise error.
+pub fn delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+    let mut network = DB.lock().unwrap();
+    let network = network.get_mut(network_id);
+    let network = network.ok_or(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()))?;
+    let dto = network.remove(dev_id);
+    let dto = dto.map(|e| VirtualizedDeviceDTO::new(&e));
+    let dto = dto.ok_or(CoordinatorRestError::VirtDeviceNotYetRegistered(network_id.to_owned(), dev_id.to_owned()));
+    dto
+}
+
 pub fn check_device_is_allowed(network_id: &Uuid, device_id: &VirtualGuidType) -> Result<(), CoordinatorRestError> {
     // validate device guid
     let devs = crate::config::CONFIG.networks().get(network_id);

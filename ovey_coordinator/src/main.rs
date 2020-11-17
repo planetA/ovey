@@ -6,9 +6,9 @@ use actix_web::{
 };
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use config::CONFIG;
-use crate::urls::{ROUTE_POST_ADD_DEVICE_URL, ROUTE_GET_CONFIG_URL};
-use crate::routes::{route_config, route_add_device, route_index, route_get_device_info};
-use ovey_coordinator::urls::ROUTE_GET_DEVICE_INFO;
+use crate::urls::{ROUTE_ADD_DEVICE_URL, ROUTE_GET_CONFIG_URL};
+use crate::routes::{route_config, route_add_device, route_index, route_get_device_info, route_delete_device};
+use ovey_coordinator::urls::{ROUTE_DEVICE};
 
 mod config;
 mod rest;
@@ -22,7 +22,7 @@ async fn main() -> std::io::Result<()> {
     println!("Ovey coordinator started with the following initial configuration:");
     println!("{:#?}", *CONFIG);
 
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "actix_web=debug");
     env_logger::init();
 
     println!("Starting REST service on localhost:{}", OVEY_COORDINATOR_PORT);
@@ -34,8 +34,10 @@ async fn main() -> std::io::Result<()> {
             // use default value .data(web::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
             .service(web::resource(ROUTE_GET_CONFIG_URL).route(web::get().to(route_config)))
             //.service(web::resource("/network/{network}").route(web::get().to(route_add_device)))
-            .service(web::resource(ROUTE_POST_ADD_DEVICE_URL).route(web::post().to(route_add_device)))
-            .service(web::resource(ROUTE_GET_DEVICE_INFO).route(web::get().to(route_get_device_info)))
+            .service(web::resource(ROUTE_ADD_DEVICE_URL).route(web::post().to(route_add_device)))
+            .service(web::resource(ROUTE_DEVICE)
+                .route(web::delete().to(route_delete_device))
+                .route(web::get().to(route_get_device_info)))
             .service(web::resource("/").route(web::get().to(route_index)))
     })
         // TODO also bind the local address? Because this must be called from local network or even remotely?!

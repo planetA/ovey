@@ -31,5 +31,9 @@ Content-Type: application/json
 }
 
 ###
-#get data for a davice
-GET http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device/dead:beef:0bad:f00d
+# get data for a device
+GET    http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device/dead:beef:0bad:f00d
+
+###
+# now delete the device again
+DELETE http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device/dead:beef:0bad:f00d
