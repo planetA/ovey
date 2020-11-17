@@ -1,0 +1,45 @@
+
+POST http://localhost:13338/device
+Content-Type: application/json
+
+# wrong network id; deamon knows no coordinator for that
+{
+  "network_id": "00000000-6285-4528-b98e-b364d64790ae",
+  "virt_guid": "dead:beef:0bad:f00d",
+  "device_name": "ovey0",
+  "parent_device_name": "rxe0"
+}
+
+###
+POST http://localhost:13338/device
+Content-Type: application/json
+
+# wrong guid
+{
+  "network_id": "c929e96d-6285-4528-b98e-b364d64790ae",
+  "virt_guid": "0000:beef:0bad:f00d",
+  "device_name": "ovey0",
+  "parent_device_name": "rxe0"
+}
+
+
+###
+
+DELETE http://localhost:13338/device
+Content-Type: application/json
+
+# wrong network
+{
+  "network_id": "00000000-6285-4528-b98e-b364d64790ae",
+  "virt_guid": "dead:beef:0bad:f00d"
+}
+###
+
+DELETE http://localhost:13338/device
+Content-Type: application/json
+
+# wrong guid
+{
+  "network_id": "c929e96d-6285-4528-b98e-b364d64790ae",
+  "virt_guid": "0000:beef:0bad:f00d"
+}

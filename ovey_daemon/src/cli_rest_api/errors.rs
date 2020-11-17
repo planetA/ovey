@@ -39,7 +39,7 @@ impl error::ResponseError for DaemonRestError {
             DaemonRestError::IllegalCoordinatorResponse => StatusCode::INTERNAL_SERVER_ERROR,
 
             // 4XX
-            DaemonRestError::UnknownNetwork(_) => StatusCode::BAD_REQUEST,
+            DaemonRestError::UnknownNetwork(_) => StatusCode::NOT_FOUND,
             DaemonRestError::DeviceAlreadyRegistered(_, _) => StatusCode::BAD_REQUEST,
             DaemonRestError::DeviceDoesntExist(_, _) => StatusCode::NOT_FOUND,
             DaemonRestError::MalformedPayload(_) => StatusCode::BAD_REQUEST,
