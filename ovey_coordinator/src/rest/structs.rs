@@ -9,6 +9,8 @@ use crate::data::{VirtualizedDevice, VirtualNetworkIdType};
 use derive_builder::Builder;
 use std::collections::HashMap;
 
+/// This is the data for the REST-API that is expected as payload of a REST-Request
+/// when a new file should be created.
 #[derive(Serialize, Deserialize, Debug, Builder)]
 #[builder(setter(into))]
 pub struct VirtualizedDeviceInput {
@@ -16,6 +18,10 @@ pub struct VirtualizedDeviceInput {
     virtual_device_guid_string: String,
     // name: especially helpful during development
     physical_device_guid_string: String,
+    /// device name, e.g. ovey0
+    device_name: String,
+    /// parent device name, e.g. rxe0 or mlx0
+    parent_device_name: String,
 
     // qp_num: u64,
     // add more properties that needs to be virtualized..
@@ -28,6 +34,13 @@ impl VirtualizedDeviceInput {
     pub fn physical_device_guid_string(&self) -> &str {
         &self.physical_device_guid_string
     }
+
+    pub fn device_name(&self) -> &str {
+        &self.device_name
+    }
+    pub fn parent_device_name(&self) -> &str {
+        &self.parent_device_name
+    }
 }
 
 /// The output for a virtualized device.
@@ -39,6 +52,10 @@ pub struct VirtualizedDeviceDTO {
     physical_device_guid_string: String,
     physical_device_guid_be: u64,
     physical_device_guid_le: u64,
+    /// device name, e.g. ovey0
+    device_name: String,
+    /// parent device name, e.g. rxe0 or mlx0
+    parent_device_name: String,
 }
 
 impl VirtualizedDeviceDTO {
@@ -49,6 +66,8 @@ impl VirtualizedDeviceDTO {
         let physical_device_guid_string = librdmautil::guid_be_to_string(entity.physical_guid_be());
         let physical_device_guid_be = entity.physical_guid_be();
         let physical_device_guid_le = Endianness::change(entity.physical_guid_be());
+        let device_name = entity.virtual_device_name().to_owned();
+        let parent_device_name = entity.physical_device_name().to_owned();
 
         Self {
             virtual_device_guid_string,
@@ -56,7 +75,9 @@ impl VirtualizedDeviceDTO {
             virtual_device_guid_le,
             physical_device_guid_string,
             physical_device_guid_be,
-            physical_device_guid_le
+            physical_device_guid_le,
+            device_name,
+            parent_device_name
         }
     }
 }
@@ -72,7 +93,7 @@ mod tests {
     #[test]
     fn builder_works() {
         // see https://crates.io/crates/derive_builder
-        let foo = VirtualizedDeviceInputBuilder::default()
+        let foo = VirtualizedCreateDeviceInputBuilder::default()
             .virtual_device_guid_string("1000:0000:0000:0000")
             .physical_device_guid_string("3000:0000:0000:0000")
             .build()

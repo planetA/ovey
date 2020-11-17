@@ -1,13 +1,35 @@
+# get config
+GET http://localhost:13337/config
+
+###
+# get all data
 GET http://localhost:13337/
 
 ###
 
+# create a device (that is allowed)
 POST http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device
 Content-Type: application/json
 
 {
+  "device_name": "ovey0",
+  "parent_device_name": "rxe0",
   "virtual_device_guid_string": "dead:beef:0bad:f00d",
   "physical_device_guid_string": "f000:0000:0000:1234"
 }
+###
+
+# create a device (that is NOT ALLOWED)
+POST http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device
+Content-Type: application/json
+
+{
+  "virtual_device_guid_string": "0000:0000:0000:0000",
+  "physical_device_guid_string": "f000:0000:0000:1234",
+  "device_name": "ovey0",
+  "parent_device_name": "rxe0"
+}
 
 ###
+#get data for a davice
+GET http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device/dead:beef:0bad:f00d

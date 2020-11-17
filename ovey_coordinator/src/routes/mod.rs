@@ -4,9 +4,10 @@
 use actix_web::{HttpResponse, HttpRequest, web};
 
 use crate::rest::structs::VirtualizedDeviceInput;
-use crate::db::{get_all_data, add_device_to_network, get_device};
+use crate::db::{get_all_data, add_device_to_network, get_device, get_device_data};
 use crate::config::CONFIG;
 use crate::rest::errors::CoordinatorRestError;
+use ovey_coordinator::data::VirtualGuidType;
 
 pub async fn route_config() -> HttpResponse {
     HttpResponse::Ok().json(&*CONFIG) // <- send response
@@ -15,6 +16,12 @@ pub async fn route_config() -> HttpResponse {
 pub async fn route_index(_req: HttpRequest) -> HttpResponse {
     //println!("request: {:?}", &req);
     HttpResponse::Ok().json(get_all_data()) // <- send response
+}
+
+pub async fn route_get_device_info(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, VirtualGuidType)>)
+    -> Result<actix_web::HttpResponse, CoordinatorRestError> {
+    get_device_data(&network_uuid, &virt_dev_id)
+        .map(|dto| HttpResponse::Ok().json(dto))
 }
 
 pub async fn route_add_device(input: web::Json<VirtualizedDeviceInput>,

@@ -32,6 +32,17 @@ pub fn get_all_data() -> AllNetworksDtoType {
     all_data
 }
 
+/// Returns the data for a single device
+pub fn get_device_data(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType)
+    -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+    let network = &*DB.lock().unwrap();
+    let network = network.get(network_id);
+    let network = network.ok_or(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()))?;
+    let device = network.get(dev_id).ok_or(CoordinatorRestError::VirtDeviceNotYetRegistered(network_id.to_owned(), dev_id.to_owned()));
+    let device = device.map(|d| VirtualizedDeviceDTO::new(d));
+    device
+}
+
 pub fn get_device(network_id: &VirtualNetworkIdType, dev: &VirtualGuidType) -> Option<VirtualizedDeviceDTO> {
     let db = DB.lock().unwrap();
     let network_data = db.get(&network_id)?;
@@ -65,7 +76,6 @@ pub fn add_device_to_network(network_id: &VirtualNetworkIdType, dev: Virtualized
                 CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned())
             );
         }
-
 
         let network = db.get_mut(&network_id).unwrap();
         if network.contains_key(dev.virtual_device_guid_string()) {

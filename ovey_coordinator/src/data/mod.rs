@@ -20,12 +20,12 @@ pub type DBType = HashMap<VirtualNetworkIdType, VirtualizedNetworkDataType>;
 
 #[derive(Debug)]
 pub struct VirtualizedDevice {
-    // name: especially helpful during development
-    virtual_device_name: Option<String>,
+    // e.g. "ovey0"
+    virtual_device_name: String,
     /// Virtual GUID in big endian format.
     virtual_guid_be: GuidType,
-    // name: especially helpful during development
-    physical_device_name: Option<String>,
+    // e.g. "rxe0"
+    physical_device_name: String,
     /// Physical GUID in big endian format.
     physical_guid_be: GuidType,
     qp_num: u64,
@@ -33,13 +33,13 @@ pub struct VirtualizedDevice {
 }
 
 impl VirtualizedDevice {
-    pub fn virtual_device_name(&self) -> &Option<String> {
+    pub fn virtual_device_name(&self) -> &String {
         &self.virtual_device_name
     }
     pub fn virtual_guid_be(&self) -> u64 {
         self.virtual_guid_be
     }
-    pub fn physical_device_name(&self) -> &Option<String> {
+    pub fn physical_device_name(&self) -> &String {
         &self.physical_device_name
     }
     pub fn physical_guid_be(&self) -> u64 {
@@ -51,8 +51,8 @@ impl VirtualizedDevice {
 
     pub fn new(input: VirtualizedDeviceInput) -> Self {
         Self {
-            virtual_device_name: None,
-            physical_device_name: None,
+            virtual_device_name: input.device_name().to_owned(),
+            physical_device_name: input.parent_device_name().to_owned(),
             virtual_guid_be: librdmautil::guid_string_to_ube64(input.virtual_device_guid_string()),
             physical_guid_be: librdmautil::guid_string_to_ube64(input.physical_device_guid_string()),
             qp_num: 0,

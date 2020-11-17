@@ -7,7 +7,8 @@ use actix_web::{
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use config::CONFIG;
 use crate::urls::{ROUTE_POST_ADD_DEVICE_URL, ROUTE_GET_CONFIG_URL};
-use crate::routes::{route_config, route_add_device, route_index};
+use crate::routes::{route_config, route_add_device, route_index, route_get_device_info};
+use ovey_coordinator::urls::ROUTE_GET_DEVICE_INFO;
 
 mod config;
 mod rest;
@@ -34,6 +35,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource(ROUTE_GET_CONFIG_URL).route(web::get().to(route_config)))
             //.service(web::resource("/network/{network}").route(web::get().to(route_add_device)))
             .service(web::resource(ROUTE_POST_ADD_DEVICE_URL).route(web::post().to(route_add_device)))
+            .service(web::resource(ROUTE_GET_DEVICE_INFO).route(web::get().to(route_get_device_info)))
             .service(web::resource("/").route(web::get().to(route_index)))
     })
         // TODO also bind the local address? Because this must be called from local network or even remotely?!
