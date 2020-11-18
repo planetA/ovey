@@ -11,7 +11,8 @@ lazy_static::lazy_static! {
     pub static ref DB: Mutex<DBType> = Mutex::new(HashMap::new());
 }
 
-pub fn get_all_data() -> AllNetworksDtoType {
+/// Returns the whole database with all networks and their current registered devices.
+pub fn db_get_all_data() -> AllNetworksDtoType {
     let data = &*DB.lock().unwrap();
     let mut all_data = HashMap::new();
     data.keys().for_each(|network_key| {
@@ -32,9 +33,22 @@ pub fn get_all_data() -> AllNetworksDtoType {
     all_data
 }
 
+/// Returns info about all devices in a specific network.
+pub fn db_get_network_data(network_id: &VirtualNetworkIdType) -> Result<Vec<VirtualizedDeviceDTO>, CoordinatorRestError> {
+    let network = &*DB.lock().unwrap();
+    let network = network.get(network_id);
+    let network = network.ok_or(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()))?;
+    let devices = network.values()
+        .map(|dev| VirtualizedDeviceDTO::new(dev))
+        .collect::<Vec<VirtualizedDeviceDTO>>();
+
+    Ok(devices)
+}
+
+
 /// Returns the data for a single device
-pub fn get_device_data(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType)
-    -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+pub fn db_get_device_data(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType)
+                          -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
     let network = &*DB.lock().unwrap();
     let network = network.get(network_id);
     let network = network.ok_or(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()))?;
@@ -43,16 +57,16 @@ pub fn get_device_data(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidTy
     device
 }
 
-pub fn get_device(network_id: &VirtualNetworkIdType, dev: &VirtualGuidType) -> Option<VirtualizedDeviceDTO> {
+/*pub fn get_device(network_id: &VirtualNetworkIdType, dev: &VirtualGuidType) -> Option<VirtualizedDeviceDTO> {
     let db = DB.lock().unwrap();
     let network_data = db.get(&network_id)?;
     let dev = network_data.get(dev)?;
     Some(VirtualizedDeviceDTO::new(dev))
-}
+}*/
 
 /// Adds a virtual network entry to the db. This means that the coordinator can
 /// manage devices of that network.
-pub fn register_network(id: VirtualNetworkIdType) -> Result<(), String> {
+pub fn db_register_network(id: VirtualNetworkIdType) -> Result<(), String> {
     let mut db = DB.lock().unwrap();
     if db.contains_key(&id) {
         Err(format!("Network with id {} already exists!", id))
@@ -63,7 +77,7 @@ pub fn register_network(id: VirtualNetworkIdType) -> Result<(), String> {
 }
 
 /// Assigns a virtualized rdma device to a virtualized network.
-pub fn add_device_to_network(network_id: &VirtualNetworkIdType, dev: VirtualizedDeviceInput) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+pub fn db_add_device_to_network(network_id: &VirtualNetworkIdType, dev: VirtualizedDeviceInput) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
     // validate first
     check_device_is_allowed(network_id, &dev.virtual_device_guid_string().to_owned())?;
 
@@ -87,17 +101,19 @@ pub fn add_device_to_network(network_id: &VirtualNetworkIdType, dev: Virtualized
             );
         }
 
-        network.insert(dev.virtual_device_guid_string().to_owned(), VirtualizedDevice::new(dev));
+        let key = dev.virtual_device_guid_string().to_owned();
+        let entity = VirtualizedDevice::new(dev);
+        network.insert(key, entity);
     }
 
     // release lock before next call
-    let dto = get_device(network_id, id).unwrap();
+    let dto = db_get_device_data(network_id, id).unwrap();
 
     Ok(dto)
 }
 
 /// Returns the old device as DTO on success, otherwise error.
-pub fn delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+pub fn db_delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
     let mut network = DB.lock().unwrap();
     let network = network.get_mut(network_id);
     let network = network.ok_or(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()))?;
@@ -107,6 +123,8 @@ pub fn delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: &Vi
     dto
 }
 
+/// Checks against the coordinator config if the specified device is allowed inside the specified network.
+/// (if this coordinator is responsible for them)
 pub fn check_device_is_allowed(network_id: &Uuid, device_id: &VirtualGuidType) -> Result<(), CoordinatorRestError> {
     // validate device guid
     let devs = crate::config::CONFIG.networks().get(network_id);

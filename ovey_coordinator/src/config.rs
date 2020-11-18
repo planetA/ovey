@@ -14,7 +14,7 @@ lazy_static::lazy_static! {
 
         // register all networks
         cfg.networks.keys().for_each(|key| {
-            crate::db::register_network(key.to_owned()).unwrap();
+            crate::db::db_register_network(key.to_owned()).unwrap();
         });
 
         cfg

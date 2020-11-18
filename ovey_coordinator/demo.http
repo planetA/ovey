@@ -31,6 +31,9 @@ Content-Type: application/json
 }
 
 ###
+# get data for a network
+GET    http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae
+###
 # get data for a device
 GET    http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device/dead:beef:0bad:f00d
 

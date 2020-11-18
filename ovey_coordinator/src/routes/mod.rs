@@ -4,7 +4,7 @@
 use actix_web::{HttpResponse, HttpRequest, web};
 
 use crate::rest::structs::VirtualizedDeviceInput;
-use crate::db::{get_all_data, add_device_to_network, get_device, get_device_data, delete_device_from_network};
+use crate::db::{db_get_all_data, db_add_device_to_network, db_get_device_data, db_delete_device_from_network, db_get_network_data};
 use crate::config::CONFIG;
 use crate::rest::errors::CoordinatorRestError;
 use ovey_coordinator::data::VirtualGuidType;
@@ -15,27 +15,31 @@ pub async fn route_config() -> HttpResponse {
 
 pub async fn route_index(_req: HttpRequest) -> HttpResponse {
     //println!("request: {:?}", &req);
-    HttpResponse::Ok().json(get_all_data()) // <- send response
+    HttpResponse::Ok().json(db_get_all_data()) // <- send response
+}
+
+pub async fn route_get_network_info(web::Path(network_uuid): web::Path<uuid::Uuid>)
+  -> Result<actix_web::HttpResponse, CoordinatorRestError> {
+    db_get_network_data(&network_uuid)
+        .map(|vec| HttpResponse::Ok().json(vec))
 }
 
 pub async fn route_get_device_info(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, VirtualGuidType)>)
     -> Result<actix_web::HttpResponse, CoordinatorRestError> {
-    get_device_data(&network_uuid, &virt_dev_id)
+    db_get_device_data(&network_uuid, &virt_dev_id)
         .map(|dto| HttpResponse::Ok().json(dto))
 }
 
 pub async fn route_add_device(input: web::Json<VirtualizedDeviceInput>,
                               web::Path(network_uuid): web::Path<uuid::Uuid>,
                               _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError> {
-    let guid = input.virtual_device_guid_string().to_owned();
-    add_device_to_network(&network_uuid, input.into_inner())?;
-    let dto = get_device(&network_uuid, &guid).unwrap();
+    let dto = db_add_device_to_network(&network_uuid, input.into_inner())?;
     Ok(HttpResponse::Ok().json(dto))
 }
 
 
 pub async fn route_delete_device(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, VirtualGuidType)>)
     -> Result<actix_web::HttpResponse, CoordinatorRestError> {
-    delete_device_from_network(&network_uuid, &virt_dev_id)
+    db_delete_device_from_network(&network_uuid, &virt_dev_id)
         .map(|dto| HttpResponse::Ok().json(dto))
 }
