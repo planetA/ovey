@@ -4,7 +4,7 @@ use clap::{ArgMatches, App, SubCommand, Arg};
 use regex::Regex;
 use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
 use librdmautil::GUID_STRING_PATTERN;
-use ovey_daemon::cli_rest_api::validation;
+use ovey_daemon::validation;
 
 /// Parses the args and asserts that required args are in the proper order and format.
 pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
@@ -54,7 +54,13 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .required(true)
                 .validator(guid_validator)
-                .help("guid for ovey device: 64 bit number (please enter as integer to the base of 10)"))
+                .help("guid string for ovey device (like in `$ ibv_devinfo` output)"))
+            .arg(Arg::with_name("vnetid")
+                .long("vnetid")
+                .short("i")
+                .takes_value(true)
+                .required(true)
+                .help("v4-uuid of the virtual network for the ovey device"))
         )
         .subcommand(SubCommand::with_name("delete")
             .display_order(1)
@@ -66,6 +72,12 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
                 .required(true)
                 .validator(dev_name_validator)
                 .help(&format!("device name (\"{}\")", DEVICE_NAME_PATTERN)))
+            .arg(Arg::with_name("vnetid")
+                .long("vnetid")
+                .short("i")
+                .takes_value(true)
+                .required(true)
+                .help("v4-uuid of the virtual network for the ovey device"))
         )
         .subcommand(SubCommand::with_name("echo")
             .display_order(2)

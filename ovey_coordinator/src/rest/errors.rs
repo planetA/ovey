@@ -35,7 +35,7 @@ impl error::ResponseError for CoordinatorRestError {
             // 4XX errors
             CoordinatorRestError::VirtNetworkNotSupported(_) => StatusCode::NOT_FOUND,
             CoordinatorRestError::VirtDeviceGuidNotSupported(_, _) => StatusCode::NOT_FOUND,
-            CoordinatorRestError::VirtDeviceAlreadyRegistered(_, _) => StatusCode::BAD_REQUEST,
+            CoordinatorRestError::VirtDeviceAlreadyRegistered(_, _) => StatusCode::CONFLICT,
             CoordinatorRestError::VirtDeviceNotYetRegistered(_, _) => StatusCode::NOT_FOUND,
         }
     }

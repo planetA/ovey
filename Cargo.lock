@@ -1330,6 +1330,7 @@ dependencies = [
 name = "ovey_cli"
 version = "0.1.0"
 dependencies = [
+ "actix-http",
  "clap",
  "libocp",
  "librdmautil",

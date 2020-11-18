@@ -40,7 +40,7 @@ impl error::ResponseError for DaemonRestError {
 
             // 4XX
             DaemonRestError::UnknownNetwork(_) => StatusCode::NOT_FOUND,
-            DaemonRestError::DeviceAlreadyRegistered(_, _) => StatusCode::BAD_REQUEST,
+            DaemonRestError::DeviceAlreadyRegistered(_, _) => StatusCode::CONFLICT,
             DaemonRestError::DeviceDoesntExist(_, _) => StatusCode::NOT_FOUND,
             DaemonRestError::MalformedPayload(_) => StatusCode::BAD_REQUEST,
         }

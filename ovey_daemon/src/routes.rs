@@ -1,9 +1,9 @@
 //! Crate-private handlers for the REST API for Ovey CLI.
 
 use actix_web::{HttpRequest, HttpResponse, web};
-use ovey_daemon::cli_rest_api::structs::{CreateDeviceInput, DeleteDeviceInput};
+use ovey_daemon::structs::{CreateDeviceInput, DeleteDeviceInput};
 use crate::coordinator_service::{forward_create_device, forward_delete_device};
-use ovey_daemon::cli_rest_api::errors::DaemonRestError;
+use ovey_daemon::errors::DaemonRestError;
 
 pub async fn route_get_index(_req: HttpRequest) -> HttpResponse {
     //println!("request: {:?}", &req);

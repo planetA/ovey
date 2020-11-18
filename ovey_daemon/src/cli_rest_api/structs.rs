@@ -114,7 +114,7 @@ mod tests {
             .virt_guid("dead:beef:0bad:f00d")
             .device_name("ovey0")
             .parent_device_name("rxe0")
-            .network(Uuid::parse_str("c929e96d-6285-4528-b98e-b364d64790ae").unwrap())
+            .network_id(Uuid::parse_str("c929e96d-6285-4528-b98e-b364d64790ae").unwrap())
             .build()
             .unwrap();
         println!("{:#?}", foo);

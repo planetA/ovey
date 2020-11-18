@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn builder_works() {
         // see https://crates.io/crates/derive_builder
-        let foo = VirtualizedCreateDeviceInputBuilder::default()
+        let foo = VirtualizedDeviceInputBuilder::default()
             .virtual_device_guid_string("1000:0000:0000:0000")
             .physical_device_guid_string("3000:0000:0000:0000")
             .parent_device_name("rxe0")

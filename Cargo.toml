@@ -2,6 +2,7 @@
 name = "rdma_ovey"
 version = "0.1.0"
 authors = ["Philipp Schuster <philipp_johannes.schuster@mailbox.tu-dresden.de>"]
+description = "Dummy main target for Ovey userland tools."
 edition = "2018"
 publish = false
 

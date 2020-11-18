@@ -2,9 +2,9 @@ use ovey_coordinator::rest::structs::*;
 use config::CONFIG;
 use actix_web::{middleware, web, HttpServer, App};
 use routes::{route_get_index, route_post_create_device, route_delete_delete_device};
-use ovey_daemon::cli_rest_api::consts::OVEY_DAEMON_PORT;
-use ovey_daemon::cli_rest_api::urls::ROUTE_DEVICE;
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
+use ovey_daemon::consts::OVEY_DAEMON_PORT;
+use ovey_daemon::urls::ROUTE_DEVICE;
 
 mod config;
 mod routes;
@@ -81,22 +81,4 @@ async fn check_config_and_environment() -> Result<(), String> {
         println!("INFO: All Ovey coordinators are available.");
         Ok(())
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    #[test]
-    fn builder_works() {
-        // see https://crates.io/crates/derive_builder
-        let foo = VirtualizedCreateDeviceInputBuilder::default()
-            .virtual_device_guid_string("1000:0000:0000:0000")
-            .physical_device_guid_string("3000:0000:0000:0000")
-            .build()
-            .unwrap();
-        println!("{:#?}", foo);
-    }
-
 }

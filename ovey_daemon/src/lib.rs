@@ -2,7 +2,9 @@
 //! Ovey CLI uses the daemon to create and delete devices in the kernel.
 
 // all public information for ovey cli (uses this as dependency/lib)
-pub mod cli_rest_api;
+mod cli_rest_api;
+
+pub use cli_rest_api::*;
 
 // We re-export ovey DTOs because Ovey Daemon pass them through as they are
-pub use ovey_coordinator::rest;
+pub use ovey_coordinator::rest as coordinator_rest;
