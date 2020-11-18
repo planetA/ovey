@@ -1335,6 +1335,8 @@ dependencies = [
  "librdmautil",
  "ovey_daemon",
  "regex",
+ "reqwest",
+ "uuid",
 ]
 
 [[package]]
@@ -2027,6 +2029,7 @@ dependencies = [
  "memchr",
  "mio",
  "mio-uds",
+ "num_cpus",
  "pin-project-lite",
  "signal-hook-registry",
  "slab",

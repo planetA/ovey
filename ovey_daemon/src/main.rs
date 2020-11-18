@@ -1,10 +1,10 @@
 use ovey_coordinator::rest::structs::*;
 use config::CONFIG;
-use ovey_coordinator::OVEY_COORDINATOR_PORT;
-use ovey_daemon::cli_rest_api::{OVEY_DAEMON_PORT, ROUTE_DEVICE};
 use actix_web::{middleware, web, HttpServer, App};
 use routes::{route_get_index, route_post_create_device, route_delete_delete_device};
-use actix_web::dev::Service;
+use ovey_daemon::cli_rest_api::consts::OVEY_DAEMON_PORT;
+use ovey_daemon::cli_rest_api::urls::ROUTE_DEVICE;
+use ovey_coordinator::OVEY_COORDINATOR_PORT;
 
 mod config;
 mod routes;

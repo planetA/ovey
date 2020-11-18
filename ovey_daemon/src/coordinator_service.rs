@@ -2,7 +2,7 @@
 
 use ovey_coordinator::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, VirtualizedDeviceInputBuilder};
 use ovey_daemon::cli_rest_api::errors::DaemonRestError;
-use ovey_daemon::cli_rest_api::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
+use ovey_daemon::cli_rest_api::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
 use crate::config::CONFIG;
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_coordinator::data::VirtualNetworkIdType;

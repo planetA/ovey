@@ -4,6 +4,8 @@ use libocp::ocp_core::{Ocp, build_nl_attr};
 use librdmautil::guid_string_to_ube64;
 use ovey_cli::cli::assert_and_get_args;
 
+mod daemon;
+
 fn main() {
     // if args are invalid this function will exit the program
     let matches = assert_and_get_args();
