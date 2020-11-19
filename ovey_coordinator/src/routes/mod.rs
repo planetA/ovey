@@ -7,7 +7,7 @@ use crate::rest::structs::VirtualizedDeviceInput;
 use crate::db::{db_get_all_data, db_add_device_to_network, db_get_device_data, db_delete_device_from_network, db_get_network_data};
 use crate::config::CONFIG;
 use crate::rest::errors::CoordinatorRestError;
-use ovey_coordinator::data::VirtualGuidType;
+use crate::data::VirtualGuidType;
 
 pub async fn route_config() -> HttpResponse {
     HttpResponse::Ok().json(&*CONFIG) // <- send response

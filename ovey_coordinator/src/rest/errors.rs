@@ -3,6 +3,7 @@ use actix_web::{
 };
 use uuid::Uuid;
 use derive_more::Display;
+use crate::data::{VirtualNetworkIdType};
 
 #[derive(Debug, Display)]
 pub enum CoordinatorRestError {
@@ -22,7 +23,9 @@ pub enum CoordinatorRestError {
     VirtDeviceAlreadyRegistered(Uuid, String),
     /// Means that the virtual device is supported by the coordinator but not yet registered/activated.
     #[display(fmt = "The virtual device with guid '{}' is not registered in the virtual network '{}'.", _1, _0)]
-    VirtDeviceNotYetRegistered(Uuid, String)
+    VirtDeviceNotYetRegistered(Uuid, String),
+    #[display(fmt = "The device name '{}' is already registered in this virtual network ({}) for a device with another guid.", name, network)]
+    VirtDeviceNameAlreadyRegistered{network: VirtualNetworkIdType, name: String}
 
 }
 
@@ -36,6 +39,7 @@ impl error::ResponseError for CoordinatorRestError {
             CoordinatorRestError::VirtNetworkNotSupported(_) => StatusCode::NOT_FOUND,
             CoordinatorRestError::VirtDeviceGuidNotSupported(_, _) => StatusCode::NOT_FOUND,
             CoordinatorRestError::VirtDeviceAlreadyRegistered(_, _) => StatusCode::CONFLICT,
+            CoordinatorRestError::VirtDeviceNameAlreadyRegistered{ref network, ref name} => StatusCode::CONFLICT,
             CoordinatorRestError::VirtDeviceNotYetRegistered(_, _) => StatusCode::NOT_FOUND,
         }
     }

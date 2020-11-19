@@ -8,6 +8,7 @@ GET http://localhost:13337/
 ###
 
 # create a device (that is allowed)
+# THIS FAILS IF THE OTHER ONE IS ALREADY REGISTERED BECAUSE THE NAME IS UNIQUE
 POST http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device
 Content-Type: application/json
 
@@ -15,6 +16,19 @@ Content-Type: application/json
   "device_name": "ovey0",
   "parent_device_name": "rxe0",
   "virtual_device_guid_string": "dead:beef:0bad:f00d",
+  "physical_device_guid_string": "f000:0000:0000:1234"
+}
+###
+
+# create a device (that is allowed)
+# THIS FAILS IF THE OTHER ONE IS ALREADY REGISTERED BECAUSE THE NAME IS UNIQUE
+POST http://localhost:13337/network/c929e96d-6285-4528-b98e-b364d64790ae/device
+Content-Type: application/json
+
+{
+  "device_name": "ovey0",
+  "parent_device_name": "rxe0",
+  "virtual_device_guid_string": "affe:cafe:c00f:ee00",
   "physical_device_guid_string": "f000:0000:0000:1234"
 }
 ###
