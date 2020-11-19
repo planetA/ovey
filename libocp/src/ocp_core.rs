@@ -15,9 +15,14 @@ use neli::nlattr::{Nlattr, AttrHandle};
 
 use super::ocp_properties::*;
 
-/// Struct that holds all the data that can be received via OCP from the kernel.
+/// Struct that holds all the data that can be received via OCP from the kernel. It's up
+/// to the caller function to extract the right data.
 pub struct OCPRecData {
     msg: Option<String>,
+    device_name: Option<String>,
+    parent_device_name: Option<String>,
+    virt_network_uuid_str: Option<String>,
+    guid_be: Option<u64>,
 }
 
 impl OCPRecData {
@@ -26,14 +31,42 @@ impl OCPRecData {
     /// for attributes we want to receive.
     pub fn new(h: AttrHandle<OveyAttribute>) -> Self {
         let mut msg = None;
+        let mut device_name = None;
+        let mut parent_device_name = None;
+        let mut guid_be = None;
+        let mut virt_network_uuid_str = None;
 
         h.iter().for_each(|x| {
             let payload = x.payload.clone();
             match x.nla_type {
                 OveyAttribute::Msg => {
-                    msg.replace(
-                        String::from_utf8(payload).unwrap()
-                    );
+                    msg.replace(bytes_to_string(payload));
+                },
+                OveyAttribute::DeviceName => {
+                    device_name.replace(bytes_to_string(payload));
+                },
+                OveyAttribute::ParentDeviceName => {
+                    parent_device_name.replace(bytes_to_string(payload));
+                },
+                OveyAttribute::VirtNetUuidStr => {
+                    virt_network_uuid_str.replace(bytes_to_string(payload));
+                },
+                OveyAttribute::NodeGuid => {
+                    // let u64_val = payload.as_slice().read_u64::<std::io::>().unwrap();
+                    // simple Vec<u8> to u64 doesn't work because Rust want to ensure the length
+                    // of the bytes Array.
+                    let bytes = [
+                        payload[0],
+                        payload[1],
+                        payload[2],
+                        payload[3],
+                        payload[4],
+                        payload[5],
+                        payload[6],
+                        payload[7],
+                    ];
+                    let u64_val = u64::from_ne_bytes(bytes);
+                    guid_be.replace(u64_val);
                 },
                 _ => {}
             }
@@ -41,25 +74,40 @@ impl OCPRecData {
 
         OCPRecData {
             msg,
+            device_name,
+            parent_device_name,
+            virt_network_uuid_str,
+            guid_be,
         }
     }
 
-    pub fn get_msg(&self) -> Option<&String> {
+
+    pub fn msg(&self) -> Option<&String> {
         self.msg.as_ref()
     }
-
+    pub fn device_name(&self) -> Option<&String> {
+        self.device_name.as_ref()
+    }
+    pub fn parent_device_name(&self) -> Option<&String> {
+        self.parent_device_name.as_ref()
+    }
+    pub fn virt_network_uuid_str(&self) -> Option<&String> {
+        self.virt_network_uuid_str.as_ref()
+    }
+    pub fn guid_be(&self) -> Option<u64> {
+        self.guid_be
+    }
 }
 
 impl Display for OCPRecData {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "OCPRecData {{\n\
             \x20   msg: {:?}\n\
-        }}", self.msg)
-        /*write!(f, "OCPRecData {{\n\
-            \x20   msg: {:?}\n\
             \x20   device_name: {:?}\n\
             \x20   parent_device_name: {:?}\n\
-        }}", self.msg, self.device_name, self.parent_device_name)*/
+            \x20   guid_be: {:?}\n\
+            \x20   virt_network_uuid_str: {:?}\n\
+        }}", self.msg, self.device_name, self.parent_device_name, self.guid_be, self.virt_network_uuid_str)
     }
 }
 
@@ -214,4 +262,16 @@ pub fn build_nl_attrs<T: Nl + Debug>(attr_types: Vec<(OveyAttribute, T)>) -> Vec
     attr_types.into_iter()
         .map(|x| build_nl_attr(x.0, x.1))
         .collect()
+}
+
+/// Useful to turn the bytes from OCP/neli into a real Rust String.
+fn bytes_to_string(bytes: Vec<u8>) -> String {
+    let str = String::from_utf8(bytes).unwrap();
+    // Rust doesn't return the null byte by itself
+    // it's not a big problem.. but confusing when a Rust
+    // String is null terminated.
+    let str = String::from(
+        str.trim_matches('\0')
+    );
+    str
 }

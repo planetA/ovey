@@ -17,7 +17,8 @@ neli::impl_var_trait!(
     Echo => 1,
     CreateDevice => 2,
     DeleteDevice => 3,
-    DebugRespondError => 4
+    DebugRespondError => 4,
+    DeviceInfo => 5
 );
 impl Copy for OveyOperation {}
 impl fmt::Display for OveyOperation {
@@ -30,6 +31,7 @@ impl fmt::Display for OveyOperation {
             OveyOperation::Echo => write!(f, "OveyOperation::Echo({})", numeric_value),
             OveyOperation::CreateDevice => write!(f, "OveyOperation::CreateDevice({})", numeric_value),
             OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice({})", numeric_value),
+            OveyOperation::DeviceInfo => write!(f, "OveyOperation::DeviceInfo({})", numeric_value),
             _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
         }
     }
@@ -44,7 +46,8 @@ neli::impl_var_trait!(
     Msg => 1,
     DeviceName => 2,
     ParentDeviceName => 3,
-    NodeGuid => 4
+    NodeGuid => 4,
+    VirtNetUuidStr => 5
 );
 impl Copy for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
@@ -58,6 +61,7 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName({})", numeric_value),
             OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName({})", numeric_value),
             OveyAttribute::NodeGuid => write!(f, "OveyAttribute::NodeGuid({})", numeric_value),
+            OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
             _ =>  write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }
