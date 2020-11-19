@@ -31,6 +31,7 @@ impl fmt::Display for OveyOperation {
             OveyOperation::Echo => write!(f, "OveyOperation::Echo({})", numeric_value),
             OveyOperation::CreateDevice => write!(f, "OveyOperation::CreateDevice({})", numeric_value),
             OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice({})", numeric_value),
+            OveyOperation::DebugRespondError => write!(f, "OveyOperation::DebugRespondError({})", numeric_value),
             OveyOperation::DeviceInfo => write!(f, "OveyOperation::DeviceInfo({})", numeric_value),
             _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
         }
