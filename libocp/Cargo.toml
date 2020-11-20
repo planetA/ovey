@@ -10,4 +10,4 @@ publish = false
 
 [dependencies]
 neli = "0.4.4"  # netlink
-librdmautil = { path = "../librdmautil" } # for guid string conversion
+liboveyutil = { path = "../liboveyutil" } # for guid string conversion

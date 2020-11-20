@@ -119,7 +119,7 @@ mod tests {
             .unwrap();
         println!("{:#?}", foo);
 
-        let new = CreateDeviceInputBuilder::rebuild(foo).unwrap();
+        let _new = CreateDeviceInputBuilder::rebuild(foo).unwrap();
     }
 
 }

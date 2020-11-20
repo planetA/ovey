@@ -12,7 +12,7 @@ publish = false
 # keep all projects in work space => only one single target/ dir
 members = [
     "libocp",
-    "librdmautil",
+    "liboveyutil",
     "ovey_cli",
     "ovey_coordinator",
     "ovey_daemon"
@@ -22,7 +22,7 @@ members = [
 # keep all as dependencies for this dummy target
 # => cargo build will build all bins and libs
 "libocp" = { path = "./libocp" }
-"librdmautil" = { path = "./librdmautil" }
+"liboveyutil" = { path = "./liboveyutil" }
 "ovey_cli" = { path = "./ovey_cli" }
 "ovey_coordinator" = { path = "./ovey_coordinator" }
 "ovey_daemon" = { path = "./ovey_daemon" }

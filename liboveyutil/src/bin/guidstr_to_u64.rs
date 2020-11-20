@@ -1,4 +1,4 @@
-use librdmautil::guid_string_to_ube64;
+use liboveyutil::guid::guid_string_to_ube64;
 
 fn main() {
     let input = "dead:beef:0bad:f00d";

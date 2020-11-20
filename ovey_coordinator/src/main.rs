@@ -49,14 +49,14 @@ async fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    /*use super::*;
     use actix_web::dev::Service;
     use actix_web::{http, test, web, App};
-    use actix_web::http::Error;
+    use actix_web::http::Error;*/
 
-    #[actix_rt::test]
+    /*#[actix_rt::test]
     async fn test_index() -> Result<(), Error> {
-        /*let mut app = test::init_service(
+        let mut app = test::init_service(
             App::new().service(web::resource("/").route(web::post().to(route_index))),
         ).await;
 
@@ -79,6 +79,6 @@ mod tests {
 
         assert_eq!(response_body, r##"{"name":"my-name","number":43,"uuid":null}"##);
 
-        Ok(())*/
-    }
+        Ok(())
+    }*/
 }

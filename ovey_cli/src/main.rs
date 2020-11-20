@@ -1,7 +1,4 @@
 use clap::ArgMatches;
-use libocp::ocp_properties::{FAMILY_NAME, OveyOperation, OveyAttribute};
-use libocp::ocp_core::{Ocp, build_nl_attr};
-use librdmautil::guid_string_to_ube64;
 use ovey_cli::cli::assert_and_get_args;
 use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder};
 use uuid::Uuid;

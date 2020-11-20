@@ -23,7 +23,7 @@ lazy_static = "1.4.0"
 
 ovey_coordinator = { path = "../ovey_coordinator" }
 libocp = { path = "../libocp" }
-librdmautil = { path = "../librdmautil" }
+liboveyutil = { path = "../liboveyutil" }
 
 
 

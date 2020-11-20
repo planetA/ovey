@@ -1099,12 +1099,17 @@ checksum = "4d58d1b70b004888f764dfbf6a26a3b0342a1632d33968e4a179d8011c760614"
 name = "libocp"
 version = "0.1.0"
 dependencies = [
+ "liboveyutil",
  "neli",
 ]
 
 [[package]]
-name = "librdmautil"
+name = "liboveyutil"
 version = "0.1.0"
+dependencies = [
+ "libocp",
+ "regex",
+]
 
 [[package]]
 name = "linked-hash-map"
@@ -1333,7 +1338,7 @@ dependencies = [
  "actix-http",
  "clap",
  "libocp",
- "librdmautil",
+ "liboveyutil",
  "ovey_daemon",
  "regex",
  "reqwest",
@@ -1351,7 +1356,7 @@ dependencies = [
  "env_logger",
  "json",
  "lazy_static",
- "librdmautil",
+ "liboveyutil",
  "serde",
  "serde_json",
  "uuid",
@@ -1369,7 +1374,7 @@ dependencies = [
  "json",
  "lazy_static",
  "libocp",
- "librdmautil",
+ "liboveyutil",
  "ovey_coordinator",
  "regex",
  "reqwest",
@@ -1556,7 +1561,7 @@ name = "rdma_ovey"
 version = "0.1.0"
 dependencies = [
  "libocp",
- "librdmautil",
+ "liboveyutil",
  "ovey_cli",
  "ovey_coordinator",
  "ovey_daemon",

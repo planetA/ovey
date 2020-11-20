@@ -3,6 +3,7 @@
 use uuid::Uuid;
 use std::collections::HashMap;
 use crate::rest::structs::VirtualizedDeviceInput;
+use liboveyutil::guid;
 
 /// A guid is a big endian encoded u64.
 pub type GuidType = u64;
@@ -53,8 +54,8 @@ impl VirtualizedDevice {
         Self {
             virtual_device_name: input.device_name().to_owned(),
             physical_device_name: input.parent_device_name().to_owned(),
-            virtual_guid_be: librdmautil::guid_string_to_ube64(input.virtual_device_guid_string()),
-            physical_guid_be: librdmautil::guid_string_to_ube64(input.physical_device_guid_string()),
+            virtual_guid_be: guid::guid_string_to_ube64(input.virtual_device_guid_string()),
+            physical_guid_be: guid::guid_string_to_ube64(input.physical_device_guid_string()),
             qp_num: 0,
         }
     }

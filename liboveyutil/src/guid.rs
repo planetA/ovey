@@ -1,11 +1,7 @@
-//! Utily functions related to ib devices and verbs.
-
 use crate::endianness::Endianness;
 
 /// String representation of a guid. e.g.: "0000:0000:0000:0000" or "abc0:afaf:34b5:0015"
 pub const GUID_STRING_PATTERN: &str = "[AaBbCcDdEeFf0-9]{4}(:[AaBbCcDdEeFf0-9]{4}){3}";
-
-pub mod endianness;
 
 /// Returns a big endian encoded u64 from a "big endian" guid hex string.
 /// See `GUID_STRING_PATTERN`.

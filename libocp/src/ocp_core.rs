@@ -12,7 +12,7 @@ use neli::nl::Nlmsghdr;
 use std::{process, fmt};
 use std::fmt::{Debug, Display, Formatter};
 use neli::nlattr::{Nlattr, AttrHandle};
-use librdmautil::{guid_be_to_string, guid_he_to_string};
+use liboveyutil::guid::{guid_he_to_string};
 
 use super::ocp_properties::*;
 

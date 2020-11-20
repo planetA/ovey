@@ -4,10 +4,11 @@
 //! In many cases probably almost the same.
 
 use serde::{Deserialize, Serialize};
-use librdmautil::endianness::Endianness;
+use liboveyutil::endianness::Endianness;
 use crate::data::{VirtualizedDevice, VirtualNetworkIdType};
 use derive_builder::Builder;
 use std::collections::HashMap;
+use liboveyutil::guid;
 
 /// This is the data for the REST-API that is expected as payload of a REST-Request
 /// when a new file should be created.
@@ -60,10 +61,10 @@ pub struct VirtualizedDeviceDTO {
 
 impl VirtualizedDeviceDTO {
     pub fn new(entity: &VirtualizedDevice) -> Self {
-        let virtual_device_guid_string = librdmautil::guid_be_to_string(entity.virtual_guid_be());
+        let virtual_device_guid_string = guid::guid_be_to_string(entity.virtual_guid_be());
         let virtual_device_guid_be = entity.virtual_guid_be();
         let virtual_device_guid_le = Endianness::change(entity.virtual_guid_be());
-        let physical_device_guid_string = librdmautil::guid_be_to_string(entity.physical_guid_be());
+        let physical_device_guid_string = guid::guid_be_to_string(entity.physical_guid_be());
         let physical_device_guid_be = entity.physical_guid_be();
         let physical_device_guid_le = Endianness::change(entity.physical_guid_be());
         let device_name = entity.virtual_device_name().to_owned();

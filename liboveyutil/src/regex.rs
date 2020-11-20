@@ -23,8 +23,8 @@ pub fn regex_is_full_match(regex: &Regex, text: &str) -> bool {
 mod tests {
 
     use super::*;
-    use librdmautil::GUID_STRING_PATTERN;
     use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
+    use crate::guid::GUID_STRING_PATTERN;
 
     #[test]
     fn test_regex_is_full_match() {

@@ -13,4 +13,3 @@ regex = "1.3.9"
 
 [dev-dependencies]
 libocp = { path = "../libocp" } # consts for tests
-librdmautil = { path = "../librdmautil" } # consts for tests

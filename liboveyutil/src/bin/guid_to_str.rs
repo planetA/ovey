@@ -1,4 +1,4 @@
-use librdmautil::guid_be_to_string;
+use liboveyutil::guid::guid_be_to_string;
 
 fn main() {
     // input big endian

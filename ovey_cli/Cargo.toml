@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 libocp = { path = "../libocp" }
-librdmautil = { path = "../librdmautil" }
+liboveyutil = { path = "../liboveyutil" }
 ovey_daemon = { path = "../ovey_daemon" }
 
 clap = "2.33.3" # command line parsing

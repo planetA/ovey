@@ -1,6 +1,6 @@
 use regex::Regex;
 use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
-use librdmautil::GUID_STRING_PATTERN;
+use liboveyutil::guid::GUID_STRING_PATTERN;
 
 pub fn validate_device_name(name: &str) -> Result<(), String> {
     validate_name(DEVICE_NAME_PATTERN, name)
@@ -48,7 +48,7 @@ fn regex_is_full_match(regex: &Regex, text: &str) -> bool {
 mod tests {
 
     use super::*;
-    use librdmautil::GUID_STRING_PATTERN;
+    use liboveyutil::guid::GUID_STRING_PATTERN;
 
     #[test]
     fn test_match() {
