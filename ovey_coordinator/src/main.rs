@@ -1,6 +1,9 @@
 //! Don't get confused. A Rust crate can be/export a library and a binary at the same time.
 //! This works because lib.rs and main.rs are handled as separate targets.
 
+#[macro_use]
+extern crate log; // import macros
+
 use actix_web::{
     middleware, web, App, HttpServer,
 };
@@ -22,10 +25,12 @@ async fn main() -> std::io::Result<()> {
     println!("Ovey coordinator started with the following initial configuration:");
     println!("{:#?}", *CONFIG);
 
-    std::env::set_var("RUST_LOG", "actix_web=debug");
+    std::env::set_var("RUST_LOG", "actix_web=info,debug");
     env_logger::init();
 
-    println!("Starting REST service on localhost:{}", OVEY_COORDINATOR_PORT);
+    info!("Starting REST service on localhost:{}", OVEY_COORDINATOR_PORT);
+
+    // println!("Starting REST service on localhost:{}", OVEY_COORDINATOR_PORT);
 
     HttpServer::new(|| {
         App::new()

@@ -23,12 +23,12 @@ pub type DBType = HashMap<VirtualNetworkIdType, VirtualizedNetworkDataType>;
 pub struct VirtualizedDevice {
     // e.g. "ovey0"
     virtual_device_name: String,
-    /// Virtual GUID in big endian format.
-    virtual_guid_be: GuidInternalType,
+    /// Virtual GUID.
+    virtual_guid: GuidInternalType,
     // e.g. "rxe0"
     physical_device_name: String,
-    /// Physical GUID in big endian format.
-    physical_guid_be: GuidInternalType,
+    /// Physical GUID
+    physical_guid: GuidInternalType,
     qp_num: u64,
     // add more properties that needs to be virtualized..
 }
@@ -37,14 +37,14 @@ impl VirtualizedDevice {
     pub fn virtual_device_name(&self) -> &String {
         &self.virtual_device_name
     }
-    pub fn virtual_guid_be(&self) -> u64 {
-        self.virtual_guid_be
+    pub fn virtual_guid(&self) -> u64 {
+        self.virtual_guid
     }
     pub fn physical_device_name(&self) -> &String {
         &self.physical_device_name
     }
-    pub fn physical_guid_be(&self) -> u64 {
-        self.physical_guid_be
+    pub fn physical_guid(&self) -> u64 {
+        self.physical_guid
     }
     pub fn qp_num(&self) -> u64 {
         self.qp_num
@@ -54,8 +54,8 @@ impl VirtualizedDevice {
         Self {
             virtual_device_name: input.device_name().to_owned(),
             physical_device_name: input.parent_device_name().to_owned(),
-            virtual_guid_be: guid::guid_string_to_ube64(input.virtual_device_guid_string()),
-            physical_guid_be: guid::guid_string_to_ube64(input.physical_device_guid_string()),
+            virtual_guid: guid::guid_string_to_u64(input.virtual_device_guid_string()),
+            physical_guid: guid::guid_string_to_u64(input.physical_device_guid_string()),
             qp_num: 0,
         }
     }

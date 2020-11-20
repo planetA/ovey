@@ -1,5 +1,8 @@
 //! Utility functions to cope with endianess. This is necessary because OFED (Linux RDMA stack)
-//! expects guid to be stored in big endian format.
+//! expects guid to be stored in big endian format. What we do is pretty simple.
+//! We always handle the 64 bit number "regular"/as is/in native endian order.
+//! When we store it in the kernel we change the order to big endian
+//! (only necessary on little endian system).
 
 #[derive(Debug)]
 pub enum Endianness {
@@ -8,7 +11,7 @@ pub enum Endianness {
 }
 
 impl Endianness {
-    pub const fn get_system_endianess() -> Endianness {
+    pub const fn get_system_endianness() -> Endianness {
         let num: u16 = 0b1000_0000_0000_0000; // 2 bytes
         // will reorder the bytes on a little endian machine
         // and leave it the same way on a big endian machine
@@ -25,7 +28,7 @@ impl Endianness {
 
     /// Returns if the current system uses big endian byte order.
     pub const fn system_is_be() -> bool {
-        if let Endianness::BigEndian = Endianness::get_system_endianess() {
+        if let Endianness::BigEndian = Endianness::get_system_endianness() {
             true
         } else {
             false
@@ -38,6 +41,8 @@ impl Endianness {
     }
 
     /// Converts a u64 number from host endian format to u64 big endian format.
+    /// This is needed when we want to store the data inside the kernel module.
+    /// The kernel module stores the information about guid in u64 big endian format.
     pub fn u64he_to_u64be(u64he: u64) -> u64 {
         if Endianness::system_is_le() {
             // will trigger a reorder of the bytes if current system is little endian
@@ -48,6 +53,8 @@ impl Endianness {
     }
 
     /// Converts a u64 number from big endian format to host endian format.
+    /// This is needed when we want to load the data from the kernel module.
+    /// The kernel module stores the information about guid in u64 big endian format.
     pub fn u64be_to_u64he(u64be: u64) -> u64 {
         if Endianness::system_is_le() {
             // will trigger a reorder of the bytes if current system is little endian
@@ -56,37 +63,16 @@ impl Endianness {
             u64be
         }
     }
-
-    pub fn change(val: u64) -> u64 {
-        if Endianness::system_is_le() {
-            // will trigger a reorder of the bytes if current system is little endian
-            u64::from_be(val)
-        } else {
-            // will trigger a reorder of the bytes if current system is big endian
-            u64::from_le(val)
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// I have soo much struggles with endianness aware code that
-    /// I want to ensure such basic things.. to understand what's happing...
-    #[test]
-    fn test_system_endianness() {
-        let bin: u64 = 0b11110000_00000000_00000000_00000000_00000000_00000000_00000000_00000000;
-        let hex: u64 = 0xf0_00_00_00_00_00_00_00;
-        let decimal: u64 = 17293822569102704640;
-
-        assert_eq!(bin, hex);
-        assert_eq!(decimal, hex);
-    }
 
     #[test]
     fn test_endianness() {
-        let endianess = Endianness::get_system_endianess();
+        let endianess = Endianness::get_system_endianness();
         println!("get_system_endianess: {:#?}", endianess);
 
         // 8 bytes: not the memory representation but the compiler representation

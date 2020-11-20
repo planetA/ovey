@@ -4,7 +4,7 @@ use actix_web::{HttpRequest, HttpResponse, web};
 use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
 use crate::coordinator_service::{rest_forward_create_device, rest_forward_delete_device, rest_check_device_is_allowed, rest_lookup_device_guid_by_name};
 use ovey_daemon::errors::DaemonRestError;
-use liboveyutil::guid::{guid_string_to_ube64, guid_be_to_string};
+use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
 use uuid::Uuid;
 use libocp::ocp_core::Ocp;
 use crate::OCP;
@@ -47,7 +47,7 @@ pub async fn route_post_create_device(input: web::Json<CreateDeviceInput>) -> Re
         )
     }
 
-    let guid_be = guid_string_to_ube64(input.virt_guid());
+    let guid_be = guid_string_to_u64(input.virt_guid());
     let ocp_res = ocp.ocp_create_device(
         input.device_name(),
         input.parent_device_name(),
@@ -63,8 +63,8 @@ pub async fn route_post_create_device(input: web::Json<CreateDeviceInput>) -> Re
     let device_name = input.device_name().to_owned(); // fix use after move with input.device_name() later needed
     let resp = rest_forward_create_device(
         input,
-        guid_be_to_string(
-            ocp_res.parent_node_guid_be()
+        guid_u64_to_string(
+            ocp_res.parent_node_guid()
                 .expect("Must exist at this point")
         )
     ).await;
@@ -103,7 +103,7 @@ pub async fn route_delete_delete_device(input: web::Json<DeleteDeviceInput>) -> 
     let network_id = ocp_data.virt_network_uuid_str().unwrap();
     let network_id = Uuid::parse_str(network_id)
         .map_err(|err| DaemonRestError::OtherInternalError{info: err.to_string()})?;
-    let guid_str = guid_be_to_string(ocp_data.node_guid_be().unwrap());
+    let guid_str = guid_u64_to_string(ocp_data.node_guid().unwrap());
 
     // delete in both places without early canceling (no .unwrap() or ?)
 

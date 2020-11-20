@@ -49,11 +49,9 @@ impl VirtualizedDeviceInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VirtualizedDeviceDTO {
     virtual_device_guid_string: String,
-    virtual_device_guid_be: u64,
-    virtual_device_guid_le: u64,
+    virtual_device_guid_u64: u64,
     physical_device_guid_string: String,
-    physical_device_guid_be: u64,
-    physical_device_guid_le: u64,
+    physical_device_guid_u64: u64,
     /// device name, e.g. ovey0
     device_name: String,
     /// parent device name, e.g. rxe0 or mlx0
@@ -62,22 +60,18 @@ pub struct VirtualizedDeviceDTO {
 
 impl VirtualizedDeviceDTO {
     pub fn new(entity: &VirtualizedDevice) -> Self {
-        let virtual_device_guid_string = guid::guid_be_to_string(entity.virtual_guid_be());
-        let virtual_device_guid_be = entity.virtual_guid_be();
-        let virtual_device_guid_le = Endianness::change(entity.virtual_guid_be());
-        let physical_device_guid_string = guid::guid_be_to_string(entity.physical_guid_be());
-        let physical_device_guid_be = entity.physical_guid_be();
-        let physical_device_guid_le = Endianness::change(entity.physical_guid_be());
+        let virtual_device_guid_string = guid::guid_u64_to_string(entity.virtual_guid());
+        let virtual_device_guid_u64 = entity.virtual_guid();
+        let physical_device_guid_string = guid::guid_u64_to_string(entity.physical_guid());
+        let physical_device_guid_u64 = entity.physical_guid();
         let device_name = entity.virtual_device_name().to_owned();
         let parent_device_name = entity.physical_device_name().to_owned();
 
         Self {
             virtual_device_guid_string,
-            virtual_device_guid_be,
-            virtual_device_guid_le,
+            virtual_device_guid_u64,
             physical_device_guid_string,
-            physical_device_guid_be,
-            physical_device_guid_le,
+            physical_device_guid_u64,
             device_name,
             parent_device_name
         }
@@ -87,20 +81,14 @@ impl VirtualizedDeviceDTO {
     pub fn virtual_device_guid_string(&self) -> &str {
         &self.virtual_device_guid_string
     }
-    pub fn virtual_device_guid_be(&self) -> u64 {
-        self.virtual_device_guid_be
-    }
-    pub fn virtual_device_guid_le(&self) -> u64 {
-        self.virtual_device_guid_le
+    pub fn virtual_device_guid_u64(&self) -> u64 {
+        self.virtual_device_guid_u64
     }
     pub fn physical_device_guid_string(&self) -> &str {
         &self.physical_device_guid_string
     }
-    pub fn physical_device_guid_be(&self) -> u64 {
-        self.physical_device_guid_be
-    }
-    pub fn physical_device_guid_le(&self) -> u64 {
-        self.physical_device_guid_le
+    pub fn physical_device_guid_u64(&self) -> u64 {
+        self.physical_device_guid_u64
     }
     pub fn device_name(&self) -> &str {
         &self.device_name

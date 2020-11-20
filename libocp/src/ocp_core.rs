@@ -3,6 +3,11 @@
 //! the linux kernel module.
 //!
 //! All functions fall under the constraints of the lib/crate "neli".
+//!
+//! OCP takes care of guid endianness divergence between kernel and userland.
+//! Inside the kernel module the guid is stored as big endian. If you
+//! write or read data from/to kernel via OCP, OCP takes care of the
+//! right endianness.
 
 use neli::socket::NlSocket;
 use neli::consts::{NlFamily, NlmF};
@@ -12,23 +17,31 @@ use neli::nl::Nlmsghdr;
 use std::{process, fmt};
 use std::fmt::{Debug, Display, Formatter};
 use neli::nlattr::{Nlattr, AttrHandle};
-use liboveyutil::guid::{guid_he_to_string};
 use serde::{Serialize, Deserialize};
 
 use super::ocp_properties::*;
+use liboveyutil::guid::guid_u64_to_string;
+use liboveyutil::endianness::Endianness;
 
 /// Struct that holds all the data that can be received via OCP from the kernel. It's up
 /// to the caller function to extract the right data.
 /// We derive Serialize and Deserialize because it's useful to pass this via REST
 /// for debugging. Also, additional compile time overhead is negligible.
+///
+/// OCP takes care of guid endianness divergence between kernel and userland.
+/// Inside the kernel module the guid is stored as big endian. If you
+/// write or read data from/to kernel via OCP, OCP takes care of the
+/// right endianness.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OCPRecData {
     msg: Option<String>,
     device_name: Option<String>,
     parent_device_name: Option<String>,
     virt_network_uuid_str: Option<String>,
-    node_guid_be: Option<u64>,
-    parent_node_guid_be: Option<u64>,
+    // in host endianness!
+    node_guid: Option<u64>,
+    // in host endianness!
+    parent_node_guid: Option<u64>,
 }
 
 impl OCPRecData {
@@ -73,8 +86,10 @@ impl OCPRecData {
             device_name,
             parent_device_name,
             virt_network_uuid_str,
-            node_guid_be,
-            parent_node_guid_be,
+            // we receive it in big endian format from be;
+            // restore host endian format
+            node_guid: node_guid_be.map(|u64be| Endianness::u64be_to_u64he(u64be)),
+            parent_node_guid: parent_node_guid_be.map(|u64be| Endianness::u64be_to_u64he(u64be)),
         }
     }
 
@@ -91,11 +106,11 @@ impl OCPRecData {
     pub fn virt_network_uuid_str(&self) -> Option<&String> {
         self.virt_network_uuid_str.as_ref()
     }
-    pub fn node_guid_be(&self) -> Option<u64> {
-        self.node_guid_be
+    pub fn node_guid(&self) -> Option<u64> {
+        self.node_guid
     }
-    pub fn parent_node_guid_be(&self) -> Option<u64> {
-        self.parent_node_guid_be
+    pub fn parent_node_guid(&self) -> Option<u64> {
+        self.parent_node_guid
     }
 }
 
@@ -105,23 +120,27 @@ impl Display for OCPRecData {
             \x20   msg: {:?}\n\
             \x20   device_name: {:?}\n\
             \x20   parent_device_name: {:?}\n\
-            \x20   guid_be: {:?}\n\
-            \x20   guid_string: {:?}\n\
-            \x20   parent_guid_be: {:?}\n\
-            \x20   parent_guid_string: {:?}\n\
+            \x20   guid: {:?}\n\
+            \x20   |- guid_string: {:?}\n\
+            \x20   parent_guid: {:?}\n\
+            \x20   |- parent_guid_string: {:?}\n\
             \x20   virt_network_uuid_str: {:?}\n\
         }}",
                self.msg,
                self.device_name,
                self.parent_device_name,
-               self.node_guid_be,
-               self.node_guid_be.map(|val| guid_he_to_string(val)),
-               self.parent_node_guid_be,
-               self.parent_node_guid_be.map(|val| guid_he_to_string(val)),
+               self.node_guid,
+               self.node_guid.map(|val| guid_u64_to_string(val)),
+               self.parent_node_guid,
+               self.parent_node_guid.map(|val| guid_u64_to_string(val)),
                self.virt_network_uuid_str
         )
     }
 }
+
+/// The type of a ovey message inside generic netlink. Convenient, simple type instead of
+/// the big generic construct.
+type OveyGNlMsg = Nlmsghdr<u16, Genlmsghdr<OveyOperation, OveyAttribute>>;
 
 /// Adapter between our userland code and the Linux kernel module via (generic) netlink.
 pub struct Ocp {
@@ -130,10 +149,6 @@ pub struct Ocp {
     verbosity: u8,
     needs_reconnect: bool,
 }
-
-/// The type of a ovey message inside generic netlink. Convenient, simple type instead of
-/// the big generic construct.
-type OveyGNlMsg = Nlmsghdr<u16, Genlmsghdr<OveyOperation, OveyAttribute>>;
 
 impl Ocp {
 
@@ -288,9 +303,10 @@ impl Ocp {
     pub fn ocp_create_device(&mut self,
                              device_name: &str,
                              parent_device_name: &str,
-                             node_guid_be: u64,
+                             node_guid_he: u64,
                              network_uuid_str: &str,
     ) -> Result<OCPRecData, String> {
+        let node_guid_be = Endianness::u64he_to_u64be(node_guid_he);
         self.send_and_ack(
             OveyOperation::CreateDevice,
             vec![

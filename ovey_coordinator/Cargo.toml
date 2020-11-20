@@ -20,6 +20,7 @@ uuid = { version = "0.8.1", features = ["v4", "serde"] }
 lazy_static = "1.4.0"
 derive_builder = "0.9.0"
 derive_more = "0.99.11"
+log = "0.4.0" # info!, debug! etc. macros; works with Actix Logging Environment
 
 [dev-dependencies]
 actix-rt = "1.1.1" # for tests
