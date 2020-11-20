@@ -4,7 +4,7 @@
 use libocp::ocp_core::{Ocp};
 use libocp::ocp_delete_device;
 
-/// Demo for ECHO command.
+/// Demo for delete command.
 fn main() {
     let mut ocp = Ocp::connect(1).unwrap();
 

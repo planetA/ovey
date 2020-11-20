@@ -4,7 +4,7 @@
 use libocp::ocp_core::{Ocp};
 use libocp::ocp_get_device_info;
 
-/// Demo for ECHO command.
+/// Demo for get info command.
 fn main() {
     let mut ocp = Ocp::connect(1).unwrap();
 

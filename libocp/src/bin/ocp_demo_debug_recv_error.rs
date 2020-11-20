@@ -3,7 +3,7 @@
 use libocp::ocp_core::Ocp;
 use libocp::ocp_debug_respond_error;
 
-/// Demo for ECHO command.
+/// Demo for debug_recv_error command.
 fn main() {
     let mut ocp = Ocp::connect(1).unwrap();
     let res = ocp_debug_respond_error(&mut ocp);

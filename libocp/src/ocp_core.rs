@@ -13,11 +13,15 @@ use std::{process, fmt};
 use std::fmt::{Debug, Display, Formatter};
 use neli::nlattr::{Nlattr, AttrHandle};
 use liboveyutil::guid::{guid_he_to_string};
+use serde::{Serialize, Deserialize};
 
 use super::ocp_properties::*;
 
 /// Struct that holds all the data that can be received via OCP from the kernel. It's up
 /// to the caller function to extract the right data.
+/// We derive Serialize and Deserialize because it's useful to pass this via REST
+/// for debugging. Also, additional compile time overhead is negligible.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OCPRecData {
     msg: Option<String>,
     device_name: Option<String>,
@@ -184,7 +188,8 @@ impl Ocp {
             .map_err(|x| format!("Send failed: {}", x))?;
 
         // ack.nl_type == consts::Nlmsg::Error && ack.nl_payload.error == 0
-        let res = self.socket.recv_nl::<u16, Genlmsghdr::<OveyOperation, OveyAttribute>>(None).unwrap();
+        let res = self.socket.recv_nl::<u16, Genlmsghdr::<OveyOperation, OveyAttribute>>(None)
+            .map_err(|err| err.to_string())?;
 
         // Do some validation that is useful I think
         // I personally think that recv_ack() by neli is not so good for our

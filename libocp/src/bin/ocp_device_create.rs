@@ -4,7 +4,7 @@
 use libocp::ocp_core::{Ocp};
 use libocp::ocp_create_device;
 
-/// Demo for ECHO command.
+/// Demo for create command.
 fn main() {
     let mut ocp = Ocp::connect(1).unwrap();
 
