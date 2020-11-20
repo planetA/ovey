@@ -3,6 +3,7 @@
 use clap::{ArgMatches, App, SubCommand, Arg};
 use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
 use ovey_daemon::validation;
+use uuid::Uuid;
 
 /// Parses the args and asserts that required args are in the proper order and format.
 pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
@@ -19,6 +20,12 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
         validation::validate_guid(&name)
     };
 
+    let uuid_validator = move |name: String| {
+        Uuid::parse_str(&name)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    };
+
     App::new("Overlay RDMA network util")
         .version("1.0")
         .author("Philipp Schuster <philipp_johannes.schuster@mailbox.tu-dresden.de>")
@@ -31,7 +38,7 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
             .help("Sets the level of verbosity"))
         .subcommand(SubCommand::with_name("new")
             .display_order(0)
-            .about("create virtual overlay rdma network device")
+            .about("Registers a Ovey RDMA device on the current machine and in the Ovey Coordinator.")
             .arg(Arg::with_name("name")
                 .long("name")
                 .short("n")
@@ -58,11 +65,12 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
                 .short("i")
                 .takes_value(true)
                 .required(true)
+                .validator(uuid_validator)
                 .help("v4-uuid of the virtual network for the ovey device"))
         )
         .subcommand(SubCommand::with_name("delete")
             .display_order(1)
-            .about("remove virtual overlay rdma network device")
+            .about("Removes the specified Ovey RDMA device on the current machine and in the Ovey Coordinator.")
             .arg(Arg::with_name("name")
                 .long("name")
                 .short("n")
@@ -70,12 +78,13 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
                 .required(true)
                 .validator(dev_name_validator)
                 .help(&format!("device name (\"{}\")", DEVICE_NAME_PATTERN)))
-            .arg(Arg::with_name("vnetid")
+            /*.arg(Arg::with_name("vnetid")
                 .long("vnetid")
                 .short("i")
                 .takes_value(true)
                 .required(true)
-                .help("v4-uuid of the virtual network for the ovey device"))
+                .validator(uuid_validator)
+                .help("v4-uuid of the virtual network for the ovey device"))*/
         )
         .subcommand(SubCommand::with_name("echo")
             .display_order(2)

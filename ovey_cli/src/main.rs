@@ -1,8 +1,8 @@
 use clap::ArgMatches;
 use ovey_cli::cli::assert_and_get_args;
-use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder};
+use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
 use uuid::Uuid;
-use crate::daemon::forward_create_to_daemon;
+use crate::daemon::{forward_create_to_daemon, forward_delete_to_daemon};
 
 mod daemon;
 
@@ -32,9 +32,10 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) {
     let parent_device_name = matches.value_of("parent").unwrap();
     let guid_str = matches.value_of("guid").unwrap();
     let network_uuid_str = matches.value_of("vnetid").unwrap();
+    let network_uuid = Uuid::parse_str(network_uuid_str).unwrap();
 
     if verbosity > 0 {
-        println!("sending request to create new device: name={}, parent={}", new_device_name, parent_device_name);
+        println!("sending request to create new device: name={}, parent={} in network={}", new_device_name, parent_device_name, network_uuid);
     }
 
     // build request body for REST request to Ovey daemon
@@ -42,7 +43,7 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) {
         .virt_guid(guid_str)
         .device_name(new_device_name)
         .parent_device_name(parent_device_name)
-        .network_id(Uuid::parse_str(network_uuid_str).unwrap())
+        .network_id(network_uuid)
         .build();
     match input {
         Ok(val) => {
@@ -65,40 +66,42 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) {
             eprintln!("Cannot create device. Malformed input. {}", err);
         }
     }
-
-    /*// "real" big endian
-    let guid_be = guid_string_to_ube64(guid_str);
-    // host endianness
-    let guid_he = u64::from_be(guid_be);
-
-    let _res = ga.send_and_ack(
-        OveyOperation::CreateDevice,
-        vec![
-            build_nl_attr(OveyAttribute::DeviceName, new_device_name),
-            build_nl_attr(OveyAttribute::ParentDeviceName, parent_device_name),
-            build_nl_attr(OveyAttribute::NodeGuid, guid_he),
-        ]
-        // doesn't work due to conflicting generic type in build_nl_attrs
-        /*build_nl_attrs(
-            vec![
-                (OveyAttribute::DeviceName, new_device_name),
-                (OveyAttribute::ParentDeviceName, parent_device_name),
-                (OveyAttribute::NodeGuid, guid),
-            ]
-        )*/
-    ).unwrap();*/
 }
 
 fn action_delete_device(verbosity: u8, matches: &ArgMatches) {
-    let device_name = matches.value_of("name").unwrap(); // unwrap
+    let device_name = matches.value_of("name").unwrap();
+    let network_uuid_str = matches.value_of("vnetid").unwrap();
+    let network_uuid = Uuid::parse_str(network_uuid_str).unwrap();
     if verbosity > 0 {
-        println!("sending request to delete device: name={}", device_name);
+        println!("sending request to delete device: name={} in network={}", device_name, network_uuid_str);
     }
-    /*let _res = ga.send_single_and_ack(
-        OveyOperation::DeleteDevice,
-        OveyAttribute::DeviceName,
-        device_name
-    ).unwrap();*/
+
+    // build request body for REST request to Ovey daemon
+    let input: Result<DeleteDeviceInput, String> = DeleteDeviceInputBuilder::default()
+        .device_name(device_name)
+        .network_id(network_uuid)
+        .build();
+    match input {
+        Ok(val) => {
+            let res = forward_delete_to_daemon(val);
+            match res {
+                Ok(dto) => {
+                    if verbosity > 0 {
+                        println!("Ovey device was deleted successfully. Response from daemon:");
+                        println!("{:#?}", dto);
+                    }
+                }
+                Err(err) => {
+                    eprintln!("Ovey device was NOT DELETED SUCCESSFULLY. Error from Ovey daemon:");
+                    eprintln!("{}", err);
+                }
+            }
+
+        }
+        Err(err) => {
+            eprintln!("Cannot delete device. Malformed input. {}", err);
+        }
+    }
 }
 
 fn action_echo(verbosity: u8, matches: &ArgMatches) {
@@ -106,12 +109,9 @@ fn action_echo(verbosity: u8, matches: &ArgMatches) {
     if verbosity > 0 {
         println!("sending echo request with value={}", value);
     }
-    /*let res = ga.send_single_and_ack(
-        OveyOperation::Echo,
-        OveyAttribute::Msg,
-        value
-    ).unwrap();
 
-    println!("Received from kernel: {}", res.get_msg().unwrap());*/
+    // TODO!!
+    //let res = forward_echo_to_daemon()
+    //println!("Received from kernel: {}", res.get_msg().unwrap());*/
 }
 
