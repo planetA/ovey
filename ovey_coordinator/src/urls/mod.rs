@@ -1,6 +1,6 @@
 //! Route paths/urls for the REST-API for Ovey Daemon.
 
-use crate::data::{VirtualNetworkIdType, VirtualGuidType};
+use crate::data::{VirtualNetworkIdType, GuidIdType};
 
 /// Returns the configuration of the coordinator.
 pub const ROUTE_GET_CONFIG_URL: &str  = "/config";
@@ -29,7 +29,7 @@ pub fn build_network_url(network_id: VirtualNetworkIdType) -> String {
 
 /// Builds the endpoint url do modify a device.
 #[allow(dead_code)]
-pub fn build_device_url(network_id: VirtualNetworkIdType, device_id: VirtualGuidType) -> String {
+pub fn build_device_url(network_id: VirtualNetworkIdType, device_id: GuidIdType) -> String {
     ROUTE_DEVICE_URL
         .replace("{network}", &network_id.to_string())
         .replace("{device_id}", &device_id)

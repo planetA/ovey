@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use liboveyutil::endianness::Endianness;
-use crate::data::{VirtualizedDevice, VirtualNetworkIdType, VirtualGuidType};
+use crate::data::{VirtualizedDevice, VirtualNetworkIdType, GuidIdType};
 use derive_builder::Builder;
 use std::collections::HashMap;
 use liboveyutil::guid;
@@ -115,7 +115,7 @@ pub type AllNetworksDtoType = HashMap<VirtualNetworkIdType, Vec<VirtualizedDevic
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InitDataConfiguration {
-    networks: HashMap<Uuid, Vec<VirtualGuidType>>
+    networks: HashMap<Uuid, Vec<GuidIdType>>
 }
 
 impl InitDataConfiguration {

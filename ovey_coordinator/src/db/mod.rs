@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 use std::collections::HashMap;
-use crate::data::{DBType, VirtualNetworkIdType, VirtualizedDevice, VirtualGuidType};
+use crate::data::{DBType, VirtualNetworkIdType, VirtualizedDevice, GuidIdType};
 use crate::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, AllNetworksDtoType};
 use crate::rest::errors::CoordinatorRestError;
 use uuid::Uuid;
@@ -48,7 +48,7 @@ pub fn db_get_network_data(network_id: &VirtualNetworkIdType) -> Result<Vec<Virt
 
 
 /// Returns the data for a single device
-pub fn db_get_device_data(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType)
+pub fn db_get_device_data(network_id: &VirtualNetworkIdType, dev_id: &GuidIdType)
                           -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
     let network = &*DB.lock().unwrap();
     let network = network.get(network_id);
@@ -128,7 +128,7 @@ pub fn db_add_device_to_network(network_id: &VirtualNetworkIdType, dev: Virtuali
 }
 
 /// Returns the old device as DTO on success, otherwise error.
-pub fn db_delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: &VirtualGuidType) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+pub fn db_delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: &GuidIdType) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
     let mut network = DB.lock().unwrap();
     let network = network.get_mut(network_id);
     let network = network.ok_or(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()))?;
@@ -151,7 +151,7 @@ fn db_check_device_name_is_unique(network: &VirtualizedNetworkDataType, new_dev_
 
 /// Checks against the coordinator config if the specified device is allowed inside the specified network.
 /// (if this coordinator is responsible for them)
-pub fn check_device_is_allowed(network_id: &Uuid, device_id: &VirtualGuidType) -> Result<(), CoordinatorRestError> {
+pub fn check_device_is_allowed(network_id: &Uuid, device_id: &GuidIdType) -> Result<(), CoordinatorRestError> {
     // validate device guid
     let devs = crate::config::CONFIG.networks().get(network_id);
     if devs.is_none() {

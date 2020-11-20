@@ -6,14 +6,14 @@ use crate::rest::structs::VirtualizedDeviceInput;
 use liboveyutil::guid;
 
 /// A guid is a big endian encoded u64.
-pub type GuidType = u64;
+pub type GuidInternalType = u64;
 /// Virtual GUID as String (e.g. dead:beef:affe:cafe) is the key.
 /// This is easier to read/write during development and overhead is neglible.
-pub type VirtualGuidType = String;
+pub type GuidIdType = String;
 /// Virtual networks are identified by an UUID.
 pub type VirtualNetworkIdType = Uuid;
 /// Virtualized networks are a map from virtual guid of the device to the virtualized data of that device.
-pub type VirtualizedNetworkDataType = HashMap<VirtualGuidType, VirtualizedDevice>;
+pub type VirtualizedNetworkDataType = HashMap<GuidIdType, VirtualizedDevice>;
 /// The key of our database is the virtual network id. Our database can hold data
 /// for multiple virtual networks.
 /// Our database is a hashmap from virtual network id to the virtual network data.
@@ -24,11 +24,11 @@ pub struct VirtualizedDevice {
     // e.g. "ovey0"
     virtual_device_name: String,
     /// Virtual GUID in big endian format.
-    virtual_guid_be: GuidType,
+    virtual_guid_be: GuidInternalType,
     // e.g. "rxe0"
     physical_device_name: String,
     /// Physical GUID in big endian format.
-    physical_guid_be: GuidType,
+    physical_guid_be: GuidInternalType,
     qp_num: u64,
     // add more properties that needs to be virtualized..
 }

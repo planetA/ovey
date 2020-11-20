@@ -7,7 +7,7 @@ use crate::rest::structs::VirtualizedDeviceInput;
 use crate::db::{db_get_all_data, db_add_device_to_network, db_get_device_data, db_delete_device_from_network, db_get_network_data};
 use crate::config::CONFIG;
 use crate::rest::errors::CoordinatorRestError;
-use crate::data::VirtualGuidType;
+use crate::data::GuidIdType;
 
 pub async fn route_config() -> HttpResponse {
     HttpResponse::Ok().json(&*CONFIG) // <- send response
@@ -24,7 +24,7 @@ pub async fn route_get_network_info(web::Path(network_uuid): web::Path<uuid::Uui
         .map(|vec| HttpResponse::Ok().json(vec))
 }
 
-pub async fn route_get_device_info(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, VirtualGuidType)>)
+pub async fn route_get_device_info(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, GuidIdType)>)
     -> Result<actix_web::HttpResponse, CoordinatorRestError> {
     db_get_device_data(&network_uuid, &virt_dev_id)
         .map(|dto| HttpResponse::Ok().json(dto))
@@ -38,7 +38,7 @@ pub async fn route_add_device(input: web::Json<VirtualizedDeviceInput>,
 }
 
 
-pub async fn route_delete_device(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, VirtualGuidType)>)
+pub async fn route_delete_device(web::Path((network_uuid, virt_dev_id)): web::Path<(uuid::Uuid, GuidIdType)>)
     -> Result<actix_web::HttpResponse, CoordinatorRestError> {
     db_delete_device_from_network(&network_uuid, &virt_dev_id)
         .map(|dto| HttpResponse::Ok().json(dto))
