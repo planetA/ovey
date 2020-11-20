@@ -12,6 +12,7 @@ use neli::nl::Nlmsghdr;
 use std::{process, fmt};
 use std::fmt::{Debug, Display, Formatter};
 use neli::nlattr::{Nlattr, AttrHandle};
+use librdmautil::{guid_be_to_string, guid_he_to_string};
 
 use super::ocp_properties::*;
 
@@ -22,7 +23,8 @@ pub struct OCPRecData {
     device_name: Option<String>,
     parent_device_name: Option<String>,
     virt_network_uuid_str: Option<String>,
-    guid_be: Option<u64>,
+    node_guid_be: Option<u64>,
+    parent_node_guid_be: Option<u64>,
 }
 
 impl OCPRecData {
@@ -33,7 +35,8 @@ impl OCPRecData {
         let mut msg = None;
         let mut device_name = None;
         let mut parent_device_name = None;
-        let mut guid_be = None;
+        let mut node_guid_be = None;
+        let mut parent_node_guid_be = None;
         let mut virt_network_uuid_str = None;
 
         h.iter().for_each(|x| {
@@ -52,21 +55,10 @@ impl OCPRecData {
                     virt_network_uuid_str.replace(bytes_to_string(payload));
                 },
                 OveyAttribute::NodeGuid => {
-                    // let u64_val = payload.as_slice().read_u64::<std::io::>().unwrap();
-                    // simple Vec<u8> to u64 doesn't work because Rust want to ensure the length
-                    // of the bytes Array.
-                    let bytes = [
-                        payload[0],
-                        payload[1],
-                        payload[2],
-                        payload[3],
-                        payload[4],
-                        payload[5],
-                        payload[6],
-                        payload[7],
-                    ];
-                    let u64_val = u64::from_ne_bytes(bytes);
-                    guid_be.replace(u64_val);
+                    node_guid_be.replace(byte_vector_to_u64(payload));
+                },
+                OveyAttribute::ParentNodeGuid => {
+                    parent_node_guid_be.replace(byte_vector_to_u64(payload));
                 },
                 _ => {}
             }
@@ -77,7 +69,8 @@ impl OCPRecData {
             device_name,
             parent_device_name,
             virt_network_uuid_str,
-            guid_be,
+            node_guid_be,
+            parent_node_guid_be,
         }
     }
 
@@ -95,7 +88,7 @@ impl OCPRecData {
         self.virt_network_uuid_str.as_ref()
     }
     pub fn guid_be(&self) -> Option<u64> {
-        self.guid_be
+        self.node_guid_be
     }
 }
 
@@ -106,8 +99,20 @@ impl Display for OCPRecData {
             \x20   device_name: {:?}\n\
             \x20   parent_device_name: {:?}\n\
             \x20   guid_be: {:?}\n\
+            \x20   guid_string: {:?}\n\
+            \x20   parent_guid_be: {:?}\n\
+            \x20   parent_guid_string: {:?}\n\
             \x20   virt_network_uuid_str: {:?}\n\
-        }}", self.msg, self.device_name, self.parent_device_name, self.guid_be, self.virt_network_uuid_str)
+        }}",
+               self.msg,
+               self.device_name,
+               self.parent_device_name,
+               self.node_guid_be,
+               self.node_guid_be.map(|val| guid_he_to_string(val)),
+               self.parent_node_guid_be,
+               self.parent_node_guid_be.map(|val| guid_he_to_string(val)),
+               self.virt_network_uuid_str
+        )
     }
 }
 
@@ -125,7 +130,7 @@ type OveyGNlMsg = Nlmsghdr<u16, Genlmsghdr<OveyOperation, OveyAttribute>>;
 impl Ocp {
 
     /// Starts the connection with the netlink family corresponding to the Ovey Linux kernel module.
-    pub fn connect(family_name: &str, verbosity: u8) -> Result<Self, String> {
+    pub fn connect(verbosity: u8) -> Result<Self, String> {
         let mut socket = NlSocket::connect(
             NlFamily::Generic,
             None,
@@ -136,7 +141,7 @@ impl Ocp {
         // Please note that neli hangs in an endless loop when the family doesn't exist as of version
         // 0.4.3. Wait until https://github.com/jbaublitz/neli/issues/87 gets resolved!
         // will probably be very soon resolved with 0.4.4!
-        let family_id = socket.resolve_genl_family(family_name).expect("Generic Family must exist!");
+        let family_id = socket.resolve_genl_family(FAMILY_NAME).expect("Generic Family must exist!");
 
         Ok(
             Self {
@@ -245,6 +250,27 @@ impl Ocp {
     pub fn family_id(&self) -> u16 {
         self.family_id
     }
+}
+
+fn byte_vector_to_u64(bytes: Vec<u8>) -> u64 {
+    assert_eq!(8, bytes.len());
+
+    // let u64_val = payload.as_slice().read_u64::<std::io::>().unwrap();
+    // simple Vec<u8> to u64 doesn't work because Rust want to ensure the length
+    // of the bytes Array.
+    let bytes = [
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+    ];
+    let u64_val = u64::from_ne_bytes(bytes);
+
+    u64_val
 }
 
 /// Convenient function to construct a Nlattr struct to send data.

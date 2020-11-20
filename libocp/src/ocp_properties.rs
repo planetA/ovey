@@ -48,7 +48,8 @@ neli::impl_var_trait!(
     DeviceName => 2,
     ParentDeviceName => 3,
     NodeGuid => 4,
-    VirtNetUuidStr => 5
+    ParentNodeGuid => 5,
+    VirtNetUuidStr => 6
 );
 impl Copy for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
@@ -62,6 +63,7 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName({})", numeric_value),
             OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName({})", numeric_value),
             OveyAttribute::NodeGuid => write!(f, "OveyAttribute::NodeGuid({})", numeric_value),
+            OveyAttribute::ParentNodeGuid => write!(f, "OveyAttribute::ParentNodeGuid({})", numeric_value),
             OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
             _ =>  write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }

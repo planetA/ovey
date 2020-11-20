@@ -1,12 +1,11 @@
 //! Demo for DebugRespondError command.
 
 use libocp::ocp_core::Ocp;
-use libocp::ocp_properties::{FAMILY_NAME};
 use libocp::ocp_debug_respond_error;
 
 /// Demo for ECHO command.
 fn main() {
-    let mut ocp = Ocp::connect(FAMILY_NAME, 1).unwrap();
+    let mut ocp = Ocp::connect(1).unwrap();
     let res = ocp_debug_respond_error(&mut ocp);
 
     if let Err(e) = res {

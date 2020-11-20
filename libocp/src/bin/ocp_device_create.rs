@@ -2,12 +2,11 @@
 //! Make sure that this version of ocp_properties matches the one inside the kernel module!
 
 use libocp::ocp_core::{Ocp};
-use libocp::ocp_properties::{FAMILY_NAME};
 use libocp::ocp_create_device;
 
 /// Demo for ECHO command.
 fn main() {
-    let mut ocp = Ocp::connect(FAMILY_NAME, 1).unwrap();
+    let mut ocp = Ocp::connect(1).unwrap();
 
     let device_name = "ovey0".to_string();
     let parent_device_name = "rxe0".to_string();
