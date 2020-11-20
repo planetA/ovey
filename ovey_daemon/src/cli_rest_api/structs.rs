@@ -1,6 +1,6 @@
 //! Route paths/urls for the REST-API for Ovey CLI.
 
-use ovey_coordinator::data::{VirtualNetworkIdType, VirtualGuidType};
+use ovey_coordinator::data::{VirtualNetworkIdType, GuidIdType};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use crate::cli_rest_api::validation::{validate_device_name, validate_parent_device_name, validate_guid};
@@ -10,16 +10,16 @@ use crate::cli_rest_api::validation::{validate_device_name, validate_parent_devi
 #[builder(setter(into), build_fn(validate = "Self::validate"))]
 pub struct CreateDeviceInput {
     network_id: VirtualNetworkIdType,
-    virt_guid: VirtualGuidType,
+    virt_guid: GuidIdType,
     device_name: String,
     parent_device_name: String,
 }
 
 impl CreateDeviceInput {
-    pub fn network_id(&self) -> VirtualNetworkIdType {
-        self.network_id
+    pub fn network_id(&self) -> &VirtualNetworkIdType {
+        &self.network_id
     }
-    pub fn virt_guid(&self) -> &str {
+    pub fn virt_guid(&self) -> &GuidIdType {
         &self.virt_guid
     }
     pub fn device_name(&self) -> &str {
@@ -65,16 +65,21 @@ impl CreateDeviceInputBuilder {
 #[derive(Serialize, Deserialize, Debug, Builder, Default)]
 #[builder(setter(into), build_fn(validate = "Self::validate"))]
 pub struct DeleteDeviceInput {
-    network_id: VirtualNetworkIdType,
-    virt_guid: VirtualGuidType,
+    // network_id: VirtualNetworkIdType,
+    // virt_guid: VirtualGuidType,
+    device_name: String,
 }
 
 impl DeleteDeviceInput {
-    pub fn network_id(&self) -> VirtualNetworkIdType {
+    /*pub fn network_id(&self) -> VirtualNetworkIdType {
         self.network_id
-    }
-    pub fn virt_guid(&self) -> &str {
+    }*/
+    /* pub fn virt_guid(&self) -> &str {
         &self.virt_guid
+    }*/
+
+    pub fn device_name(&self) -> &str {
+        &self.device_name
     }
 }
 
@@ -87,15 +92,20 @@ impl DeleteDeviceInputBuilder {
     pub fn rebuild(input: DeleteDeviceInput) -> Result<DeleteDeviceInput, String> {
         // construct a new instance with the builder as middleware -> validation :)
         DeleteDeviceInputBuilder::default()
-            .virt_guid(input.virt_guid.to_owned())
-            .network_id(input.network_id.to_owned())
+            // .virt_guid(input.virt_guid.to_owned())
+            // .network_id(input.network_id.to_owned())
+            .device_name(input.device_name.to_owned())
             .build()
     }
 
     fn validate(&self) -> Result<(), String> {
-        if let Some(ref val) = self.virt_guid {
-            validate_guid(val)?;
+        // it's okay to skip none values: that they are set is checked anyways by the builder
+        if let Some(ref val) = self.device_name {
+            validate_device_name(val)?;
         }
+        /*if let Some(ref val) = self.virt_guid {
+            validate_guid(val)?;
+        }*/
         Ok(())
     }
 }
@@ -120,6 +130,15 @@ mod tests {
         println!("{:#?}", foo);
 
         let _new = CreateDeviceInputBuilder::rebuild(foo).unwrap();
+
+        let foo = DeleteDeviceInputBuilder::default()
+            .device_name("ovey0")
+            // .network_id(Uuid::parse_str("c929e96d-6285-4528-b98e-b364d64790ae").unwrap())
+            .build()
+            .unwrap();
+        println!("{:#?}", foo);
+
+        let _new = DeleteDeviceInputBuilder::rebuild(foo).unwrap();
     }
 
 }

@@ -3,7 +3,7 @@ use actix_web::{
 };
 
 use derive_more::{Display};
-use ovey_coordinator::data::{VirtualNetworkIdType, VirtualGuidType};
+use ovey_coordinator::data::{VirtualNetworkIdType, GuidIdType};
 
 
 #[derive(Debug, Display)]
@@ -18,16 +18,28 @@ pub enum DaemonRestError {
     CoordinatorDoesntRespond(VirtualNetworkIdType),
     #[display(fmt = "The coordinator replied with an invalid response.")]
     IllegalCoordinatorResponse,
+    #[display(fmt = "Ovey daemon can't connect to Ovey kernel module via OCP. Can't create device: {}", info)]
+    OcpCantConnect{info: String},
+    #[display(fmt = "Ovey daemon could not finish Ovey operation successfully. {}", info)]
+    OcpOperationFailed{info: String},
+    #[display(fmt = "OCP tells that the device '{}' doesn't exists on this machine.", info)]
+    OcpDeviceNotFound{info: String},
+    #[display(fmt = "OCP tells that the device '{}' already exists on this machine.", info)]
+    OcpDeviceAlreadyExists{info: String},
+    #[display(fmt = "An internal error occurred in Ovey daemon during your request. {}", info)]
+    OtherInternalError{info: String},
 
     // 4XX Errors
     #[display(fmt = "The given network '{}' is unknown/not configured for this Ovey daemon.", _0)]
     UnknownNetwork(VirtualNetworkIdType),
     #[display(fmt = "The device '{}' is already registered in the network {}", _0, _1)]
-    DeviceAlreadyRegistered(VirtualGuidType, VirtualNetworkIdType),
+    DeviceAlreadyRegistered(GuidIdType, VirtualNetworkIdType),
     #[display(fmt = "The device '{}' can't be deleted because it doesn't exist in the network '{}'", _0, _1)]
-    DeviceDoesntExist(VirtualGuidType, VirtualNetworkIdType),
+    DeviceDoesntExist(GuidIdType, VirtualNetworkIdType),
     #[display(fmt = "The request payload is invalid because of: '{}'", _0)]
-    MalformedPayload(String)
+    MalformedPayload(String),
+    #[display(fmt = "The device with guid '{}' is not allowed inside the network '{}' according to the config of the coordinator!", virt_guid, network_id)]
+    DeviceNotAllowed{network_id: VirtualNetworkIdType, virt_guid: GuidIdType }
 }
 
 impl error::ResponseError for DaemonRestError {
@@ -37,11 +49,17 @@ impl error::ResponseError for DaemonRestError {
             DaemonRestError::KernelDoesntRespond => StatusCode::SERVICE_UNAVAILABLE,
             DaemonRestError::CoordinatorDoesntRespond(_) => StatusCode::SERVICE_UNAVAILABLE,
             DaemonRestError::IllegalCoordinatorResponse => StatusCode::INTERNAL_SERVER_ERROR,
+            DaemonRestError::OcpCantConnect{info: _} => StatusCode::INTERNAL_SERVER_ERROR,
+            DaemonRestError::OcpOperationFailed{info: _} => StatusCode::INTERNAL_SERVER_ERROR,
+            DaemonRestError::OtherInternalError{info: _} => StatusCode::INTERNAL_SERVER_ERROR,
 
             // 4XX
             DaemonRestError::UnknownNetwork(_) => StatusCode::NOT_FOUND,
             DaemonRestError::DeviceAlreadyRegistered(_, _) => StatusCode::CONFLICT,
             DaemonRestError::DeviceDoesntExist(_, _) => StatusCode::NOT_FOUND,
+            DaemonRestError::OcpDeviceNotFound{info: _} => StatusCode::NOT_FOUND,
+            DaemonRestError::OcpDeviceAlreadyExists{info: _} => StatusCode::CONFLICT,
+            DaemonRestError::DeviceNotAllowed{network_id: _, virt_guid: _} => StatusCode::BAD_REQUEST,
             DaemonRestError::MalformedPayload(_) => StatusCode::BAD_REQUEST,
         }
     }

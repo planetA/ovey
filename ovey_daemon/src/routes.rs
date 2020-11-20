@@ -1,9 +1,13 @@
-//! Crate-private handlers for the REST API for Ovey CLI.
+//! Crate-private handlers for the REST API of Ovey Daemon. They get invoked by Ovey CLI.
 
 use actix_web::{HttpRequest, HttpResponse, web};
-use ovey_daemon::structs::{CreateDeviceInput, DeleteDeviceInput};
-use crate::coordinator_service::{forward_create_device, forward_delete_device};
+use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
+use crate::coordinator_service::{rest_forward_create_device, rest_forward_delete_device, rest_check_device_is_allowed, rest_lookup_device_guid_by_name};
 use ovey_daemon::errors::DaemonRestError;
+use liboveyutil::guid::{guid_string_to_ube64, guid_be_to_string};
+use uuid::Uuid;
+use libocp::ocp_core::Ocp;
+use crate::OCP;
 
 pub async fn route_get_index(_req: HttpRequest) -> HttpResponse {
     //println!("request: {:?}", &req);
@@ -11,22 +15,108 @@ pub async fn route_get_index(_req: HttpRequest) -> HttpResponse {
 }
 
 pub async fn route_post_create_device(input: web::Json<CreateDeviceInput>) -> Result<actix_web::HttpResponse, DaemonRestError> {
-    // TODO
-    //  first step: check if coordinator knows about virtual device in network (if it is allowed)
-    //  second:     check if the device is already registered in the coordinator
-    //  third:
+    // verify input
+    let input: Result<CreateDeviceInput, String> = CreateDeviceInputBuilder::rebuild(input.0);
+    let input = input.map_err(|e| DaemonRestError::MalformedPayload(e))?;
 
-    let resp = forward_create_device(input.into_inner()).await;
+    // FIRST STEP: check if device is allowed by coordinator
+    let is_allowed = rest_check_device_is_allowed(
+        input.network_id(),
+        input.virt_guid()
+    ).await?;
+
+    if !is_allowed {
+        return Err(
+            DaemonRestError::DeviceNotAllowed{
+                network_id: input.network_id().to_owned(),
+                virt_guid: input.virt_guid().to_owned()
+            }
+        );
+    }
+
+    // SECOND STEP: REGISTER DEVICE LOCALLY VIA OCP INSIDE KERNEL
+    // now we first create the device on the machine
+    // and then we tell the coordinator about it
+
+    let mut ocp = OCP.lock().unwrap();
+    // check if device exists already in kernel
+    let ocp_res = ocp.ocp_get_device_info(input.device_name());
+    if ocp_res.is_ok() && ocp_res.unwrap().device_name().is_some() {
+        return Err(
+            DaemonRestError::OcpDeviceAlreadyExists {info: format!("The device {} already exists inside the kernel!", input.device_name())}
+        )
+    }
+
+    let guid_be = guid_string_to_ube64(input.virt_guid());
+    let ocp_res = ocp.ocp_create_device(
+        input.device_name(),
+        input.parent_device_name(),
+        guid_be,
+        &input.network_id().to_string()
+    );
+    // now fetch again data; we need the parent device guid
+    let _ocp_res = ocp_res.map_err(|err| DaemonRestError::OcpOperationFailed {info: format!("OCP could not create device! {}", err)})?;
+    let ocp_res = ocp.ocp_get_device_info(input.device_name())
+        .map_err(|err| DaemonRestError::OcpOperationFailed {info: format!("OCP could not get device data! {}", err)})?;
+
+    // THIRD STEP: NOW REGISTER THE DEVICE AT COORDINATOR
+    let device_name = input.device_name().to_owned(); // fix use after move with input.device_name() later needed
+    let resp = rest_forward_create_device(
+        input,
+        guid_be_to_string(
+            ocp_res.parent_node_guid_be()
+                .expect("Must exist at this point")
+        )
+    ).await;
+
+    // if something failed; delete device on local machine again
     if resp.is_err() {
         eprintln!("A failure occurred: {:#?}", resp.as_ref().unwrap_err());
+        let ocp_res = ocp.ocp_delete_device(&device_name);
+        if let Err(err) = ocp_res {
+            return Err(
+                DaemonRestError::OcpOperationFailed {info: format!("Local device deletion failed! {}", err)}
+            )
+        }
     }
-    resp.map(|dto| HttpResponse::Ok().json(dto))
+
+    let dto = resp?;
+
+    Ok(
+        HttpResponse::Ok().json(dto)
+    )
 }
 
 pub async fn route_delete_delete_device(input: web::Json<DeleteDeviceInput>) -> Result<actix_web::HttpResponse, DaemonRestError> {
-    let resp = forward_delete_device(input.into_inner()).await;
-    if resp.is_err() {
-        eprintln!("A failure occurred: {:#?}", resp.as_ref().unwrap_err());
-    }
-    resp.map(|dto| HttpResponse::Ok().json(dto))
+    // verify input
+    let input: Result<DeleteDeviceInput, String> = DeleteDeviceInputBuilder::rebuild(input.0);
+    let input = input.map_err(|e| DaemonRestError::MalformedPayload(e))?;
+
+    // first step; check via OCP if device is registered on local machine
+
+    let mut ocp = OCP.lock().unwrap();
+    let ocp_data = ocp.ocp_get_device_info(input.device_name())
+        .map_err(|err| DaemonRestError::OcpDeviceNotFound {info: err})?;
+
+    // second step: delete it on coordinator
+    // fetch network id; we need it for the deletion request on the coordinator
+    let network_id = ocp_data.virt_network_uuid_str().unwrap();
+    let network_id = Uuid::parse_str(network_id)
+        .map_err(|err| DaemonRestError::OtherInternalError{info: err.to_string()})?;
+    let guid_str = guid_be_to_string(ocp_data.node_guid_be().unwrap());
+
+    // delete in both places without early canceling (no .unwrap() or ?)
+
+    let dto = rest_forward_delete_device( &guid_str, &network_id).await;
+
+    // actually delete device on local machine inside Ovey kernel module
+    let ocp_result = ocp.ocp_delete_device(input.device_name())
+        .map_err(|err| DaemonRestError::OcpOperationFailed {info: format!("Local device deletion failed! {}", err)});
+
+    let ocp_result = ocp_result?;
+    let dto = dto?;
+
+    Ok(
+        HttpResponse::Ok().json(dto)
+    )
 }

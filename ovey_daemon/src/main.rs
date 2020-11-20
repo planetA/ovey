@@ -5,17 +5,25 @@ use routes::{route_get_index, route_post_create_device, route_delete_delete_devi
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_daemon::consts::OVEY_DAEMON_PORT;
 use ovey_daemon::urls::ROUTE_DEVICE;
+use std::sync::Mutex;
+use libocp::ocp_core::Ocp;
 
 mod config;
 mod routes;
 mod coordinator_service;
+
+lazy_static::lazy_static! {
+    pub(crate) static ref OCP: Mutex<Ocp> = {
+        Mutex::from(Ocp::connect(4, true).expect("OCP connection must work in order for Ovey daemon to work."))
+    };
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     println!("Ovey daemon started with the following initial configuration:");
     println!("{:#?}", *CONFIG);
 
-    std::env::set_var("RUST_LOG", "actix_web=debug");
+    std::env::set_var("RUST_LOG", "actix_web=info,debug");
     env_logger::init();
 
     // check if all coordinators are up and valid
@@ -24,6 +32,11 @@ async fn main() -> std::io::Result<()> {
             eprintln!("{}", e);
             std::io::ErrorKind::Other
         })?;
+
+    // init lazy static OCP
+    {
+        let _ = OCP.lock().unwrap();
+    }
 
     println!("Starting REST service on localhost:{}", OVEY_DAEMON_PORT);
 

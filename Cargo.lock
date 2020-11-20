@@ -1101,6 +1101,7 @@ version = "0.1.0"
 dependencies = [
  "liboveyutil",
  "neli",
+ "serde",
 ]
 
 [[package]]
@@ -1357,6 +1358,7 @@ dependencies = [
  "json",
  "lazy_static",
  "liboveyutil",
+ "log",
  "serde",
  "serde_json",
  "uuid",
