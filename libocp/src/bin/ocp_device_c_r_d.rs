@@ -8,7 +8,7 @@ use libocp::ocp_core::{Ocp};
 /// - gets information
 /// - deletes it
 fn main() {
-    let mut ocp = Ocp::connect(1).unwrap();
+    let mut ocp = Ocp::connect(1, true).unwrap();
 
     let device_name = "ovey0".to_string();
     let parent_device_name = "rxe0".to_string();
@@ -26,7 +26,6 @@ fn main() {
 
 
     println!("creating device ovey0");
-
     let _res = ocp.ocp_create_device(
         &device_name,
         &parent_device_name,

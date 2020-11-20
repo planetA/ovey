@@ -128,6 +128,7 @@ pub struct Ocp {
     family_id: u16,
     socket: NlSocket,
     verbosity: u8,
+    needs_reconnect: bool,
 }
 
 /// The type of a ovey message inside generic netlink. Convenient, simple type instead of
@@ -137,7 +138,11 @@ type OveyGNlMsg = Nlmsghdr<u16, Genlmsghdr<OveyOperation, OveyAttribute>>;
 impl Ocp {
 
     /// Starts the connection with the netlink family corresponding to the Ovey Linux kernel module.
-    pub fn connect(verbosity: u8) -> Result<Self, String> {
+    /// * `verbosity` amount of additional output
+    /// * `reconnect_on_every_send` if true: hacky workaround to reconnect the socket for each send.
+    ///                             this is required because otherwise I get panics when I send
+    ///                             multiple requests through the same socket.
+    pub fn connect(verbosity: u8, reconnect_on_every_send: bool) -> Result<Self, String> {
         let mut socket = NlSocket::connect(
             NlFamily::Generic,
             None,
@@ -154,9 +159,21 @@ impl Ocp {
             Self {
                 family_id,
                 socket,
-                verbosity
+                verbosity,
+                needs_reconnect: false
             }
         )
+    }
+
+    fn reconnect(&mut self) {
+        self.socket = NlSocket::connect(
+            NlFamily::Generic,
+            None,
+            None,
+            // we don't check/use seqs because we don't have data transports that are split into multiple packets
+            false
+        ).unwrap();
+        self.needs_reconnect = false;
     }
 
     /// Sends a single attribute to kernel and receive the data.
@@ -174,6 +191,11 @@ impl Ocp {
     fn send_and_ack(&mut self,
                         op: OveyOperation,
                         attrs: Vec<Nlattr<OveyAttribute, Vec<u8>>>) -> Result<OCPRecData, String> {
+        if self.needs_reconnect {
+            // part of hacky workaround; see commit msg
+            self.reconnect();
+        }
+        self.needs_reconnect = true;
 
         if self.verbosity > 0 {
             println!("Sending via netlink: operation={}, all attributes:", op);

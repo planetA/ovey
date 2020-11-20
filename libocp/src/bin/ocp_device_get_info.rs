@@ -5,7 +5,7 @@ use libocp::ocp_core::{Ocp};
 
 /// Demo for get info command.
 fn main() {
-    let mut ocp = Ocp::connect(1).unwrap();
+    let mut ocp = Ocp::connect(1, false).unwrap();
 
     let device_name = "ovey0".to_string();
 
