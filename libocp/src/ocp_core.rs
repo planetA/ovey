@@ -87,8 +87,11 @@ impl OCPRecData {
     pub fn virt_network_uuid_str(&self) -> Option<&String> {
         self.virt_network_uuid_str.as_ref()
     }
-    pub fn guid_be(&self) -> Option<u64> {
+    pub fn node_guid_be(&self) -> Option<u64> {
         self.node_guid_be
+    }
+    pub fn parent_node_guid_be(&self) -> Option<u64> {
+        self.parent_node_guid_be
     }
 }
 
