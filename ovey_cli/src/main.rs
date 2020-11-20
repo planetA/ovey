@@ -70,16 +70,13 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) {
 
 fn action_delete_device(verbosity: u8, matches: &ArgMatches) {
     let device_name = matches.value_of("name").unwrap();
-    let network_uuid_str = matches.value_of("vnetid").unwrap();
-    let network_uuid = Uuid::parse_str(network_uuid_str).unwrap();
     if verbosity > 0 {
-        println!("sending request to delete device: name={} in network={}", device_name, network_uuid_str);
+        println!("sending request to delete device on local machine: name={}", device_name);
     }
 
     // build request body for REST request to Ovey daemon
     let input: Result<DeleteDeviceInput, String> = DeleteDeviceInputBuilder::default()
         .device_name(device_name)
-        .network_id(network_uuid)
         .build();
     match input {
         Ok(val) => {

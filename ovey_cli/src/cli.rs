@@ -78,13 +78,6 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
                 .required(true)
                 .validator(dev_name_validator)
                 .help(&format!("device name (\"{}\")", DEVICE_NAME_PATTERN)))
-            /*.arg(Arg::with_name("vnetid")
-                .long("vnetid")
-                .short("i")
-                .takes_value(true)
-                .required(true)
-                .validator(uuid_validator)
-                .help("v4-uuid of the virtual network for the ovey device"))*/
         )
         .subcommand(SubCommand::with_name("echo")
             .display_order(2)
