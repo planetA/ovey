@@ -5,10 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 use liboveyutil::endianness::Endianness;
-use crate::data::{VirtualizedDevice, VirtualNetworkIdType};
+use crate::data::{VirtualizedDevice, VirtualNetworkIdType, VirtualGuidType};
 use derive_builder::Builder;
 use std::collections::HashMap;
 use liboveyutil::guid;
+use uuid::Uuid;
 
 /// This is the data for the REST-API that is expected as payload of a REST-Request
 /// when a new file should be created.
@@ -81,10 +82,47 @@ impl VirtualizedDeviceDTO {
             parent_device_name
         }
     }
+
+
+    pub fn virtual_device_guid_string(&self) -> &str {
+        &self.virtual_device_guid_string
+    }
+    pub fn virtual_device_guid_be(&self) -> u64 {
+        self.virtual_device_guid_be
+    }
+    pub fn virtual_device_guid_le(&self) -> u64 {
+        self.virtual_device_guid_le
+    }
+    pub fn physical_device_guid_string(&self) -> &str {
+        &self.physical_device_guid_string
+    }
+    pub fn physical_device_guid_be(&self) -> u64 {
+        self.physical_device_guid_be
+    }
+    pub fn physical_device_guid_le(&self) -> u64 {
+        self.physical_device_guid_le
+    }
+    pub fn device_name(&self) -> &str {
+        &self.device_name
+    }
+    pub fn parent_device_name(&self) -> &str {
+        &self.parent_device_name
+    }
 }
 
 /// This DTO exports all networks with all registered devices.
 pub type AllNetworksDtoType = HashMap<VirtualNetworkIdType, Vec<VirtualizedDeviceDTO>>;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct InitDataConfiguration {
+    networks: HashMap<Uuid, Vec<VirtualGuidType>>
+}
+
+impl InitDataConfiguration {
+    pub fn networks(&self) -> &HashMap<Uuid, Vec<String>> {
+        &self.networks
+    }
+}
 
 #[cfg(test)]
 mod tests {

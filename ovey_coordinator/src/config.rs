@@ -1,8 +1,6 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use uuid::Uuid;
+use ovey_coordinator::rest::structs::InitDataConfiguration;
 
 lazy_static::lazy_static! {
     pub static ref CONFIG: InitDataConfiguration = {
@@ -13,23 +11,12 @@ lazy_static::lazy_static! {
         let cfg = opt.unwrap();
 
         // register all networks
-        cfg.networks.keys().for_each(|key| {
+        cfg.networks().keys().for_each(|key| {
             crate::db::db_register_network(key.to_owned()).unwrap();
         });
 
         cfg
     };
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct InitDataConfiguration {
-    networks: HashMap<Uuid, Vec<String>>
-}
-
-impl InitDataConfiguration {
-    pub fn networks(&self) -> &HashMap<Uuid, Vec<String>> {
-        &self.networks
-    }
 }
 
 fn setup_init_config() -> Result<InitDataConfiguration, std::io::Error> {
