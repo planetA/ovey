@@ -2,7 +2,6 @@
 //! Make sure that this version of ocp_properties matches the one inside the kernel module!
 
 use libocp::ocp_core::{Ocp};
-use libocp::ocp_delete_device;
 
 /// Demo for delete command.
 fn main() {
@@ -10,8 +9,7 @@ fn main() {
 
     let device_name = "ovey0".to_string();
 
-    let res = ocp_delete_device(
-        &mut ocp,
+    let res = ocp.ocp_delete_device(
         &device_name,
     );
 

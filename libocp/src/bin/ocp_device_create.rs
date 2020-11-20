@@ -2,7 +2,6 @@
 //! Make sure that this version of ocp_properties matches the one inside the kernel module!
 
 use libocp::ocp_core::{Ocp};
-use libocp::ocp_create_device;
 
 /// Demo for create command.
 fn main() {
@@ -14,8 +13,7 @@ fn main() {
     // "dead:beef:0bad:f00d" => 1004492983682117086
     let guid_be = 1004492983682117086_u64;
 
-    let res = ocp_create_device(
-                            &mut ocp,
+    let res = ocp.ocp_create_device(
                                 &device_name,
                                 &parent_device_name,
                                 guid_be,

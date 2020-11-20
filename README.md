@@ -38,3 +38,15 @@ It contains tools written in Rust for the following components (binaries):
 - Ovey daemon validates data from cli
 - cli validates information by itself too (validates user input)
 - coordinator trusts data from daemon (so far because this is a PoC and no production ready software)
+
+## Workflow Device creation
+- `$ ovey_cli new ...` -> makes REST-Request to Ovey Daemon
+## Workflow Device deletion
+- `$ ovey_cli delete ...` -> makes REST-Request to Ovey Daemon
+## Workflow Device querying (on current machine)
+- `$ ovey_cli list ...` -> makes REST-Request to Ovey Daemon
+- Daemon checks all ovey devices that are active on the current machine 
+  (TODO via libibverbs or OCP?! probably OCP with kernel; or read from /sys/class/infiniband/)
+- checks there state against the coordinator and gives info whether there 
+  are problems or not
+- advantage of this over `ibv_devinfo` is that Ovey-specific info can be printed

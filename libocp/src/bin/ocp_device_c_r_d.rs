@@ -2,7 +2,6 @@
 //! Make sure that this version of ocp_properties matches the one inside the kernel module!
 
 use libocp::ocp_core::{Ocp};
-use libocp::{ocp_get_device_info, ocp_delete_device, ocp_create_device};
 
 /// Demo that:
 /// - creates Ovey device
@@ -19,17 +18,16 @@ fn main() {
 
 
     println!("Fetched device info from OCP");
-    let exists = ocp_get_device_info(&mut ocp, &device_name);
+    let exists = ocp.ocp_get_device_info(&device_name);
     if exists.is_ok() {
         println!("Device exists! Delete it");
-        let _ = ocp_delete_device(&mut ocp, &device_name).expect("delete must work");
+        let _ = ocp.ocp_delete_device(&device_name).expect("delete must work");
     }
 
 
     println!("creating device ovey0");
 
-    let _res = ocp_create_device(
-        &mut ocp,
+    let _res = ocp.ocp_create_device(
         &device_name,
         &parent_device_name,
         guid_be,
@@ -38,16 +36,14 @@ fn main() {
 
 
     println!("Fetched device info from OCP");
-    let res = ocp_get_device_info(
-        &mut ocp,
+    let res = ocp.ocp_get_device_info(
         &device_name,
     ).expect("must get info");
 
     println!("{}", res);
 
     println!("deleting device ovey0");
-    let _res = ocp_delete_device(
-        &mut ocp,
+    let _res = ocp.ocp_delete_device(
         &device_name,
     ).expect("must be deleted");
 

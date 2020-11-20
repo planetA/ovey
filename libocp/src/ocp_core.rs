@@ -160,7 +160,7 @@ impl Ocp {
     }
 
     /// Sends a single attribute to kernel and receive the data.
-    pub fn send_single_and_ack<T: Nl + Debug>(&mut self,
+    fn send_single_and_ack<T: Nl + Debug>(&mut self,
                                               op: OveyOperation,
                                               attr_type: OveyAttribute, payload: T) -> Result<OCPRecData, String> {
         let attrs = vec![
@@ -171,7 +171,7 @@ impl Ocp {
 
     /// Sends a message to the kernel with a vector of data attributes. Ensures that the kernel
     /// replied with an ACK and not an invalid message.
-    pub fn send_and_ack(&mut self,
+    fn send_and_ack(&mut self,
                         op: OveyOperation,
                         attrs: Vec<Nlattr<OveyAttribute, Vec<u8>>>) -> Result<OCPRecData, String> {
 
@@ -257,6 +257,80 @@ impl Ocp {
     /// Returns the family id retrieved from the Kernel.
     pub fn family_id(&self) -> u16 {
         self.family_id
+    }
+
+    /// Convenient wrapper function that creates an
+    /// new Ovey device inside the Ovey Kernel Module
+    /// via OCP. It returns whether the operation was
+    /// successfully or not.
+    pub fn ocp_create_device(&mut self,
+                             device_name: &str,
+                             parent_device_name: &str,
+                             node_guid_be: u64,
+                             network_uuid_str: &str,
+    ) -> Result<OCPRecData, String> {
+        self.send_and_ack(
+            OveyOperation::CreateDevice,
+            vec![
+                build_nl_attr(OveyAttribute::DeviceName, device_name),
+                build_nl_attr(OveyAttribute::ParentDeviceName, parent_device_name),
+                build_nl_attr(OveyAttribute::NodeGuid, node_guid_be),
+                build_nl_attr(OveyAttribute::VirtNetUuidStr, network_uuid_str),
+            ]
+        )
+    }
+
+    /// Convenient wrapper function that deletes a n
+    /// Ovey device inside the Ovey Kernel Module
+    /// via OCP. It returns whether the operation was
+    /// successfully or not.
+    pub fn ocp_delete_device(&mut self,
+                             device_name: &str
+    ) -> Result<OCPRecData, String> {
+        self.send_and_ack(
+            OveyOperation::DeleteDevice,
+            vec![
+                build_nl_attr(OveyAttribute::DeviceName, device_name)
+            ]
+        )
+    }
+
+    /// Convenient wrapper function that gets info about an
+    /// Ovey device inside the Ovey Kernel Module
+    /// via OCP. It returns whether the operation was
+    /// successfully or not.
+    pub fn ocp_get_device_info(&mut self,
+                               device_name: &str
+    ) -> Result<OCPRecData, String> {
+        self.send_and_ack(
+            OveyOperation::DeviceInfo,
+            vec![
+                build_nl_attr(OveyAttribute::DeviceName, device_name)
+            ]
+        )
+    }
+
+    /// Convenient wrapper function that tests OCP
+    /// with the Kernel Module by sending an ECHO
+    /// request. Kernel should reply with an
+    /// message with the proper content.
+    pub fn ocp_echo(&mut self,
+                    echo_msg: &str
+    ) -> Result<OCPRecData, String> {
+        self.send_single_and_ack(
+            OveyOperation::Echo,
+            OveyAttribute::Msg,
+            echo_msg
+        )
+    }
+
+    /// Convenient wrapper function that triggers a
+    /// error response via OCP by the Ovey Kernel Module.
+    pub fn ocp_debug_respond_error(&mut self) -> Result<OCPRecData, String> {
+        self.send_and_ack(
+            OveyOperation::DebugRespondError,
+            vec![]
+        )
     }
 }
 
