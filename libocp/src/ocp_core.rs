@@ -148,6 +148,7 @@ pub struct Ocp {
     socket: NlSocket,
     verbosity: u8,
     needs_reconnect: bool,
+    reconnect_on_every_send: bool,
 }
 
 impl Ocp {
@@ -175,7 +176,8 @@ impl Ocp {
                 family_id,
                 socket,
                 verbosity,
-                needs_reconnect: false
+                needs_reconnect: false,
+                reconnect_on_every_send,
             }
         )
     }
@@ -206,7 +208,7 @@ impl Ocp {
     fn send_and_ack(&mut self,
                         op: OveyOperation,
                         attrs: Vec<Nlattr<OveyAttribute, Vec<u8>>>) -> Result<OCPRecData, String> {
-        if self.needs_reconnect {
+        if self.reconnect_on_every_send && self.needs_reconnect {
             // part of hacky workaround; see commit msg
             self.reconnect();
         }
