@@ -9,8 +9,9 @@ use std::sync::Mutex;
 use libocp::ocp_core::Ocp;
 
 mod config;
-mod routes;
 mod coordinator_service;
+mod routes;
+mod util;
 
 lazy_static::lazy_static! {
     pub(crate) static ref OCP: Mutex<Ocp> = {

@@ -6,5 +6,7 @@ mod cli_rest_api;
 
 pub use cli_rest_api::*;
 
+pub mod util;
+
 // We re-export ovey DTOs because Ovey Daemon pass them through as they are
 pub use ovey_coordinator::rest as coordinator_rest;

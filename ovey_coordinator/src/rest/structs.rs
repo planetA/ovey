@@ -4,7 +4,6 @@
 //! In many cases probably almost the same.
 
 use serde::{Deserialize, Serialize};
-use liboveyutil::endianness::Endianness;
 use crate::data::{VirtualizedDevice, VirtualNetworkIdType, GuidIdType};
 use derive_builder::Builder;
 use std::collections::HashMap;

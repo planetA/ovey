@@ -1,5 +1,3 @@
-use crate::endianness::Endianness;
-
 /// String representation of a guid. e.g.: "0000:0000:0000:0000" or "abc0:afaf:34b5:0015".
 /// A hex string splitted into groups of four hex ditits connected with '.'.
 pub const GUID_STRING_PATTERN: &str = "[AaBbCcDdEeFf0-9]{4}(:[AaBbCcDdEeFf0-9]{4}){3}";
@@ -32,6 +30,7 @@ pub fn guid_u64_to_string(guid: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::endianness::Endianness;
 
     #[test]
     fn test_guid_string_to_ube64() {

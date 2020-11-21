@@ -31,7 +31,6 @@ fn validate_name(pattern: &str, name: &str) -> Result<(), ()> {
 mod tests {
 
     use super::*;
-    use liboveyutil::guid::GUID_STRING_PATTERN;
 
     #[test]
     fn test_match() {

@@ -5,8 +5,5 @@
 // since macros can be called like a module path
 extern crate neli;
 
-use crate::ocp_core::{OCPRecData, build_nl_attr, Ocp};
-use crate::ocp_properties::{OveyOperation, OveyAttribute};
-
 pub mod ocp_core;
 pub mod ocp_properties;
