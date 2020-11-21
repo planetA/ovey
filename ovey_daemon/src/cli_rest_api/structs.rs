@@ -110,6 +110,30 @@ impl DeleteDeviceInputBuilder {
     }
 }
 
+/// This DTO tells the CLI the state of the deletion after a delete request.
+#[derive(Serialize, Deserialize, Debug, Builder, Default)]
+pub struct DeletionStateDto {
+    deletion_local_successfully: bool,
+    deletion_local_info_msg: Option<String>,
+    deletion_coordinator_successfully: bool,
+    deletion_coordinator_info_msg: Option<String>,
+}
+
+impl DeletionStateDto {
+    pub fn deletion_local_successfully(&self) -> bool {
+        self.deletion_local_successfully
+    }
+    pub fn deletion_local_info_msg(&self) -> Option<&String> {
+        self.deletion_local_info_msg.as_ref()
+    }
+    pub fn deletion_coordinator_successfully(&self) -> bool {
+        self.deletion_coordinator_successfully
+    }
+    pub fn deletion_coordinator_info_msg(&self) -> Option<&String> {
+        self.deletion_coordinator_info_msg.as_ref()
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

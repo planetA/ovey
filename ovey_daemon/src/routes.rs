@@ -1,12 +1,14 @@
 //! Crate-private handlers for the REST API of Ovey Daemon. They get invoked by Ovey CLI.
 
 use actix_web::{HttpRequest, HttpResponse, web};
-use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
-use crate::coordinator_service::{rest_forward_create_device, rest_forward_delete_device, rest_check_device_is_allowed, rest_lookup_device_guid_by_name};
-use ovey_daemon::errors::DaemonRestError;
-use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
 use uuid::Uuid;
+
 use libocp::ocp_core::Ocp;
+use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
+use ovey_daemon::errors::DaemonRestError;
+use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder, DeletionStateDto, DeletionStateDtoBuilder};
+
+use crate::coordinator_service::{rest_check_device_is_allowed, rest_forward_create_device, rest_forward_delete_device, rest_lookup_device_guid_by_name};
 use crate::OCP;
 
 pub async fn route_get_index(_req: HttpRequest) -> HttpResponse {
@@ -93,10 +95,10 @@ pub async fn route_delete_delete_device(input: web::Json<DeleteDeviceInput>) -> 
     let input = input.map_err(|e| DaemonRestError::MalformedPayload(e))?;
 
     // first step; check via OCP if device is registered on local machine
-
     let mut ocp = OCP.lock().unwrap();
     let ocp_data = ocp.ocp_get_device_info(input.device_name())
-        .map_err(|err| DaemonRestError::OcpDeviceNotFound {info: err})?;
+        .map_err(|err| DaemonRestError::OcpDeviceNotFound {info: input.device_name().to_owned()});
+    let ocp_data = ocp_data?;
 
     // second step: delete it on coordinator
     // fetch network id; we need it for the deletion request on the coordinator
@@ -107,16 +109,30 @@ pub async fn route_delete_delete_device(input: web::Json<DeleteDeviceInput>) -> 
 
     // delete in both places without early canceling (no .unwrap() or ?)
 
-    let dto = rest_forward_delete_device( &guid_str, &network_id).await;
+    let coordinator_result = rest_forward_delete_device(&guid_str, &network_id).await;
 
     // actually delete device on local machine inside Ovey kernel module
     let ocp_result = ocp.ocp_delete_device(input.device_name())
         .map_err(|err| DaemonRestError::OcpOperationFailed {info: format!("Local device deletion failed! {}", err)});
 
-    let ocp_result = ocp_result?;
-    let dto = dto?;
+    let deletion_state: DeletionStateDto = DeletionStateDtoBuilder::default()
+        .deletion_local_successfully(ocp_result.is_ok())
+        .deletion_local_info_msg(
+            ocp_result.err()
+                // display is implemented by a derive macro
+                // even if IDE doesn't recognize it
+                .map(|e| format!("{}", e))
+        )
+        .deletion_coordinator_successfully(coordinator_result.is_ok())
+        .deletion_coordinator_info_msg(
+            coordinator_result.err()
+                // display is implemented by a derive macro
+                // even if IDE doesn't recognize it
+                .map(|e| format!("{}", e)))
+        .build()
+        .unwrap();
 
     Ok(
-        HttpResponse::Ok().json(dto)
+        HttpResponse::Ok().json(deletion_state)
     )
 }
