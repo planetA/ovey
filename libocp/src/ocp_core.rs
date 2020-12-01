@@ -166,9 +166,6 @@ impl Ocp {
             // we don't check/use seqs because we don't have data transports that are split into multiple packets
             false
         ).map_err(|e| format!("netlink connect failed! err={}", e))?;
-        // Please note that neli hangs in an endless loop when the family doesn't exist as of version
-        // 0.4.3. Wait until https://github.com/jbaublitz/neli/issues/87 gets resolved!
-        // will probably be very soon resolved with 0.4.4!
         let family_id = socket.resolve_genl_family(FAMILY_NAME).expect("Generic Family must exist!");
 
         Ok(
