@@ -7,11 +7,16 @@ use ovey_daemon::consts::OVEY_DAEMON_PORT;
 use ovey_daemon::urls::ROUTE_DEVICE;
 use std::sync::Mutex;
 use libocp::ocp_core::Ocp;
+use std::ops::Deref;
+use simple_on_shutdown::on_shutdown;
 
 mod config;
 mod coordinator_service;
 mod routes;
 mod util;
+
+#[macro_use]
+extern crate log;
 
 lazy_static::lazy_static! {
     pub(crate) static ref OCP: Mutex<Ocp> = {
@@ -24,6 +29,12 @@ async fn main() -> std::io::Result<()> {
     println!("Ovey daemon started with the following initial configuration:");
     println!("{:#?}", *CONFIG);
 
+    /// Important that this value lives through the whole lifetime of main()
+    on_shutdown!({
+        OCP.lock().unwrap().ocp_daemon_bye().expect("should work");
+        debug!("Daemon told kernel via OCP goodbye")
+    });
+
     std::env::set_var("RUST_LOG", "actix_web=info,debug");
     env_logger::init();
 
@@ -34,9 +45,10 @@ async fn main() -> std::io::Result<()> {
             std::io::ErrorKind::Other
         })?;
 
-    // init lazy static OCP
+    // init lazy static OCP + tell kernel daemon started
     {
-        let _ = OCP.lock().unwrap();
+        let _ = OCP.lock().unwrap().ocp_daemon_hello().expect("should work");;
+        debug!("Daemon told kernel via OCP hello");
     }
 
     println!("Starting REST service on localhost:{}", OVEY_DAEMON_PORT);

@@ -369,6 +369,24 @@ impl Ocp {
             vec![]
         )
     }
+
+    /// Convenient wrapper function that triggers a
+    /// error response via OCP by the Ovey Kernel Module.
+    pub fn ocp_daemon_hello(&mut self) -> Result<OCPRecData, String> {
+        self.send_and_ack(
+            OveyOperation::DaemonHello,
+            vec![]
+        )
+    }
+
+    /// Convenient wrapper function that triggers a
+    /// error response via OCP by the Ovey Kernel Module.
+    pub fn ocp_daemon_bye(&mut self) -> Result<OCPRecData, String> {
+        self.send_and_ack(
+            OveyOperation::DaemonBye,
+            vec![]
+        )
+    }
 }
 
 fn byte_vector_to_u64(bytes: Vec<u8>) -> u64 {

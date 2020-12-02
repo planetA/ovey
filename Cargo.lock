@@ -1377,11 +1377,13 @@ dependencies = [
  "lazy_static",
  "libocp",
  "liboveyutil",
+ "log",
  "ovey_coordinator",
  "regex",
  "reqwest",
  "serde",
  "serde_json",
+ "simple_on_shutdown",
  "uuid",
 ]
 
@@ -1792,6 +1794,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce32ea0c6c56d5eacaeb814fbed9960547021d3edd010ded1425f180536b20ab"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "simple_on_shutdown"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f98a231e9a318a006eb029e53ee4f8980c3461defff26758d1440f63e663e8d4"
+dependencies = [
+ "log",
 ]
 
 [[package]]

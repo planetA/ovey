@@ -18,7 +18,9 @@ neli::impl_var_trait!(
     CreateDevice => 2,
     DeleteDevice => 3,
     DebugRespondError => 4,
-    DeviceInfo => 5
+    DeviceInfo => 5,
+    DaemonHello => 6,
+    DaemonBye => 7
 );
 impl Copy for OveyOperation {}
 impl fmt::Display for OveyOperation {
@@ -33,6 +35,8 @@ impl fmt::Display for OveyOperation {
             OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice({})", numeric_value),
             OveyOperation::DebugRespondError => write!(f, "OveyOperation::DebugRespondError({})", numeric_value),
             OveyOperation::DeviceInfo => write!(f, "OveyOperation::DeviceInfo({})", numeric_value),
+            OveyOperation::DaemonHello => write!(f, "OveyOperation::DaemonHello({})", numeric_value),
+            OveyOperation::DaemonBye => write!(f, "OveyOperation::DaemonBye({})", numeric_value),
             _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
         }
     }

@@ -20,6 +20,9 @@ env_logger = "0.8.1"
 derive_builder = "0.9.0"
 derive_more = "0.99.11"
 lazy_static = "1.4.0"
+# simple_on_shutdown = "0.1.0"
+log = "0.4.11"
+simple_on_shutdown = "0.1.4"
 
 ovey_coordinator = { path = "../ovey_coordinator" }
 libocp = { path = "../libocp" }
