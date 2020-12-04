@@ -227,6 +227,8 @@ impl Ocp {
         let res = self.socket.recv_nl::<u16, Genlmsghdr::<OveyOperation, OveyAttribute>>(None)
             .map_err(|err| err.to_string())?;
 
+        debug!("res.nlmsg_hdr.nl_pid = {}", res.nl_pid);
+
         // Do some validation that is useful I think
         // I personally think that recv_ack() by neli is not so good for our
         // purposes;

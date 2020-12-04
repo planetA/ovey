@@ -1100,6 +1100,7 @@ name = "libocp"
 version = "0.1.0"
 dependencies = [
  "liboveyutil",
+ "log",
  "neli",
  "serde",
 ]
