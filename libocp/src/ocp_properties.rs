@@ -14,18 +14,6 @@ pub const PARENT_DEVICE_NAME_PATTERN: &str = "[A-z]+[0-9]+";
 // OveyOperation corresponds to "enum OveyOperation" in kernel module C code.
 // Describes what callback function shall be invoked in the linux kernel module.
 
-impl_trait!(
-    /// Trait marking constants valid for use in
-    /// [`Genlmsghdr`][crate::genl::Genlmsghdr] field, `cmd`.
-    pub Cmd,
-    u8,
-    /// Wrapper valid for use with all values in the [`Genlmsghdr`]
-    /// field, `cmd`
-    OveyOperationWrapper,
-    OveyOperation
-);
-// TODO this is strange.. wait for https://github.com/jbaublitz/neli/issues/99
-impl neli::consts::genl::Cmd for OveyOperation {}
 neli::impl_var!( // also impls copy
     pub OveyOperation,
     u8,
@@ -38,6 +26,7 @@ neli::impl_var!( // also impls copy
     DaemonHello => 6,
     DaemonBye => 7
 );
+impl neli::consts::genl::Cmd for OveyOperation {}
 impl fmt::Display for OveyOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // weird hack but otherwise I can't get the numeric value of the enum -.-
@@ -60,18 +49,6 @@ impl fmt::Display for OveyOperation {
 // Implements the necessary trait for the "neli" lib on an enum called "OveyAttribute".
 // Command corresponds to "enum OveyAttribute" in kernel module C code.
 // Describes the value type to data mappings inside the generic netlink packet payload.
-impl_trait!(
-    /// Marker trait for types usable in the
-    /// [`Nlattr`][crate::genl::Nlattr] field, `nla_type`
-    pub NlAttrType,
-    u16,
-    /// Wrapper that is usable with all values in the
-    /// [`Nlattr`][crate::genl::Nlattr] field, `nla_type`.
-    pub OveyAttributeWrapper,
-    OveyAttribute
-);
-// TODO this is strange.. wait for https://github.com/jbaublitz/neli/issues/99
-impl neli::consts::genl::NlAttrType for OveyAttribute {}
 neli::impl_var!( // also impls copy
     pub OveyAttribute,
     u16,
@@ -83,6 +60,7 @@ neli::impl_var!( // also impls copy
     ParentNodeGuid => 5,
     VirtNetUuidStr => 6
 );
+impl neli::consts::genl::NlAttrType for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // weird hack but otherwise I can't get the numeric value of the enum -.-

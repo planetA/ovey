@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::fmt;
 use liboveyutil::guid::guid_u64_to_string;
 use crate::ocp_core::ocp::{OveyGeNlMsg};
+use neli::Nl;
 
 /// Struct that holds all the data that can be received via OCP from the kernel. It's up
 /// to the caller function to extract the right data.
@@ -45,22 +46,22 @@ impl OCPRecData {
         payload.get_attr_handle().iter().for_each(|attr| {
             match attr.nla_type {
                 OveyAttribute::Msg => {
-                    msg.replace(bytes_to_string(attr.nla_payload.as_ref()));
+                    msg.replace(String::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::DeviceName => {
-                    device_name.replace(bytes_to_string(attr.nla_payload.as_ref()));
+                    device_name.replace(String::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::ParentDeviceName => {
-                    parent_device_name.replace(bytes_to_string(attr.nla_payload.as_ref()));
+                    parent_device_name.replace(String::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::VirtNetUuidStr => {
-                    virt_network_uuid_str.replace(bytes_to_string(attr.nla_payload.as_ref()));
+                    virt_network_uuid_str.replace(String::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::NodeGuid => {
-                    node_guid_be.replace(byte_vector_to_u64(attr.nla_payload.as_ref()));
+                    node_guid_be.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::ParentNodeGuid => {
-                    parent_node_guid_be.replace(byte_vector_to_u64(attr.nla_payload.as_ref()));
+                    parent_node_guid_be.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 _ => {}
             }
@@ -121,37 +122,4 @@ impl Display for OCPRecData {
                self.virt_network_uuid_str
         )
     }
-}
-
-fn byte_vector_to_u64(bytes: &[u8]) -> u64 {
-    assert_eq!(8, bytes.len());
-
-    // let u64_val = payload.as_slice().read_u64::<std::io::>().unwrap();
-    // simple Vec<u8> to u64 doesn't work because Rust want to ensure the length
-    // of the bytes Array.
-    let bytes = [
-        bytes[0],
-        bytes[1],
-        bytes[2],
-        bytes[3],
-        bytes[4],
-        bytes[5],
-        bytes[6],
-        bytes[7],
-    ];
-    let u64_val = u64::from_ne_bytes(bytes);
-
-    u64_val
-}
-
-/// Useful to turn the bytes from OCP/neli into a real Rust String.
-fn bytes_to_string(bytes: &[u8]) -> String {
-    let str = String::from_utf8(Vec::from(bytes)).unwrap();
-    // Rust doesn't return the null byte by itself
-    // it's not a big problem.. but confusing when a Rust
-    // String is null terminated.
-    let str = String::from(
-        str.trim_matches('\0')
-    );
-    str
 }
