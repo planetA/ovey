@@ -11,5 +11,4 @@ publish = false
 [dependencies]
 neli = "0.5.1"  # netlink
 liboveyutil = { path = "../liboveyutil" } # for guid string conversion
-serde = { version = "1.0.117", features = ["derive"] }
 log = "0.4.11" # for debug!, trace! etc

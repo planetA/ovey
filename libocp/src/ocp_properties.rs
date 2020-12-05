@@ -7,8 +7,8 @@ use std::fmt;
 /// The name of the netlink family we want to connect with.
 pub const FAMILY_NAME: &str = "rdma-ovey";
 
-/// This field is either number of our family id (success message) or Error (0x2)
-pub type OveyNlMsgType = u16;
+pub const DEVICE_NAME_PATTERN: &str = "ovey[0-9]+";
+pub const PARENT_DEVICE_NAME_PATTERN: &str = "[A-z]+[0-9]+";
 
 // Implements the necessary trait for the "neli" lib on an enum called "OveyOperation".
 // OveyOperation corresponds to "enum OveyOperation" in kernel module C code.
@@ -100,6 +100,3 @@ impl fmt::Display for OveyAttribute {
         }
     }
 }
-
-pub const DEVICE_NAME_PATTERN: &str = "ovey[0-9]+";
-pub const PARENT_DEVICE_NAME_PATTERN: &str = "[A-z]+[0-9]+";
