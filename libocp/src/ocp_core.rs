@@ -9,19 +9,28 @@
 //! write or read data from/to kernel via OCP, OCP takes care of the
 //! right endianness.
 
-use neli::socket::NlSocket;
-use neli::consts::{NlFamily, NlmF};
+use neli::socket::{NlSocket, NlSocketHandle};
 use neli::Nl;
-use neli::genl::Genlmsghdr;
-use neli::nl::Nlmsghdr;
+use neli::genl::{Genlmsghdr, Nlattr};
+use neli::nl::{Nlmsghdr, NlPayload};
 use std::{process, fmt};
 use std::fmt::{Debug, Display, Formatter};
-use neli::nlattr::{Nlattr, AttrHandle};
 use serde::{Serialize, Deserialize};
 
 use super::ocp_properties::*;
 use liboveyutil::guid::guid_u64_to_string;
 use liboveyutil::endianness::Endianness;
+use neli::consts::socket::NlFamily;
+use neli::utils::U32Bitmask;
+use neli::attr::{AttrHandle, Attribute};
+use neli::types::{GenlBuffer, Buffer};
+use neli::consts::genl::Index;
+use neli::consts::nl::{NlmF, NlmFFlags, Nlmsg};
+use std::thread::sleep;
+use std::time::Duration;
+
+/// Returned type from neli library when we receive ovey/ocp messages.
+pub type OveyNlResponse = Nlmsghdr<OveyNlMsgType, Genlmsghdr<OveyOperation, OveyAttribute>>;
 
 /// Struct that holds all the data that can be received via OCP from the kernel. It's up
 /// to the caller function to extract the right data.
@@ -48,7 +57,7 @@ impl OCPRecData {
     /// Creates a new OCPRecData struct. It parses each attribute that neli received
     /// via generic netlink to its proper Rust runtime type. This is ONLY NECESSARY
     /// for attributes we want to receive.
-    pub fn new(h: AttrHandle<OveyAttribute>) -> Self {
+    pub fn new(res: OveyNlResponse) -> Self {
         let mut msg = None;
         let mut device_name = None;
         let mut parent_device_name = None;
@@ -56,26 +65,27 @@ impl OCPRecData {
         let mut parent_node_guid_be = None;
         let mut virt_network_uuid_str = None;
 
-        h.iter().for_each(|x| {
-            let payload = x.payload.clone();
-            match x.nla_type {
+        let payload = res.get_payload().unwrap();
+
+        payload.get_attr_handle().iter().for_each(|attr| {
+            match attr.nla_type {
                 OveyAttribute::Msg => {
-                    msg.replace(bytes_to_string(payload));
+                    msg.replace(bytes_to_string(attr.nla_payload.as_ref()));
                 },
                 OveyAttribute::DeviceName => {
-                    device_name.replace(bytes_to_string(payload));
+                    device_name.replace(bytes_to_string(attr.nla_payload.as_ref()));
                 },
                 OveyAttribute::ParentDeviceName => {
-                    parent_device_name.replace(bytes_to_string(payload));
+                    parent_device_name.replace(bytes_to_string(attr.nla_payload.as_ref()));
                 },
                 OveyAttribute::VirtNetUuidStr => {
-                    virt_network_uuid_str.replace(bytes_to_string(payload));
+                    virt_network_uuid_str.replace(bytes_to_string(attr.nla_payload.as_ref()));
                 },
                 OveyAttribute::NodeGuid => {
-                    node_guid_be.replace(byte_vector_to_u64(payload));
+                    node_guid_be.replace(byte_vector_to_u64(attr.nla_payload.as_ref()));
                 },
                 OveyAttribute::ParentNodeGuid => {
-                    parent_node_guid_be.replace(byte_vector_to_u64(payload));
+                    parent_node_guid_be.replace(byte_vector_to_u64(attr.nla_payload.as_ref()));
                 },
                 _ => {}
             }
@@ -145,49 +155,32 @@ type OveyGNlMsg = Nlmsghdr<u16, Genlmsghdr<OveyOperation, OveyAttribute>>;
 /// Adapter between our userland code and the Linux kernel module via (generic) netlink.
 pub struct Ocp {
     family_id: u16,
-    socket: NlSocket,
+    socket: NlSocketHandle,
     verbosity: u8,
-    needs_reconnect: bool,
-    reconnect_on_every_send: bool,
 }
 
 impl Ocp {
 
     /// Starts the connection with the netlink family corresponding to the Ovey Linux kernel module.
     /// * `verbosity` amount of additional output
-    /// * `reconnect_on_every_send` if true: hacky workaround to reconnect the socket for each send.
-    ///                             this is required because otherwise I get panics when I send
-    ///                             multiple requests through the same socket.
-    pub fn connect(verbosity: u8, reconnect_on_every_send: bool) -> Result<Self, String> {
-        let mut socket = NlSocket::connect(
+    pub fn connect(verbosity: u8) -> Result<Self, String> {
+        let mut socket = NlSocketHandle::connect(
             NlFamily::Generic,
-            None,
-            None,
-            // we don't check/use seqs because we don't have data transports that are split into multiple packets
-            false
+             // not 100% sure, probably // 0 => pid of kernel -> socket to kernel?!
+            Some(0), // we bind the socket (destination) to the kernel (pid 0)
+            U32Bitmask::empty()
         ).map_err(|e| format!("netlink connect failed! err={}", e))?;
         let family_id = socket.resolve_genl_family(FAMILY_NAME).expect("Generic Family must exist!");
+
+        eprintln!("family id is: {}", family_id);
 
         Ok(
             Self {
                 family_id,
                 socket,
                 verbosity,
-                needs_reconnect: false,
-                reconnect_on_every_send,
             }
         )
-    }
-
-    fn reconnect(&mut self) {
-        self.socket = NlSocket::connect(
-            NlFamily::Generic,
-            None,
-            None,
-            // we don't check/use seqs because we don't have data transports that are split into multiple packets
-            false
-        ).unwrap();
-        self.needs_reconnect = false;
     }
 
     /// Sends a single attribute to kernel and receive the data.
@@ -204,28 +197,25 @@ impl Ocp {
     /// replied with an ACK and not an invalid message.
     fn send_and_ack(&mut self,
                         op: OveyOperation,
-                        attrs: Vec<Nlattr<OveyAttribute, Vec<u8>>>) -> Result<OCPRecData, String> {
-        if self.reconnect_on_every_send && self.needs_reconnect {
-            // part of hacky workaround; see commit msg
-            self.reconnect();
-        }
-        self.needs_reconnect = true;
-
+                        attrs: Vec<Nlattr<OveyAttribute, Buffer>>) -> Result<OCPRecData, String> {
         if self.verbosity > 0 {
             println!("Sending via netlink: operation={}, all attributes:", op);
             for x in &attrs {
-                println!("    - {} with {} bytes", x.nla_type, x.payload.size());
+                println!("    - {} with {} bytes", x.nla_type, x.nla_payload.size());
                 // println!("    {} with {:#?}", x.nla_type, x.payload);
             }
         }
 
         let nl_msh = self.build_gnlmsg(op, attrs);
-        self.socket.send_nl(nl_msh)
+        self.socket.send(nl_msh)
             .map_err(|x| format!("Send failed: {}", x))?;
 
+        // Err("foobar".to_string())
+
         // ack.nl_type == consts::Nlmsg::Error && ack.nl_payload.error == 0
-        let res = self.socket.recv_nl::<u16, Genlmsghdr::<OveyOperation, OveyAttribute>>(None)
-            .map_err(|err| err.to_string())?;
+        let res: OveyNlResponse = self.socket.recv::<OveyNlMsgType, Genlmsghdr::<OveyOperation, OveyAttribute>>()
+            .map_err(|err| err.to_string())?
+            .ok_or("No reply received".to_string())?;
 
         debug!("res.nlmsg_hdr.nl_pid = {}", res.nl_pid);
 
@@ -235,44 +225,41 @@ impl Ocp {
         self.validate(op, &res)?;
 
         Ok(
-            OCPRecData::new(
-                res.nl_payload.get_attr_handle()
-            )
+            OCPRecData::new(res)
         )
     }
 
     /// Builds a netlink message (for "neli" lib). It's payload is the generic netlink header.
     /// It's payload is the Ovey data.
-    fn build_gnlmsg(&self, op: OveyOperation, attrs: Vec<Nlattr<OveyAttribute, Vec<u8>>>) -> OveyGNlMsg {
+    fn build_gnlmsg(&self, op: OveyOperation, attrs: Vec<Nlattr<OveyAttribute, Buffer>>) -> OveyGNlMsg {
+        let mut attrs_buf: GenlBuffer<OveyAttribute, Buffer> = GenlBuffer::new();
+        attrs.into_iter().for_each(|a| attrs_buf.push(a));
+
         // Generic netlink message
         let gen_nl_mhr = Genlmsghdr::new(
             op,
-            1,
-            attrs
-        ).unwrap();
+            1, // not important, we don't check this in kernel
+            attrs_buf,
+        );
 
-        // Actually this flags are pretty useless because we don't really check them
-        // in our Linux kernel module. But yeah, because by convention we do a request
-        // and expect an acknowledgment we just set the proper flags :)
-        let nl_msh_flags = vec![
-            NlmF::Request,
-            NlmF::Ack
-        ];
+        let payload = NlPayload::Payload(gen_nl_mhr);
 
         // Netlink message
         Nlmsghdr::new(
             None,
             self.family_id,
-            nl_msh_flags,
+            // I don't check for flags in the kernel
+            NlmFFlags::new(&[NlmF::Request]),
             None,
+            // Some(0), // the receiving pid of the packet, 0 is kernel
             Some(process::id()),
-            gen_nl_mhr
+            payload
         )
     }
 
     fn validate(&self, op: OveyOperation, res: &OveyGNlMsg) -> Result<(), String> {
         // res.nl_type is either family id (good message) or NLMSG_ERROR (0x2) for a error message!
-        if res.nl_type == 2 /*Nlmsg::Error as u16*/ {
+        if res.nl_type == u16::from(Nlmsg::Error) /*0x2, same constant is used in the kernel in standard netlink */ {
             return Err("Received Error! Netlink Message Type is \"error\" (2) instead of our family".to_string());
         }
 
@@ -283,7 +270,7 @@ impl Ocp {
             );
         };
 
-        if res.nl_payload.cmd != op {
+        if res.nl_payload.get_payload().unwrap().cmd != op {
             return Err(
                 format!("Received data (Ack) has wrong operation! is={}, expected={}", res.nl_type.to_string(), self.family_id)
             );
@@ -391,7 +378,7 @@ impl Ocp {
     }
 }
 
-fn byte_vector_to_u64(bytes: Vec<u8>) -> u64 {
+fn byte_vector_to_u64(bytes: &[u8]) -> u64 {
     assert_eq!(8, bytes.len());
 
     // let u64_val = payload.as_slice().read_u64::<std::io::>().unwrap();
@@ -413,25 +400,27 @@ fn byte_vector_to_u64(bytes: Vec<u8>) -> u64 {
 }
 
 /// Convenient function to construct a Nlattr struct to send data.
-pub fn build_nl_attr<T: Nl + Debug>(attr_type: OveyAttribute, payload: T) -> Nlattr<OveyAttribute, Vec<u8>> {
+pub fn build_nl_attr<T: Nl + Debug>(attr_type: OveyAttribute, payload: T) -> Nlattr<OveyAttribute, Buffer> {
     Nlattr::new(
         // nla_len is updated anyway internally based on payload size
         None,
+        false,
+        false, // ???
         attr_type,
         payload
     ).unwrap()
 }
 
 /// Convenient function to construct a vector of Nlattr structs to send data.
-pub fn build_nl_attrs<T: Nl + Debug>(attr_types: Vec<(OveyAttribute, T)>) -> Vec<Nlattr<OveyAttribute, Vec<u8>>> {
+pub fn build_nl_attrs<T: Nl + Debug>(attr_types: Vec<(OveyAttribute, T)>) -> Vec<Nlattr<OveyAttribute, Buffer>> {
     attr_types.into_iter()
         .map(|x| build_nl_attr(x.0, x.1))
         .collect()
 }
 
 /// Useful to turn the bytes from OCP/neli into a real Rust String.
-fn bytes_to_string(bytes: Vec<u8>) -> String {
-    let str = String::from_utf8(bytes).unwrap();
+fn bytes_to_string(bytes: &[u8]) -> String {
+    let str = String::from_utf8(Vec::from(bytes)).unwrap();
     // Rust doesn't return the null byte by itself
     // it's not a big problem.. but confusing when a Rust
     // String is null terminated.

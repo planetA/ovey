@@ -2,17 +2,33 @@
 //! OCP includes all data that is transferred via generic netlink between the user component and
 //! the linux kernel module. Please refer to "ocp-properties.h" which acts as the main spec.
 
-use neli::consts::{Cmd, NlAttrType};
 use std::fmt;
 
 /// The name of the netlink family we want to connect with.
 pub const FAMILY_NAME: &str = "rdma-ovey";
 
+/// This field is either number of our family id (success message) or Error (0x2)
+pub type OveyNlMsgType = u16;
+
 // Implements the necessary trait for the "neli" lib on an enum called "OveyOperation".
 // OveyOperation corresponds to "enum OveyOperation" in kernel module C code.
 // Describes what callback function shall be invoked in the linux kernel module.
-neli::impl_var_trait!(
-    OveyOperation, u8, Cmd,
+
+impl_trait!(
+    /// Trait marking constants valid for use in
+    /// [`Genlmsghdr`][crate::genl::Genlmsghdr] field, `cmd`.
+    pub Cmd,
+    u8,
+    /// Wrapper valid for use with all values in the [`Genlmsghdr`]
+    /// field, `cmd`
+    OveyOperationWrapper,
+    OveyOperation
+);
+// TODO this is strange.. wait for https://github.com/jbaublitz/neli/issues/99
+impl neli::consts::genl::Cmd for OveyOperation {}
+neli::impl_var!( // also impls copy
+    pub OveyOperation,
+    u8,
     Unspec => 0,
     Echo => 1,
     CreateDevice => 2,
@@ -22,7 +38,6 @@ neli::impl_var_trait!(
     DaemonHello => 6,
     DaemonBye => 7
 );
-impl Copy for OveyOperation {}
 impl fmt::Display for OveyOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // weird hack but otherwise I can't get the numeric value of the enum -.-
@@ -45,8 +60,21 @@ impl fmt::Display for OveyOperation {
 // Implements the necessary trait for the "neli" lib on an enum called "OveyAttribute".
 // Command corresponds to "enum OveyAttribute" in kernel module C code.
 // Describes the value type to data mappings inside the generic netlink packet payload.
-neli::impl_var_trait!(
-    OveyAttribute, u16, NlAttrType,
+impl_trait!(
+    /// Marker trait for types usable in the
+    /// [`Nlattr`][crate::genl::Nlattr] field, `nla_type`
+    pub NlAttrType,
+    u16,
+    /// Wrapper that is usable with all values in the
+    /// [`Nlattr`][crate::genl::Nlattr] field, `nla_type`.
+    pub OveyAttributeWrapper,
+    OveyAttribute
+);
+// TODO this is strange.. wait for https://github.com/jbaublitz/neli/issues/99
+impl neli::consts::genl::NlAttrType for OveyAttribute {}
+neli::impl_var!( // also impls copy
+    pub OveyAttribute,
+    u16,
     Unspec => 0,
     Msg => 1,
     DeviceName => 2,
@@ -55,7 +83,6 @@ neli::impl_var_trait!(
     ParentNodeGuid => 5,
     VirtNetUuidStr => 6
 );
-impl Copy for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // weird hack but otherwise I can't get the numeric value of the enum -.-

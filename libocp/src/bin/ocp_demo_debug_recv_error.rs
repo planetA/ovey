@@ -4,7 +4,7 @@ use libocp::ocp_core::Ocp;
 
 /// Demo for debug_recv_error command.
 fn main() {
-    let mut ocp = Ocp::connect(1, false).unwrap();
+    let mut ocp = Ocp::connect(1).unwrap();
     let res = ocp.ocp_debug_respond_error();
 
     if let Err(e) = res {

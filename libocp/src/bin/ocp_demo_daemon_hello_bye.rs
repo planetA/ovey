@@ -7,7 +7,7 @@ use std::process;
 
 /// Demo for daemon hello + daemon bye command.
 fn main() {
-    let mut ocp = Ocp::connect(1, true).unwrap();
+    let mut ocp = Ocp::connect(1).unwrap();
     let res = ocp.ocp_daemon_hello();
     println!("my process id is: {} - check it against kernel log!", process::id());
     println!("ocp daemon hello: {}", res.is_ok());

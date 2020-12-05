@@ -9,7 +9,7 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-neli = "0.4.4"  # netlink
+neli = "0.5.1"  # netlink
 liboveyutil = { path = "../liboveyutil" } # for guid string conversion
 serde = { version = "1.0.117", features = ["derive"] }
 log = "0.4.11" # for debug!, trace! etc

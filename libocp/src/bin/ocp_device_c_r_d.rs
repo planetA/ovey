@@ -8,7 +8,7 @@ use libocp::ocp_core::{Ocp};
 /// - gets information
 /// - deletes it
 fn main() {
-    let mut ocp = Ocp::connect(1, true).unwrap();
+    let mut ocp = Ocp::connect(1).unwrap();
 
     let device_name = "ovey0".to_string();
     let parent_device_name = "rxe0".to_string();
