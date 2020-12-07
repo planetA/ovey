@@ -5,7 +5,7 @@ use libocp::ocp_core::{Ocp};
 
 /// Demo for create command.
 fn main() {
-    let mut ocp = Ocp::connect(1).unwrap();
+    let mut ocp = Ocp::connect().unwrap();
 
     let device_name = "ovey0".to_string();
     let parent_device_name = "rxe0".to_string();

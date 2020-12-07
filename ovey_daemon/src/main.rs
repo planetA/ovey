@@ -20,7 +20,7 @@ extern crate log;
 
 lazy_static::lazy_static! {
     pub(crate) static ref OCP: Mutex<Ocp> = {
-        Mutex::from(Ocp::connect(4).expect("OCP connection must work in order for Ovey daemon to work."))
+        Mutex::from(Ocp::connect().expect("OCP connection must work in order for Ovey daemon to work."))
     };
 }
 

@@ -24,14 +24,13 @@ neli::impl_var!( // also impls copy
     DebugRespondError => 4,
     DeviceInfo => 5,
     DaemonHello => 6,
-    DaemonBye => 7
+    DaemonBye => 7,
+    DebugInitiateRequest => 8
 );
 impl neli::consts::genl::Cmd for OveyOperation {}
 impl fmt::Display for OveyOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // weird hack but otherwise I can't get the numeric value of the enum -.-
-        // this doesn't work: https://stackoverflow.com/questions/31358826/how-do-i-convert-an-enum-reference-to-a-number
-        let numeric_value: u8 = unsafe { std::mem::transmute_copy(self) };
+        let numeric_value: u8 = u8::from(self);
         match self {
             OveyOperation::Unspec => write!(f, "OveyOperation::Unspec({})", numeric_value),
             OveyOperation::Echo => write!(f, "OveyOperation::Echo({})", numeric_value),
@@ -58,14 +57,13 @@ neli::impl_var!( // also impls copy
     ParentDeviceName => 3,
     NodeGuid => 4,
     ParentNodeGuid => 5,
-    VirtNetUuidStr => 6
+    VirtNetUuidStr => 6,
+    SocketKind => 7
 );
 impl neli::consts::genl::NlAttrType for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // weird hack but otherwise I can't get the numeric value of the enum -.-
-        // this doesn't work: https://stackoverflow.com/questions/31358826/how-do-i-convert-an-enum-reference-to-a-number
-        let numeric_value: u8 = unsafe { std::mem::transmute_copy(self) };
+        let numeric_value = u16::from(self);
         match self {
             OveyAttribute::Unspec => write!(f, "OveyAttribute::Unspec({})", numeric_value),
             OveyAttribute::Msg => write!(f, "OveyAttribute::Msg({})", numeric_value),
@@ -74,7 +72,21 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::NodeGuid => write!(f, "OveyAttribute::NodeGuid({})", numeric_value),
             OveyAttribute::ParentNodeGuid => write!(f, "OveyAttribute::ParentNodeGuid({})", numeric_value),
             OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
+            OveyAttribute::SocketKind => write!(f, "OveyAttribute::SocketKind({})", numeric_value),
             _ =>  write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }
 }
+
+/// Used to identify the socket inside a process with multiple sockets.
+/// Also used as attribute value.
+neli::impl_var!( // also impls copy
+    pub OcpSocketKind,
+    u32,
+    // Socket used for daemon initiated requests and kernel replies
+    DaemonInitiatedRequestsSocket => 0,
+    // Socket used for kernel initiated requests and ovey userland replies
+    KernelInitiatedRequestsSocket => 1
+);
+
+

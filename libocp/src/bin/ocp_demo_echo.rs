@@ -4,7 +4,7 @@ use libocp::ocp_core::Ocp;
 
 /// Demo for ECHO command.
 fn main() {
-    let mut ocp = Ocp::connect(1).unwrap();
+    let mut ocp = Ocp::connect().unwrap();
     let res = ocp.ocp_echo("HELLO FROM RUST!!");
     let res = res.unwrap();
 

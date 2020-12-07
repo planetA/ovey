@@ -3,7 +3,7 @@ use liboveyutil::endianness::Endianness;
 use std::fmt::{Display, Formatter};
 use std::fmt;
 use liboveyutil::guid::guid_u64_to_string;
-use crate::ocp_core::ocp::{OveyGeNlMsg};
+use crate::ocp_core::ocp::{OveyGenNetlMsgType};
 use neli::Nl;
 
 /// Struct that holds all the data that can be received via OCP from the kernel. It's up
@@ -31,7 +31,7 @@ impl OCPRecData {
     /// Creates a new OCPRecData struct. It parses each attribute that neli received
     /// via generic netlink to its proper Rust runtime type. This is ONLY NECESSARY
     /// for attributes we want to receive.
-    pub fn new(res: OveyGeNlMsg) -> Self {
+    pub fn new(res: OveyGenNetlMsgType) -> Self {
         let mut msg = None;
         let mut device_name = None;
         let mut parent_device_name = None;
@@ -40,8 +40,6 @@ impl OCPRecData {
         let mut virt_network_uuid_str = None;
 
         let payload = res.get_payload().unwrap();
-
-        println!("cmd: {}", payload.cmd);
 
         payload.get_attr_handle().iter().for_each(|attr| {
             match attr.nla_type {
