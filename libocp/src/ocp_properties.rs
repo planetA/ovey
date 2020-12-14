@@ -25,11 +25,13 @@ neli::impl_var!( // also impls copy
     DeviceInfo => 5,
     DaemonHello => 6,
     DaemonBye => 7,
-    DebugInitiateRequest => 8
+    DebugInitiateRequest => 8,
+    ResolveCompletion => 9,
+    DebugResolveAllCompletions => 10
 );
 impl neli::consts::genl::Cmd for OveyOperation {}
 impl fmt::Display for OveyOperation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let numeric_value: u8 = u8::from(self);
         match self {
             OveyOperation::Unspec => write!(f, "OveyOperation::Unspec({})", numeric_value),
@@ -40,6 +42,9 @@ impl fmt::Display for OveyOperation {
             OveyOperation::DeviceInfo => write!(f, "OveyOperation::DeviceInfo({})", numeric_value),
             OveyOperation::DaemonHello => write!(f, "OveyOperation::DaemonHello({})", numeric_value),
             OveyOperation::DaemonBye => write!(f, "OveyOperation::DaemonBye({})", numeric_value),
+            OveyOperation::DebugInitiateRequest => write!(f, "OveyOperation::DebugInitiateRequest({})", numeric_value),
+            OveyOperation::ResolveCompletion => write!(f, "OveyOperation::ResolveCompletion({})", numeric_value),
+            OveyOperation::DebugResolveAllCompletions => write!(f, "OveyOperation::DebugResolveAllCompletions({})", numeric_value),
             _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
         }
     }
@@ -58,7 +63,8 @@ neli::impl_var!( // also impls copy
     NodeGuid => 4,
     ParentNodeGuid => 5,
     VirtNetUuidStr => 6,
-    SocketKind => 7
+    SocketKind => 7,
+    CompletionId => 8
 );
 impl neli::consts::genl::NlAttrType for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
@@ -73,7 +79,7 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::ParentNodeGuid => write!(f, "OveyAttribute::ParentNodeGuid({})", numeric_value),
             OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
             OveyAttribute::SocketKind => write!(f, "OveyAttribute::SocketKind({})", numeric_value),
-            _ =>  write!(f, "OveyAttribute::<unknown>({})", numeric_value),
+            _ => write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }
 }

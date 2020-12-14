@@ -20,24 +20,28 @@ pub struct OCPRecData {
     msg: Option<String>,
     device_name: Option<String>,
     parent_device_name: Option<String>,
-    virt_network_uuid_str: Option<String>,
     // in host endianness!
     node_guid: Option<u64>,
     // in host endianness!
     parent_node_guid: Option<u64>,
+    virt_network_uuid_str: Option<String>,
+    socket_kind: Option<u32>,
+    completion_id: Option<u64>,
 }
 
 impl OCPRecData {
     /// Creates a new OCPRecData struct. It parses each attribute that neli received
     /// via generic netlink to its proper Rust runtime type. This is ONLY NECESSARY
     /// for attributes we want to receive.
-    pub fn new(res: OveyGenNetlMsgType) -> Self {
+    pub fn new(res: &OveyGenNetlMsgType) -> Self {
         let mut msg = None;
         let mut device_name = None;
         let mut parent_device_name = None;
         let mut node_guid_be = None;
         let mut parent_node_guid_be = None;
         let mut virt_network_uuid_str = None;
+        let mut socket_kind = None;
+        let mut completion_id = None;
 
         let payload = res.get_payload().unwrap();
 
@@ -61,7 +65,15 @@ impl OCPRecData {
                 OveyAttribute::ParentNodeGuid => {
                     parent_node_guid_be.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
-                _ => {}
+                OveyAttribute::SocketKind => {
+                    socket_kind.replace(u32::deserialize(attr.nla_payload.as_ref()).unwrap());
+                }
+                OveyAttribute::CompletionId => {
+                    completion_id.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
+                }
+
+                OveyAttribute::UnrecognizedVariant(_) => {panic!("Received UnrecognizedVariant")}
+                OveyAttribute::Unspec => { panic!("Received unspec") }
             }
         });
 
@@ -69,11 +81,13 @@ impl OCPRecData {
             msg,
             device_name,
             parent_device_name,
-            virt_network_uuid_str,
             // we receive it in big endian format from be;
             // restore host endian format
             node_guid: node_guid_be.map(|u64be| Endianness::u64be_to_u64he(u64be)),
             parent_node_guid: parent_node_guid_be.map(|u64be| Endianness::u64be_to_u64he(u64be)),
+            virt_network_uuid_str,
+            socket_kind,
+            completion_id,
         }
     }
 
@@ -96,6 +110,13 @@ impl OCPRecData {
     pub fn parent_node_guid(&self) -> Option<u64> {
         self.parent_node_guid
     }
+
+    pub fn socket_kind(&self) -> Option<u32> {
+        self.socket_kind
+    }
+    pub fn completion_id(&self) -> Option<u64> {
+        self.completion_id
+    }
 }
 
 impl Display for OCPRecData {
@@ -109,6 +130,8 @@ impl Display for OCPRecData {
             \x20   parent_guid: {:?}\n\
             \x20   |- parent_guid_string: {:?}\n\
             \x20   virt_network_uuid_str: {:?}\n\
+            \x20   socket_kind: {:?}\n\
+            \x20   CompletionId: {:?}\n\
         }}",
                self.msg,
                self.device_name,
@@ -117,7 +140,9 @@ impl Display for OCPRecData {
                self.node_guid.map(|val| guid_u64_to_string(val)),
                self.parent_node_guid,
                self.parent_node_guid.map(|val| guid_u64_to_string(val)),
-               self.virt_network_uuid_str
+               self.virt_network_uuid_str,
+               self.socket_kind,
+               self.completion_id
         )
     }
 }

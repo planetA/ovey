@@ -6,21 +6,28 @@ use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_daemon::consts::OVEY_DAEMON_PORT;
 use ovey_daemon::urls::ROUTE_DEVICE;
 use std::sync::Mutex;
+use std::sync::Arc;
 use libocp::ocp_core::Ocp;
 use std::ops::Deref;
 use simple_on_shutdown::on_shutdown;
+use crate::ocp::start_ocp_bg_reply_thread;
 
 mod config;
 mod coordinator_service;
 mod routes;
 mod util;
+mod ocp;
 
 #[macro_use]
 extern crate log;
 
 lazy_static::lazy_static! {
-    pub(crate) static ref OCP: Mutex<Ocp> = {
-        Mutex::from(Ocp::connect().expect("OCP connection must work in order for Ovey daemon to work."))
+    pub(crate) static ref OCP: Arc<Mutex<Ocp>> = {
+        Arc::from(
+            Mutex::from(
+                Ocp::connect().expect("OCP connection must work in order for Ovey daemon to work.")
+            )
+        )
     };
 }
 
@@ -50,6 +57,7 @@ async fn main() -> std::io::Result<()> {
         let _ = OCP.lock().unwrap().ocp_daemon_hello().expect("should work");;
         debug!("Daemon told kernel via OCP hello");
     }
+    start_ocp_bg_reply_thread(OCP.clone());
 
     println!("Starting REST service on localhost:{}", OVEY_DAEMON_PORT);
 

@@ -1,10 +1,15 @@
-use std::sync::mpsc::{Receiver, sync_channel, SyncSender};
+use std::sync::mpsc::{Receiver, sync_channel, SyncSender, TryRecvError};
 use crate::ocp_core::ocp::OveyGenNetlMsgType;
 use neli::err::NlError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use neli::socket::NlSocketHandle;
 use std::thread::spawn;
+use neli::nl::Nlmsghdr;
+use crate::ocp_properties::{OveyOperation, OveyAttribute};
+use neli::genl::Genlmsghdr;
+use crate::krequests::KRequest;
+use crate::ocp_properties::OcpSocketKind::KernelInitiatedRequestsSocket;
 
 /// Orchestrates all messages. OCP messages can either be from Userland(Daemon) to Kernel
 /// or from Kernel to Userland(Daemon).
@@ -95,6 +100,7 @@ impl OcpMessageOrchestrator {
     /// Sends a single reply to the Kernel via OCP.
     /// This function operates on `self.kernel_to_daemon_socket`
     pub fn send_reply_to_kernel(&mut self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
+        debug!("Replying to kernel");
         let socket = &mut self.kernel_to_daemon_socket;
         let mut socket = socket.lock().unwrap();
         socket.send(msg)
@@ -114,9 +120,36 @@ impl OcpMessageOrchestrator {
     /// Receives a single request from the kernel in a blocking way.
     /// Call this if you want to handle kernel-initiated communication/requests.
     /// This function operates on `self.kernel_to_daemon_socket`
-    pub fn receive_request_from_kernel(&mut self) -> Result<OveyGenNetlMsgType, NlError> {
+    pub fn receive_request_from_kernel_bl(&mut self) -> Result<OveyGenNetlMsgType, NlError> {
         // blocking until a value can be received
         self.kernel_request_channel_receiver.recv().unwrap()
+    }
+
+    /// Receives a single request from the kernel in a non-blocking way.
+    /// Call this if you want to handle kernel-initiated communication/requests.
+    /// This function operates on `self.kernel_to_daemon_socket`
+    pub fn receive_request_from_kernel_nbl(&mut self) -> Option<Result<KRequest, NlError>> {
+        // nonblocking
+        let res = self.kernel_request_channel_receiver.try_recv();
+        if let Err(err) = res {
+            return match err {
+                TryRecvError::Empty => {
+                    // No message received; okay because we wait for messages non blocking
+                    None
+                }
+                TryRecvError::Disconnected => {
+                    error!("Channel is disconnected");
+                    // TODO panic?
+                    None
+                    // No message received; okay because we wait for messages non blocking
+                }
+            }
+        }
+        let res= res.unwrap();
+
+        Some(
+            res.map(|ref msg| KRequest::from(msg))
+        )
     }
 }
 

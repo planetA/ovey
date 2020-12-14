@@ -8,5 +8,5 @@ fn main() {
     let res = ocp.ocp_echo("HELLO FROM RUST!!");
     let res = res.unwrap();
 
-    println!("Received: {}", res);
+    println!("Received: {}", res.msg().expect("Must receive echo msg"));
 }

@@ -537,6 +537,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctrlc"
+version = "3.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b57a92e9749e10f25a171adcebfafe72991d45e7ec2dcb853e8f83d9dafaeb08"
+dependencies = [
+ "nix",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "darling"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1099,6 +1109,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libocp-advanced-examples"
+version = "0.1.0"
+dependencies = [
+ "ctrlc",
+ "lazy_static",
+ "libocp",
+ "log",
+ "simple_on_shutdown",
+]
+
+[[package]]
 name = "liboveyutil"
 version = "0.1.0"
 dependencies = [
@@ -1262,6 +1283,18 @@ dependencies = [
  "cfg-if 0.1.10",
  "libc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "nix"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83450fe6a6142ddd95fb064b746083fc4ef1705fe81f64a64e1d4b39f54a1055"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if 0.1.10",
+ "libc",
 ]
 
 [[package]]
@@ -1791,9 +1824,9 @@ dependencies = [
 
 [[package]]
 name = "simple_on_shutdown"
-version = "0.1.4"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f98a231e9a318a006eb029e53ee4f8980c3461defff26758d1440f63e663e8d4"
+checksum = "f572de4a608e0859b3d73188e1d84117e923bb6237e35a466f75fffc5274dde6"
 dependencies = [
  "log",
 ]

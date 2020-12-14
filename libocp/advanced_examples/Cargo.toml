@@ -1,0 +1,17 @@
+[package]
+name = "libocp-advanced-examples"
+description = "advanced examples that use ocp but with additional dependencies"
+version = "0.1.0"
+authors = ["Philipp Schuster <phip1611@gmail.com>"]
+edition = "2018"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libocp = { path = "../" }
+
+simple_on_shutdown = "0.1.6" # needed for a demo binary: not the lib itself
+lazy_static = "1.4.0" # needed for a demo binary: not the lib itself
+ctrlc = { version = "3.1.7", features = ["termination"]  }
+log = "0.4.11"

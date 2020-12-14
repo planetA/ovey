@@ -12,6 +12,7 @@ publish = false
 # keep all projects in work space => only one single target/ dir
 members = [
     "libocp",
+    "libocp/advanced_examples",
     "liboveyutil",
     "ovey_cli",
     "ovey_coordinator",
