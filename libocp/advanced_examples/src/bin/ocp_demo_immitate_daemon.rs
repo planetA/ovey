@@ -1,11 +1,12 @@
 //! Demo to imitate the daemon.
 
-use libocp::ocp_core::Ocp;
+use libocp::ocp_core::{Ocp, OCPRecData};
 use std::thread::spawn;
 use std::sync::{Arc, Mutex};
-use log::{error, debug};
+use log::{error, debug, info};
 use simple_on_shutdown::on_shutdown;
 use std::sync::atomic::{AtomicBool, Ordering};
+use libocp::krequests::KRequest;
 
 lazy_static::lazy_static! {
     pub(crate) static ref OCP: Arc<Mutex<Ocp>> = {
@@ -37,8 +38,14 @@ fn main() {
         ocp.ocp_daemon_hello().unwrap();
     }
     on_shutdown!({
+        // this will fail, if the request loop received a "kernel module bye"
+        // because the netlink destination/socket is gone
         println!("Gracefully shutting down");
-        OCP.lock().unwrap().ocp_daemon_bye().unwrap();
+        let bye: Result<OCPRecData, String> = OCP.lock().unwrap().ocp_daemon_bye();
+        match bye {
+            Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
+            Err(err) => { debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)  },
+        }
     });
     // ###########################################
 
@@ -54,6 +61,10 @@ fn main() {
             if let Some(res) = res {
                 match res {
                     Ok(kreq) => {
+                        if kreq == KRequest::ShutdownDaemon {
+                            info!("OCP told that Ovey Kernel Module is gone. Stopped listening for Kernel OCP requests in daemon.");
+                            break;
+                        }
                         debug!("Received request from Kernel of type {} with completion id {}", kreq.op(), kreq.id());
                         ocp.ocp_resolve_completion(kreq.id());
                     }

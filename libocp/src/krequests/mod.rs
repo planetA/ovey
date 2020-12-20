@@ -13,7 +13,13 @@ pub type RequestId = CompletionId;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum KRequest {
-    ResolveCompletion{id: CompletionId, op: OveyOperation},
+    /// The kernel sends this request if it wants the daemon to resolve a specific completion
+    /// inside the kernel. This is mainly interesting during development since there is no
+    /// real useful payload attached to this.
+    ResolveCompletion{id: CompletionId},
+    /// The kernel sends this to show the daemon the module is unloading. Especially helpful
+    /// during development.
+    ShutdownDaemon
 }
 
 impl From<&OveyGenNetlMsgType> for KRequest {
@@ -24,8 +30,10 @@ impl From<&OveyGenNetlMsgType> for KRequest {
             OveyOperation::ResolveCompletion => {
                 KRequest::ResolveCompletion{
                     id: get_completion_id(payload),
-                    op: cmd,
                 }
+            },
+            OveyOperation::KernelModuleBye => {
+                KRequest::ShutdownDaemon
             },
             _ => { panic!("Kernel send unknown request: {}", cmd) }
         }
@@ -38,16 +46,16 @@ impl KRequest {
         match self {
             KRequest::ResolveCompletion{
                 id, ..
-            } => *id
+            } => *id,
+            KRequest::ShutdownDaemon => panic!("no ID"),
         }
     }
 
-    /// Convenient getter for the operation kind this request is.
+    /// Convenient getter for the Ovey Operation that created/represents this Kernel requests.
     pub fn op(&self) -> OveyOperation {
         match self {
-            KRequest::ResolveCompletion{
-                op, ..
-            } => *op
+            KRequest::ResolveCompletion{..} => OveyOperation::ResolveCompletion,
+            KRequest::ShutdownDaemon => OveyOperation::KernelModuleBye,
         }
     }
 }

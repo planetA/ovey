@@ -8,15 +8,16 @@ use ovey_daemon::urls::ROUTE_DEVICE;
 use std::sync::Mutex;
 use std::sync::Arc;
 use libocp::ocp_core::Ocp;
+use libocp::ocp_core::OCPRecData;
 use std::ops::Deref;
 use simple_on_shutdown::on_shutdown;
-use crate::ocp::start_ocp_bg_reply_thread;
+use crate::ocp_requests::start_ocp_bg_reply_thread;
 
 mod config;
 mod coordinator_service;
 mod routes;
 mod util;
-mod ocp;
+mod ocp_requests;
 
 #[macro_use]
 extern crate log;
@@ -38,8 +39,11 @@ async fn main() -> std::io::Result<()> {
 
     /// Important that this value lives through the whole lifetime of main()
     on_shutdown!({
-        OCP.lock().unwrap().ocp_daemon_bye().expect("should work");
-        debug!("Daemon told kernel via OCP goodbye")
+        let bye: Result<OCPRecData, String> = OCP.lock().unwrap().ocp_daemon_bye();
+        match bye {
+            Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
+            Err(err) => { debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)  },
+        }
     });
 
     std::env::set_var("RUST_LOG", "actix_web=info,debug");

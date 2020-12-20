@@ -27,7 +27,8 @@ neli::impl_var!( // also impls copy
     DaemonBye => 7,
     DebugInitiateRequest => 8,
     ResolveCompletion => 9,
-    DebugResolveAllCompletions => 10
+    DebugResolveAllCompletions => 10,
+    KernelModuleBye => 11
 );
 impl neli::consts::genl::Cmd for OveyOperation {}
 impl fmt::Display for OveyOperation {
@@ -45,6 +46,7 @@ impl fmt::Display for OveyOperation {
             OveyOperation::DebugInitiateRequest => write!(f, "OveyOperation::DebugInitiateRequest({})", numeric_value),
             OveyOperation::ResolveCompletion => write!(f, "OveyOperation::ResolveCompletion({})", numeric_value),
             OveyOperation::DebugResolveAllCompletions => write!(f, "OveyOperation::DebugResolveAllCompletions({})", numeric_value),
+            OveyOperation::KernelModuleBye => write!(f, "OveyOperation::KernelModuleBye({})", numeric_value),
             _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
         }
     }

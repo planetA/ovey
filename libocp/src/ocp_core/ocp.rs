@@ -104,14 +104,17 @@ impl Ocp {
         let nl_msh = self.build_gnlmsg(op, attrs, socket);
 
         let reply = if socket == OcpSocketKind::DaemonInitiatedRequestsSocket {
-            self.orchestrator.send_request_to_kernel(nl_msh).unwrap();
+            self.orchestrator.send_request_to_kernel(nl_msh)
+                .map_err(|e| e.to_string())?;
             self.orchestrator.receive_reply_from_kernel()
         } else {
-            self.orchestrator.send_reply_to_kernel(nl_msh).unwrap();
+            self.orchestrator.send_reply_to_kernel(nl_msh)
+                .map_err(|e| e.to_string())?;
             self.orchestrator.receive_request_from_kernel_bl()
         };
 
-        let reply = reply.unwrap();
+        let reply = reply
+            .map_err(|e| format!("Failed to get reply! {}", e.to_string()))?;
 
         // eprintln!("res.nlmsg_hdr.nl_pid = {}", reply.nl_pid);
 
