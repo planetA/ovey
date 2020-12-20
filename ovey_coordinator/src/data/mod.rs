@@ -1,17 +1,10 @@
 //! Data structures for the coordinator database.
 
-use uuid::Uuid;
 use std::collections::HashMap;
 use crate::rest::structs::VirtualizedDeviceInput;
 use liboveyutil::guid;
+use liboveyutil::types::{GuidIdType, VirtualNetworkIdType, GuidInternalType};
 
-/// A guid is a big endian encoded u64.
-pub type GuidInternalType = u64;
-/// Virtual GUID as String (e.g. dead:beef:affe:cafe) is the key.
-/// This is easier to read/write during development and overhead is neglible.
-pub type GuidIdType = String;
-/// Virtual networks are identified by an UUID.
-pub type VirtualNetworkIdType = Uuid;
 /// Virtualized networks are a map from virtual guid of the device to the virtualized data of that device.
 pub type VirtualizedNetworkDataType = HashMap<GuidIdType, VirtualizedDevice>;
 /// The key of our database is the virtual network id. Our database can hold data

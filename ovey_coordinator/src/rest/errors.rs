@@ -1,9 +1,8 @@
 use actix_web::{
     dev::HttpResponseBuilder, error, http::header, http::StatusCode, HttpResponse,
 };
-use uuid::Uuid;
 use derive_more::Display;
-use crate::data::{VirtualNetworkIdType};
+use liboveyutil::types::{Uuid, VirtualNetworkIdType};
 
 #[derive(Debug, Display)]
 pub enum CoordinatorRestError {
@@ -29,7 +28,8 @@ pub enum CoordinatorRestError {
 
 }
 
-
+// IDE tells that Display is not implemented for CoordinatorRestError, but it gets implemented
+// during compile time by derive_more
 impl error::ResponseError for CoordinatorRestError {
     fn status_code(&self) -> StatusCode {
         match *self {

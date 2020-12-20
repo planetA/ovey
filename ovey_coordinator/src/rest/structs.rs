@@ -4,11 +4,11 @@
 //! In many cases probably almost the same.
 
 use serde::{Deserialize, Serialize};
-use crate::data::{VirtualizedDevice, VirtualNetworkIdType, GuidIdType};
+use crate::data::{VirtualizedDevice};
 use derive_builder::Builder;
 use std::collections::HashMap;
 use liboveyutil::guid;
-use uuid::Uuid;
+use liboveyutil::types::{Uuid, VirtualNetworkIdType, GuidIdType};
 
 /// This is the data for the REST-API that is expected as payload of a REST-Request
 /// when a new file should be created.

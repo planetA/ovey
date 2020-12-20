@@ -1,6 +1,6 @@
 //! Route paths/urls for the REST-API for Ovey Daemon.
 
-use crate::data::{VirtualNetworkIdType, GuidIdType};
+use liboveyutil::types::{VirtualNetworkIdType, GuidIdType};
 
 /// Returns the configuration of the coordinator.
 pub const ROUTE_GET_CONFIG_URL: &str  = "/config";

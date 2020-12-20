@@ -2,3 +2,4 @@
 
 pub mod endianness;
 pub mod guid;
+pub mod types;

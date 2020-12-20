@@ -1,8 +1,8 @@
 use clap::ArgMatches;
 use ovey_cli::cli::assert_and_get_args;
 use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
-use uuid::Uuid;
 use crate::daemon::{forward_create_to_daemon, forward_delete_to_daemon};
+use liboveyutil::types::Uuid;
 
 mod daemon;
 

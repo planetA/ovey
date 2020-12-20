@@ -10,6 +10,6 @@ publish = false
 
 [dependencies]
 # neli = { version = "0.5.1", features = ["logging"]}  # netlink
-neli = "0.5.1"  # netlink
-liboveyutil = { path = "../liboveyutil" } # for guid string conversion
+neli = "0.5.1" # netlink
+liboveyutil = { path = "../liboveyutil" } # guid string conversion, types, uuid, and some other utils/re-exports
 log = "0.4.11" # for debug!, trace! etc

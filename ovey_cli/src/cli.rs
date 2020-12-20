@@ -3,7 +3,7 @@
 use clap::{ArgMatches, App, SubCommand, Arg};
 use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
 use ovey_daemon::validation;
-use uuid::Uuid;
+use liboveyutil::types::Uuid;
 
 /// Parses the args and asserts that required args are in the proper order and format.
 pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {

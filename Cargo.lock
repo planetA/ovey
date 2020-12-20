@@ -1126,6 +1126,7 @@ version = "0.1.0"
 dependencies = [
  "libocp",
  "regex",
+ "uuid",
 ]
 
 [[package]]
@@ -1370,7 +1371,6 @@ dependencies = [
  "ovey_daemon",
  "regex",
  "reqwest",
- "uuid",
 ]
 
 [[package]]
@@ -1388,7 +1388,6 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
- "uuid",
 ]
 
 [[package]]
@@ -1411,7 +1410,6 @@ dependencies = [
  "serde",
  "serde_json",
  "simple_on_shutdown",
- "uuid",
 ]
 
 [[package]]
@@ -1825,9 +1823,9 @@ dependencies = [
 
 [[package]]
 name = "simple_on_shutdown"
-version = "0.1.6"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f572de4a608e0859b3d73188e1d84117e923bb6237e35a466f75fffc5274dde6"
+checksum = "76739da82cec67f85dbfa5e553a9f4917203892fccb4b11d2e8bc7b43415d17e"
 dependencies = [
  "log",
 ]

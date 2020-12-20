@@ -3,10 +3,10 @@ use actix_web::{
 };
 
 use derive_more::{Display};
-use ovey_coordinator::data::{VirtualNetworkIdType, GuidIdType};
+use liboveyutil::types::{VirtualNetworkIdType, GuidIdType};
 
 
-#[derive(Debug, Display)]
+#[derive(Debug, Display, Clone)]
 pub enum DaemonRestError {
     /// Kernel doesn't respond. Can't create device.
     // #[display(fmt = "Validation error on field: {}", _0)]
@@ -42,6 +42,7 @@ pub enum DaemonRestError {
     DeviceNotAllowed{network_id: VirtualNetworkIdType, virt_guid: GuidIdType }
 }
 
+// IDE says Display is not implemented but it gets implemented during compile time
 impl error::ResponseError for DaemonRestError {
     fn status_code(&self) -> StatusCode {
         match *self {

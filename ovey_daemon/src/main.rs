@@ -58,7 +58,7 @@ async fn main() -> std::io::Result<()> {
 
     // init lazy static OCP + tell kernel daemon started
     {
-        let _ = OCP.lock().unwrap().ocp_daemon_hello().expect("should work");;
+        let _ = OCP.lock().unwrap().ocp_daemon_hello().expect("should work");
         debug!("Daemon told kernel via OCP hello");
     }
     start_ocp_bg_reply_thread(OCP.clone());

@@ -2,11 +2,11 @@
 
 use std::sync::Mutex;
 use std::collections::HashMap;
-use crate::data::{DBType, VirtualNetworkIdType, VirtualizedDevice, GuidIdType};
+use crate::data::{DBType, VirtualizedDevice};
 use crate::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, AllNetworksDtoType};
 use crate::rest::errors::CoordinatorRestError;
-use uuid::Uuid;
 use crate::data::VirtualizedNetworkDataType;
+use liboveyutil::types::{VirtualNetworkIdType, GuidIdType, Uuid};
 
 lazy_static::lazy_static! {
     pub static ref DB: Mutex<DBType> = Mutex::new(HashMap::new());

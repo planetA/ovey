@@ -5,9 +5,9 @@ use ovey_daemon::errors::DaemonRestError;
 use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
 use crate::config::CONFIG;
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
-use ovey_coordinator::data::{VirtualNetworkIdType, GuidIdType, GuidInternalType};
 use actix_web::http::StatusCode;
 use liboveyutil::guid;
+use liboveyutil::types::{VirtualNetworkIdType, GuidIdType};
 
 fn get_host(network_id: &VirtualNetworkIdType) -> Result<String, DaemonRestError> {
     // http://localhost or http://123.56.78.1 or https://foo.bar

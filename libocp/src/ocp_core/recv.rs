@@ -5,6 +5,7 @@ use std::fmt;
 use liboveyutil::guid::guid_u64_to_string;
 use crate::ocp_core::ocp::{OveyGenNetlMsgType};
 use neli::Nl;
+use liboveyutil::types::{GuidInternalType, GuidIdType};
 
 /// Struct that holds all the data that can be received via OCP from the kernel. It's up
 /// to the caller function to extract the right data.
@@ -91,29 +92,43 @@ impl OCPRecData {
         }
     }
 
-
+    /// Getter for [`msg`]
     pub fn msg(&self) -> Option<&String> {
         self.msg.as_ref()
     }
+    /// Getter for [`device_name`]
     pub fn device_name(&self) -> Option<&String> {
         self.device_name.as_ref()
     }
+    /// Getter for [`parent_device_name`]
     pub fn parent_device_name(&self) -> Option<&String> {
         self.parent_device_name.as_ref()
     }
+    /// Getter for [`virt_network_uuid_str`]
     pub fn virt_network_uuid_str(&self) -> Option<&String> {
         self.virt_network_uuid_str.as_ref()
     }
-    pub fn node_guid(&self) -> Option<u64> {
+    /// Getter for [`node_guid`]
+    pub fn node_guid(&self) -> Option<GuidInternalType> {
         self.node_guid
     }
-    pub fn parent_node_guid(&self) -> Option<u64> {
+    /// Getter for [`parent_node_guid`]
+    pub fn parent_node_guid(&self) -> Option<GuidInternalType> {
         self.parent_node_guid
     }
-
+    /// Getter for [`msg`]
+    pub fn node_guid_str(&self) -> Option<GuidIdType> {
+        self.node_guid.map(|val| guid_u64_to_string(val))
+    }
+    /// Getter for [`msg`]
+    pub fn parent_node_guid_str(&self) -> Option<GuidIdType> {
+        self.parent_node_guid.map(|val| guid_u64_to_string(val))
+    }
+    /// Getter for [`socket_kind`]
     pub fn socket_kind(&self) -> Option<u32> {
         self.socket_kind
     }
+    /// Getter for [`completion_id`]
     pub fn completion_id(&self) -> Option<u64> {
         self.completion_id
     }
@@ -137,9 +152,9 @@ impl Display for OCPRecData {
                self.device_name,
                self.parent_device_name,
                self.node_guid,
-               self.node_guid.map(|val| guid_u64_to_string(val)),
+               self.node_guid_str(),
                self.parent_node_guid,
-               self.parent_node_guid.map(|val| guid_u64_to_string(val)),
+               self.parent_node_guid_str(),
                self.virt_network_uuid_str,
                self.socket_kind,
                self.completion_id

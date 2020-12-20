@@ -1,9 +1,9 @@
 //! Route paths/urls for the REST-API for Ovey CLI.
 
-use ovey_coordinator::data::{VirtualNetworkIdType, GuidIdType};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use crate::cli_rest_api::validation::{validate_device_name, validate_parent_device_name, validate_guid};
+use liboveyutil::types::{VirtualNetworkIdType, GuidInternalType, GuidIdType};
 
 /// Payload for the REST interface of ovey daemon to create a device in both: coordinator and kernel
 #[derive(Serialize, Deserialize, Debug, Builder, Default)]
@@ -134,11 +134,48 @@ impl DeletionStateDto {
     }
 }
 
+/// Device info that is returned when using the "list" command inside Ovey CLI.
+#[derive(Serialize, Deserialize, Debug, Builder, Default)]
+pub struct DeviceInfoDto {
+    dev_name: String,
+    parent_dev_name: String,
+    guid: GuidInternalType,
+    guid_str: GuidIdType,
+    parent_guid: GuidInternalType,
+    parent_guid_str: GuidIdType,
+    virtual_network_id: VirtualNetworkIdType,
+}
+
+impl DeviceInfoDto {
+    pub fn dev_name(&self) -> &str {
+        &self.dev_name
+    }
+    pub fn parent_dev_name(&self) -> &str {
+        &self.parent_dev_name
+    }
+
+    pub fn virtual_network_id(&self) -> &VirtualNetworkIdType {
+        &self.virtual_network_id
+    }
+    pub fn guid(&self) -> GuidInternalType {
+        self.guid
+    }
+    pub fn guid_str(&self) -> &GuidIdType {
+        &self.guid_str
+    }
+    pub fn parent_guid(&self) -> GuidInternalType {
+        self.parent_guid
+    }
+    pub fn parent_guid_str(&self) -> &GuidIdType {
+        &self.parent_guid_str
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    use uuid::Uuid;
+    use liboveyutil::types::Uuid;
 
     #[test]
     fn builder_works() {

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap};
 use std::fs::File;
 use std::io::Read;
-use ovey_coordinator::data::*;
+use liboveyutil::types::VirtualNetworkIdType;
 
 lazy_static::lazy_static! {
     pub static ref CONFIG: InitDataConfiguration = {
