@@ -79,6 +79,7 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::ParentNodeGuid => write!(f, "OveyAttribute::ParentNodeGuid({})", numeric_value),
             OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
             OveyAttribute::SocketKind => write!(f, "OveyAttribute::SocketKind({})", numeric_value),
+            OveyAttribute::CompletionId => write!(f, "OveyAttribute::CompletionId({})", numeric_value),
             _ => write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }

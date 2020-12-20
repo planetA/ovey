@@ -19,6 +19,10 @@ lazy_static::lazy_static! {
 
 /// Demo to imitate the daemon.
 fn main() {
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+    debug!("daemon-like OCP test binary started!");
+
     let exit_work_loop = Arc::new(AtomicBool::new(false));
     let exit_work_loop_h = exit_work_loop.clone();
     ctrlc::set_handler(move || {
