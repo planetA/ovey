@@ -2,7 +2,7 @@ use libocp::ocp_core::Ocp;
 use actix_web::{middleware, web, HttpServer, App, HttpResponse};
 
 async fn index() -> HttpResponse {
-    let mut ocp = Ocp::connect(4).unwrap();
+    let mut ocp = Ocp::connect().unwrap();
 
     let device_name = "ovey0".to_string();
     let parent_device_name = "rxe0".to_string();
@@ -30,7 +30,8 @@ async fn index() -> HttpResponse {
 
     let res = res.unwrap();
 
-    HttpResponse::Ok().json(res)
+    // HttpResponse::Ok().json(res)
+    HttpResponse::Ok().json(())
 }
 
 #[actix_web::main]

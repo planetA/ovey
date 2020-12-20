@@ -1,6 +1,6 @@
 /// String representation of a guid. e.g.: "0000:0000:0000:0000" or "abc0:afaf:34b5:0015".
 /// A hex string splitted into groups of four hex ditits connected with '.'.
-pub const GUID_STRING_PATTERN: &str = "[AaBbCcDdEeFf0-9]{4}(:[AaBbCcDdEeFf0-9]{4}){3}";
+pub const GUID_STRING_PATTERN: &str = "^[AaBbCcDdEeFf0-9]{4}(:[AaBbCcDdEeFf0-9]{4}){3}$";
 
 /// Transforms the guid string representation into a u64.
 /// The string representation is basically the hex string.

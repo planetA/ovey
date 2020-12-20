@@ -1,6 +1,5 @@
 use std::fs;
 use regex::Regex;
-use liboveyutil::regex::regex_is_full_match;
 
 /// The directory on Linux where ib devices like "ovey0" or "rxe0" show up as files.
 pub const INFINIBAND_SYSFS_DEVICES_PATH: &str = "/sys/class/infiniband/";
@@ -26,7 +25,7 @@ pub fn get_all_local_ovey_devices() -> Vec<String> {
     for dir in readdir {
         if let std::io::Result::Ok(entry) = dir {
             let dev_name = entry.file_name().to_string_lossy().into_owned();
-            if regex_is_full_match(&regex, &dev_name) {
+            if regex.is_match(&dev_name) {
                 devs.push(dev_name)
             }
         }

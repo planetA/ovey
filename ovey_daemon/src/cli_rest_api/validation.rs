@@ -1,7 +1,6 @@
 use regex::Regex;
 use libocp::ocp_properties::{DEVICE_NAME_PATTERN, PARENT_DEVICE_NAME_PATTERN};
 use liboveyutil::guid::GUID_STRING_PATTERN;
-use liboveyutil::regex::regex_is_full_match;
 
 pub fn validate_device_name(name: &str) -> Result<(), String> {
     validate_name(DEVICE_NAME_PATTERN, name)
@@ -20,7 +19,7 @@ pub fn validate_guid(name: &str) -> Result<(), String> {
 
 fn validate_name(pattern: &str, name: &str) -> Result<(), ()> {
     let regex = Regex::new(pattern).unwrap();
-    if regex_is_full_match(&regex, &name) {
+    if regex.is_match(&name) {
         Ok(())
     } else {
         Err(())
