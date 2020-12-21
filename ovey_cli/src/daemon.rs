@@ -56,7 +56,8 @@ pub fn forward_delete_to_daemon(input: DeleteDeviceInput) -> Result<DeletionStat
     }
 }
 
-pub fn forward_echo_to_daemon(msg: String) -> Result<String, String> {
+// TODO
+/*pub fn forward_echo_to_daemon(_msg: String) -> Result<String, String> {
     /*let req = reqwest::blocking::Client::new();
     let host = format!("http://localhost:{}", OVEY_DAEMON_PORT);
     let endpoint = ovey_daemon::urls::ROUTE_DEVICE;
@@ -78,4 +79,4 @@ pub fn forward_echo_to_daemon(msg: String) -> Result<String, String> {
         }
     }*/
     Err("UNIMPLEMENTED!".to_owned())
-}
+}*/

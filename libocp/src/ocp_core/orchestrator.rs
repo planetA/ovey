@@ -5,11 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use neli::socket::NlSocketHandle;
 use std::thread::spawn;
-use neli::nl::Nlmsghdr;
-use crate::ocp_properties::{OveyOperation, OveyAttribute};
-use neli::genl::Genlmsghdr;
 use crate::krequests::KRequest;
-use crate::ocp_properties::OcpSocketKind::KernelInitiatedRequestsSocket;
 
 /// Orchestrates all messages. OCP messages can either be from Userland(Daemon) to Kernel
 /// or from Kernel to Userland(Daemon).
@@ -93,7 +89,7 @@ impl OcpMessageOrchestrator {
     /// Sends a single request to the Kernel via OCP.
     /// This function operates on `self.daemon_to_kernel_socket`
     pub fn send_request_to_kernel(&mut self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
-        let mut socket = &mut self.daemon_to_kernel_socket;
+        let socket = &mut self.daemon_to_kernel_socket;
         socket.send(msg)
     }
 
@@ -111,7 +107,7 @@ impl OcpMessageOrchestrator {
     /// expect an reply.
     /// This function operates on `self.daemon_to_kernel_socket`
     pub fn receive_reply_from_kernel(&mut self) -> Result<OveyGenNetlMsgType, NlError> {
-        let mut socket = &mut self.daemon_to_kernel_socket;
+        let socket = &mut self.daemon_to_kernel_socket;
         // we unwrap because we wait for packages blocking
         // therefore there is no None() and always Some()
         socket.recv().map(|x| x.unwrap())

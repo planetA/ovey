@@ -1,9 +1,6 @@
 //! Demo for ECHO command.
 
 use libocp::ocp_core::Ocp;
-use std::thread::sleep;
-use std::time::Duration;
-use std::process;
 
 /// Demo for daemon hello + daemon bye command.
 fn main() {

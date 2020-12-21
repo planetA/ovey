@@ -16,7 +16,7 @@ async fn index() -> HttpResponse {
         let _ = ocp.ocp_delete_device(&device_name).unwrap();
     }
 
-    let res = ocp.ocp_create_device(
+    let _res = ocp.ocp_create_device(
         &device_name,
         &parent_device_name,
         node_guid_he,
@@ -28,7 +28,7 @@ async fn index() -> HttpResponse {
     );
 
 
-    let res = res.unwrap();
+    let _res = res.unwrap();
 
     // HttpResponse::Ok().json(res)
     HttpResponse::Ok().json(())

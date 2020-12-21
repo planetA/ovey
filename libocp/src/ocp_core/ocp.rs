@@ -9,15 +9,9 @@ use crate::ocp_core::recv::OCPRecData;
 use neli::Nl;
 use std::fmt::Debug;
 use neli::consts::nl::{NlmFFlags, NlmF, Nlmsg};
-use std::process;
 use liboveyutil::endianness::Endianness;
-use std::sync::mpsc::{SyncSender, Receiver, sync_channel};
-use std::sync::{Arc, Mutex};
-use std::thread::spawn;
-use std::sync::atomic::{AtomicBool, Ordering};
 use neli::err::NlError;
 use crate::ocp_core::orchestrator::OcpMessageOrchestrator;
-use crate::ocp_properties::OveyAttribute::SocketKind;
 use crate::krequests::KRequest;
 
 pub type OveyNlMsgType = u16;
@@ -56,7 +50,7 @@ impl Ocp {
         debug!("family id is: {}", family_id);
 
         // create orchestrator
-        let mut orchestrator = OcpMessageOrchestrator::new(daemon_to_kernel_socket, kernel_to_daemon_socket)?;
+        let orchestrator = OcpMessageOrchestrator::new(daemon_to_kernel_socket, kernel_to_daemon_socket)?;
 
         Ok(
             Self {
@@ -375,6 +369,7 @@ pub fn build_nl_attr<T: Nl + Debug>(attr_type: OveyAttribute, payload: T) -> Nla
 }
 
 /// Convenient function to construct a vector of Nlattr structs to send data.
+#[allow(dead_code)]
 pub fn build_nl_attrs<T: Nl + Debug>(attr_types: Vec<(OveyAttribute, T)>) -> Vec<Nlattr<OveyAttribute, Buffer>> {
     attr_types.into_iter()
         .map(|x| build_nl_attr(x.0, x.1))

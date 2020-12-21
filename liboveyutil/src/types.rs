@@ -1,6 +1,5 @@
 //! Common Types used in Ovey.
 
-use std::collections::HashMap;
 /// Re-export the specific UUID type we are using here inside ovey
 pub use uuid::Uuid;
 

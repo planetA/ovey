@@ -87,8 +87,8 @@ impl fmt::Display for OveyAttribute {
     }
 }
 
-/// Used to identify the socket inside a process with multiple sockets.
-/// Also used as attribute value.
+// Used to identify the socket inside a process with multiple sockets.
+// Also used as attribute value.
 neli::impl_var!( // also impls copy
     pub OcpSocketKind,
     u32,

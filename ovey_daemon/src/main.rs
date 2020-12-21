@@ -9,9 +9,9 @@ use std::sync::Mutex;
 use std::sync::Arc;
 use libocp::ocp_core::Ocp;
 use libocp::ocp_core::OCPRecData;
-use std::ops::Deref;
-use simple_on_shutdown::on_shutdown;
+use simple_on_shutdown::on_shutdown_move;
 use crate::ocp_requests::start_ocp_bg_reply_thread;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 mod config;
 mod coordinator_service;
@@ -34,20 +34,33 @@ lazy_static::lazy_static! {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Ovey daemon started with the following initial configuration:");
-    println!("{:#?}", *CONFIG);
+    std::env::set_var("RUST_LOG", "actix_web=info,debug");
+    env_logger::init();
 
-    /// Important that this value lives through the whole lifetime of main()
-    on_shutdown!({
+    debug!("Ovey daemon started with the following initial configuration:");
+    debug!("{:#?}", *CONFIG);
+
+    // init lazy static OCP + tell kernel daemon started
+    {
+        let _ = OCP.lock().unwrap().ocp_daemon_hello().expect("should work");
+        debug!("Daemon told kernel via OCP hello");
+    }
+    // We use this var to notify the Kernel request listening loop (OCP)
+    let exit_loop = Arc::new(AtomicBool::new(false));
+    let loop_thread_handle = start_ocp_bg_reply_thread(OCP.clone(), exit_loop.clone());
+
+    // Important that this value lives through the whole lifetime of main()
+    on_shutdown_move!({
+        // wait for thread to finish
+        exit_loop.store(true, Ordering::Relaxed);
+        loop_thread_handle.join().unwrap();
+        debug!("thread finished");
         let bye: Result<OCPRecData, String> = OCP.lock().unwrap().ocp_daemon_bye();
         match bye {
             Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
             Err(err) => { debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)  },
         }
     });
-
-    std::env::set_var("RUST_LOG", "actix_web=info,debug");
-    env_logger::init();
 
     // check if all coordinators are up and valid
     check_config_and_environment().await
@@ -56,14 +69,7 @@ async fn main() -> std::io::Result<()> {
             std::io::ErrorKind::Other
         })?;
 
-    // init lazy static OCP + tell kernel daemon started
-    {
-        let _ = OCP.lock().unwrap().ocp_daemon_hello().expect("should work");
-        debug!("Daemon told kernel via OCP hello");
-    }
-    start_ocp_bg_reply_thread(OCP.clone());
-
-    println!("Starting REST service on localhost:{}", OVEY_DAEMON_PORT);
+    info!("Starting REST service on localhost:{}", OVEY_DAEMON_PORT);
 
     HttpServer::new(|| {
         App::new()
@@ -105,7 +111,7 @@ async fn check_config_and_environment() -> Result<(), String> {
         if json.contains_key(network) {
             actual_up += 1;
         } else {
-            eprintln!(
+            error!(
                 "Ovey coordinator on configured host '{}' does not know about network '{}'!",
                 &host,
                 network
@@ -116,7 +122,7 @@ async fn check_config_and_environment() -> Result<(), String> {
     return if actual_up != expected_up {
         Err("WARNING: Not all Ovey coordinators are available.".to_owned())
     } else {
-        println!("INFO: All Ovey coordinators are available.");
+        debug!("INFO: All Ovey coordinators are available.");
         Ok(())
     }
 }

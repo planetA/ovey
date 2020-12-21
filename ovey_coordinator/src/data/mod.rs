@@ -27,6 +27,7 @@ pub struct VirtualizedDevice {
 }
 
 impl VirtualizedDevice {
+
     pub fn virtual_device_name(&self) -> &String {
         &self.virtual_device_name
     }
@@ -39,6 +40,8 @@ impl VirtualizedDevice {
     pub fn physical_guid(&self) -> u64 {
         self.physical_guid
     }
+
+    #[allow(dead_code)]
     pub fn qp_num(&self) -> u64 {
         self.qp_num
     }

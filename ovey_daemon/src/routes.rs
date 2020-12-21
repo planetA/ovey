@@ -1,23 +1,16 @@
 //! Crate-private handlers for the REST API of Ovey Daemon. They get invoked by Ovey CLI.
 
 use actix_web::{web, HttpRequest, HttpResponse};
-
-use libocp::ocp_core::{OCPRecData, Ocp};
 use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
 use ovey_daemon::errors::DaemonRestError;
 use ovey_daemon::structs::{
     CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder,
-    DeletionStateDto, DeletionStateDtoBuilder, DeviceInfoDto, DeviceInfoDtoBuilder,
+    DeletionStateDto, DeletionStateDtoBuilder
 };
-
 use crate::coordinator_service::{
-    rest_check_device_is_allowed, rest_forward_create_device, rest_forward_delete_device,
-    rest_lookup_device_guid_by_name,
+    rest_check_device_is_allowed, rest_forward_create_device, rest_forward_delete_device
 };
 use crate::OCP;
-use log::debug;
-use ovey_daemon::util::get_all_local_ovey_devices;
-use std::str::FromStr;
 use liboveyutil::types::Uuid;
 
 pub async fn route_get_index(_req: HttpRequest) -> HttpResponse {
@@ -46,6 +39,8 @@ pub async fn route_post_create_device(
     // now we first create the device on the machine
     // and then we tell the coordinator about it
 
+    // TODO VERY IMPORTANT TODO WHEN THE THREAD GETS STUCK HERE, THE LISTENING THREAD CAN'T GET THE LOCK TO
+    //  GET INCOMING REQUESTS!
     let mut ocp = OCP.lock().unwrap();
     // check if device exists already in kernel
     let ocp_res = ocp.ocp_get_device_info(input.device_name());
@@ -112,7 +107,7 @@ pub async fn route_delete_delete_device(
 
     // first step; check via OCP if device is registered on local machine
     let mut ocp = OCP.lock().unwrap();
-    let ocp_data = ocp.ocp_get_device_info(input.device_name()).map_err(|err| {
+    let ocp_data = ocp.ocp_get_device_info(input.device_name()).map_err(|_err| {
         DaemonRestError::OcpDeviceNotFound {
             info: input.device_name().to_owned(),
         }

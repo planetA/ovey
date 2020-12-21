@@ -76,22 +76,27 @@ impl VirtualizedDeviceDTO {
         }
     }
 
-
+    #[allow(dead_code)]
     pub fn virtual_device_guid_string(&self) -> &str {
         &self.virtual_device_guid_string
     }
+    #[allow(dead_code)]
     pub fn virtual_device_guid_u64(&self) -> u64 {
         self.virtual_device_guid_u64
     }
+    #[allow(dead_code)]
     pub fn physical_device_guid_string(&self) -> &str {
         &self.physical_device_guid_string
     }
+    #[allow(dead_code)]
     pub fn physical_device_guid_u64(&self) -> u64 {
         self.physical_device_guid_u64
     }
+    #[allow(dead_code)]
     pub fn device_name(&self) -> &str {
         &self.device_name
     }
+    #[allow(dead_code)]
     pub fn parent_device_name(&self) -> &str {
         &self.parent_device_name
     }
@@ -106,6 +111,7 @@ pub struct InitDataConfiguration {
 }
 
 impl InitDataConfiguration {
+    #[allow(dead_code)]
     pub fn networks(&self) -> &HashMap<Uuid, Vec<String>> {
         &self.networks
     }

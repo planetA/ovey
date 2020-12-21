@@ -2,11 +2,10 @@
 
 use ovey_coordinator::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, VirtualizedDeviceInputBuilder, InitDataConfiguration as CoordinatorInitDataConfiguration};
 use ovey_daemon::errors::DaemonRestError;
-use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
+use ovey_daemon::structs::{CreateDeviceInput};
 use crate::config::CONFIG;
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use actix_web::http::StatusCode;
-use liboveyutil::guid;
 use liboveyutil::types::{VirtualNetworkIdType, GuidIdType};
 
 fn get_host(network_id: &VirtualNetworkIdType) -> Result<String, DaemonRestError> {
@@ -20,7 +19,8 @@ fn get_host(network_id: &VirtualNetworkIdType) -> Result<String, DaemonRestError
     Ok(url)
 }
 
-/// Queries the virtual network for the specified device name. This way a device can be found by it's unique
+// TODO why is this unused, why did I need it?
+/*/// Queries the virtual network for the specified device name. This way a device can be found by it's unique
 /// device name. Return type is Result<Option<> because:
 /// - http errors can occur (Result)
 /// - a device name may be taken or not; both is fine (Option)
@@ -40,7 +40,7 @@ pub async fn rest_lookup_device_guid_by_name(network_id: &VirtualNetworkIdType, 
         return Err(DaemonRestError::UnknownNetwork(network_id.to_owned()));
     }
     let network_devices = res.json::<Vec<VirtualizedDeviceDTO>>().await;
-    let network_devices = network_devices.map_err(|e| DaemonRestError::IllegalCoordinatorResponse)?;
+    let network_devices = network_devices.map_err(|_e| DaemonRestError::IllegalCoordinatorResponse)?;
 
     // now search in all devices of the network for the guid of the specified device name
     // because the coordinator makes sure that device name is unique per network we can assume here
@@ -48,7 +48,7 @@ pub async fn rest_lookup_device_guid_by_name(network_id: &VirtualNetworkIdType, 
     let guid = find_device_guid_by_name_in_list(&network_devices, dev_name);
 
     Ok(guid)
-}
+}*/
 
 /// Forwards the request from the CLI to create a device to the coordinator.
 /// Returns the DTO from the coordinator on success.
@@ -142,7 +142,8 @@ pub async fn rest_check_device_is_allowed(network_id: &VirtualNetworkIdType, gui
     Ok(found)
 }
 
-/// This function can be used to find if a device with a specific device name (e.g. ovey0)
+// TODO remove?
+/*/// This function can be used to find if a device with a specific device name (e.g. ovey0)
 /// has already been registered. In this case it returns the guid of this element.
 /// If this returns None than a new device with the given ID can be created.
 fn find_device_guid_by_name_in_list(list: &Vec<VirtualizedDeviceDTO>, dev_name: &str) -> Option<GuidIdType> {
@@ -152,4 +153,4 @@ fn find_device_guid_by_name_in_list(list: &Vec<VirtualizedDeviceDTO>, dev_name: 
         .collect::<Vec<&str>>();
     let guid = if vec.is_empty() { None } else { Some((vec[0]).to_owned()) };
     guid
-}
+}*/
