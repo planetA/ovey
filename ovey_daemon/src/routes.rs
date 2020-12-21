@@ -1,17 +1,20 @@
 //! Crate-private handlers for the REST API of Ovey Daemon. They get invoked by Ovey CLI.
 
+use crate::coordinator_service::{
+    rest_check_device_is_allowed, rest_forward_create_device, rest_forward_delete_device,
+};
+use crate::OCP;
 use actix_web::{web, HttpRequest, HttpResponse};
+use libocp::ocp_core::OCPRecData;
 use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
+use liboveyutil::types::Uuid;
 use ovey_daemon::errors::DaemonRestError;
 use ovey_daemon::structs::{
     CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder,
-    DeletionStateDto, DeletionStateDtoBuilder
+    DeletionStateDto, DeletionStateDtoBuilder, DeviceInfoDto, DeviceInfoDtoBuilder,
 };
-use crate::coordinator_service::{
-    rest_check_device_is_allowed, rest_forward_create_device, rest_forward_delete_device
-};
-use crate::OCP;
-use liboveyutil::types::Uuid;
+use ovey_daemon::util::get_all_local_ovey_devices;
+use std::str::FromStr;
 
 pub async fn route_get_index(_req: HttpRequest) -> HttpResponse {
     //println!("request: {:?}", &req);
@@ -107,11 +110,11 @@ pub async fn route_delete_delete_device(
 
     // first step; check via OCP if device is registered on local machine
     let mut ocp = OCP.lock().unwrap();
-    let ocp_data = ocp.ocp_get_device_info(input.device_name()).map_err(|_err| {
-        DaemonRestError::OcpDeviceNotFound {
+    let ocp_data = ocp
+        .ocp_get_device_info(input.device_name())
+        .map_err(|_err| DaemonRestError::OcpDeviceNotFound {
             info: input.device_name().to_owned(),
-        }
-    });
+        });
     let ocp_data = ocp_data?;
 
     // second step: delete it on coordinator
@@ -154,7 +157,60 @@ pub async fn route_delete_delete_device(
         .build()
         .unwrap();
 
-    Ok(
-        HttpResponse::Ok().json(deletion_state)
-    )
+    Ok(HttpResponse::Ok().json(deletion_state))
+}
+
+pub async fn route_get_list_devices() -> Result<actix_web::HttpResponse, DaemonRestError> {
+    let mut ocp = OCP.lock().unwrap();
+    let devs = get_all_local_ovey_devices();
+    debug!("Available local ovey devices: {:#?}", &devs);
+
+    // the ? operator inside map seems not to work :/
+    let devs = devs
+        .into_iter()
+        .map(|dev| {
+            ocp.ocp_get_device_info(&dev)
+                .map_err(|e| DaemonRestError::OcpDeviceNotFound {
+                    info: format!(
+                        "could not fetch info for device '{}' via OCP. err='{}'",
+                        dev, e
+                    ),
+                })
+        })
+        .collect::<Vec<Result<OCPRecData, DaemonRestError>>>();
+
+    // check if there is any error and unwrap the first one
+    let errs = devs
+        .iter()
+        .filter(|x| x.is_err())
+        .map(|x| x.as_ref().unwrap_err())
+        .collect::<Vec<&DaemonRestError>>();
+    if !errs.is_empty() {
+        // return error
+        return Err(errs[0].clone());
+    }
+
+    // now that we know there are no errors unwrap all real objects
+    let devs = devs
+        .into_iter()
+        .map(|x| x.unwrap())
+        .collect::<Vec<OCPRecData>>();
+
+    let devs = devs
+        .into_iter()
+        .map(|data| {
+            DeviceInfoDtoBuilder::default()
+                .dev_name(data.device_name().unwrap().to_string())
+                .parent_dev_name(data.parent_device_name().unwrap().to_string())
+                .guid(data.node_guid().unwrap())
+                .guid_str(data.node_guid_str().unwrap())
+                .parent_guid(data.parent_node_guid().unwrap())
+                .parent_guid_str(data.parent_node_guid_str().unwrap())
+                .virtual_network_id(Uuid::from_str(data.virt_network_uuid_str().unwrap()).unwrap())
+                .build()
+                .unwrap()
+        })
+        .collect::<Vec<DeviceInfoDto>>();
+
+    Ok(HttpResponse::Ok().json(devs))
 }

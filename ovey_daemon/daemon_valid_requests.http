@@ -18,3 +18,7 @@ Content-Type: application/json
   "network_id": "c929e96d-6285-4528-b98e-b364d64790ae",
   "virt_guid": "dead:beef:0bad:f00d"
 }
+
+###
+# get all devices that are registered/known on this node/machine/kernel
+GET http://localhost:13338/devices

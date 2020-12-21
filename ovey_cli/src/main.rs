@@ -1,7 +1,7 @@
 use clap::ArgMatches;
 use ovey_cli::cli::assert_and_get_args;
 use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
-use crate::daemon::{forward_create_to_daemon, forward_delete_to_daemon};
+use crate::daemon::{forward_create_to_daemon, forward_delete_to_daemon, forward_list_to_daemon};
 use liboveyutil::types::Uuid;
 
 mod daemon;
@@ -21,6 +21,8 @@ fn main() {
         action_delete_device(verbosity, matches);
     } else if let Some(matches) = matches.subcommand_matches("echo") {
         action_echo(verbosity, matches);
+    }  else if let Some(matches) = matches.subcommand_matches("list") {
+        action_list(verbosity, matches);
     } else {
         eprintln!("Usage: ovey -h");
     }
@@ -98,6 +100,19 @@ fn action_delete_device(verbosity: u8, matches: &ArgMatches) {
         Err(err) => {
             eprintln!("Cannot delete device. Malformed input. {}", err);
         }
+    }
+}
+
+/// Queries the daemon and returns information about all local Ovey devices.
+fn action_list(_verbosity: u8, _matches: &ArgMatches) {
+    let res = forward_list_to_daemon();
+    match res {
+        Ok(data) => {
+            println!("Found the following Ovey devices:");
+            // TODO make this pretty
+            println!("{:#?}", data);
+        }
+        Err(e) => {eprintln!("Cannot list devices. Couldn't fetch data from Ovey daemon ({}).", e)}
     }
 }
 

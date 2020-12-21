@@ -4,7 +4,7 @@ use actix_web::{middleware, web, HttpServer, App};
 use routes::{route_get_index, route_post_create_device, route_delete_delete_device};
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_daemon::consts::OVEY_DAEMON_PORT;
-use ovey_daemon::urls::ROUTE_DEVICE;
+use ovey_daemon::urls::{ROUTE_DEVICE, ROUTE_DEVICES};
 use std::sync::Mutex;
 use std::sync::Arc;
 use libocp::ocp_core::Ocp;
@@ -12,6 +12,7 @@ use libocp::ocp_core::OCPRecData;
 use simple_on_shutdown::on_shutdown_move;
 use crate::ocp_requests::start_ocp_bg_reply_thread;
 use std::sync::atomic::{AtomicBool, Ordering};
+use crate::routes::route_get_list_devices;
 
 mod config;
 mod coordinator_service;
@@ -76,6 +77,10 @@ async fn main() -> std::io::Result<()> {
             // enable logger
             .wrap(middleware::Logger::default())
             // use default value .data(web::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
+            .service(
+                web::resource(ROUTE_DEVICES)
+                    .route(web::get().to(route_get_list_devices))
+            )
             .service(
                 web::resource(ROUTE_DEVICE)
                     .route(web::post().to(route_post_create_device))
