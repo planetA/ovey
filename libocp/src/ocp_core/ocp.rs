@@ -19,7 +19,11 @@ pub type OveyNlMsgType = u16;
 pub type OveyGenNetlMsgType = Nlmsghdr<OveyNlMsgType, Genlmsghdr<OveyOperation, OveyAttribute>>;
 
 /// Adapter between our userland code and the Linux kernel module via (generic) netlink.
-/// Own abstraction over neli library.
+/// Own abstraction over neli library. It handles the two-socket based async OCP communication
+/// between userland (daemon) and the kernel module.
+/// **It uses fine-grained internal locking. DON'T EVEN THINK ABOUT ADDING A GLOBAL LOCK AROUND
+/// THIS INSTANCE, because it would prevent the async two-socket async communication which is
+/// necessary to unblock certain threads.**
 pub struct Ocp {
     family_id: u16,
     orchestrator: OcpMessageOrchestrator,
@@ -62,7 +66,7 @@ impl Ocp {
 
     /// Can be used to receive the next kernel request in an unblocking way. Usually the Daemon
     /// will create a worker thread where this gets invoked in a loop.
-    pub fn recv_next_kernel_req_nbl(&mut self) -> Option<Result<KRequest, NlError>> {
+    pub fn recv_next_kernel_req_nbl(&self) -> Option<Result<KRequest, NlError>> {
         self.orchestrator.receive_request_from_kernel_nbl()
     }
 
@@ -71,7 +75,7 @@ impl Ocp {
     /// is ONE exception. During the hello/init/startup we need
     /// to tell the kernel what socket is the Kernel->Daemon socket.
     /// Therefore we use in the other direction in this case in a blocking way.
-    fn k_to_d_sock_send_req_n_recv_reply_bl(&mut self,
+    fn k_to_d_sock_send_req_n_recv_reply_bl(&self,
                                             op: OveyOperation,
                                             attrs: Vec<Nlattr<OveyAttribute, Buffer>>,
     ) -> Result<OCPRecData, String> {
@@ -80,7 +84,7 @@ impl Ocp {
 
     /// Convenient method to send a daemon-initiated request to the kernel
     /// and receive an expected reply in a blocking way.
-    fn d_to_k_sock_send_req_n_recv_reply_bl(&mut self,
+    fn d_to_k_sock_send_req_n_recv_reply_bl(&self,
                                             op: OveyOperation,
                                             attrs: Vec<Nlattr<OveyAttribute, Buffer>>,
     ) -> Result<OCPRecData, String> {
@@ -90,7 +94,7 @@ impl Ocp {
 
     /// Convenient function that sends a request via the specified socket
     /// and returns the reply in a blocking way.
-    fn sock_send_req_n_recv_reply_bl(&mut self,
+    fn sock_send_req_n_recv_reply_bl(&self,
                                      op: OveyOperation,
                                      attrs: Vec<Nlattr<OveyAttribute, Buffer>>,
                                      socket: OcpSocketKind,
@@ -183,7 +187,7 @@ impl Ocp {
 
     /// This function is "fire and forget". It just sends a reply. It doesn't check if
     /// the kernel accepted the reply.
-    fn reply_to_kernel(&mut self, op: OveyOperation, attrs: Vec<Nlattr<OveyAttribute, Buffer>>) {
+    fn reply_to_kernel(&self, op: OveyOperation, attrs: Vec<Nlattr<OveyAttribute, Buffer>>) {
         let nl_msh = self.build_gnlmsg(
             op,
             attrs,
@@ -201,7 +205,7 @@ impl Ocp {
     /// new Ovey device inside the Ovey Kernel Module
     /// via OCP. It returns whether the operation was
     /// successfully or not.
-    pub fn ocp_create_device(&mut self,
+    pub fn ocp_create_device(&self,
                              device_name: &str,
                              parent_device_name: &str,
                              node_guid_he: u64,
@@ -223,7 +227,7 @@ impl Ocp {
     /// Ovey device inside the Ovey Kernel Module
     /// via OCP. It returns whether the operation was
     /// successfully or not.
-    pub fn ocp_delete_device(&mut self,
+    pub fn ocp_delete_device(&self,
                              device_name: &str,
     ) -> Result<OCPRecData, String> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
@@ -238,7 +242,7 @@ impl Ocp {
     /// Ovey device inside the Ovey Kernel Module
     /// via OCP. It returns whether the operation was
     /// successfully or not.
-    pub fn ocp_get_device_info(&mut self,
+    pub fn ocp_get_device_info(&self,
                                device_name: &str,
     ) -> Result<OCPRecData, String> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
@@ -253,7 +257,7 @@ impl Ocp {
     /// with the Kernel Module by sending an ECHO
     /// request. Kernel should reply with an
     /// message with the proper content.
-    pub fn ocp_echo(&mut self,
+    pub fn ocp_echo(&self,
                     echo_msg: &str,
     ) -> Result<OCPRecData, String> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
@@ -266,7 +270,7 @@ impl Ocp {
 
     /// Convenient wrapper function that triggers a
     /// error response via OCP by the Ovey Kernel Module.
-    pub fn ocp_debug_respond_error(&mut self) -> Result<OCPRecData, String> {
+    pub fn ocp_debug_respond_error(&self) -> Result<OCPRecData, String> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DebugRespondError,
             vec![],
@@ -280,7 +284,7 @@ impl Ocp {
     ///
     /// THIS IS NECESSARY TO SUPPORT KERNEL-INITIATED REQUESTS.
     // TODO return tuple?!
-    pub fn ocp_daemon_hello(&mut self) -> Result<OCPRecData, String> {
+    pub fn ocp_daemon_hello(&self) -> Result<OCPRecData, String> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonHello,
             vec![
@@ -299,7 +303,7 @@ impl Ocp {
     /// specified socket is no longer available
     /// Usually triggered during application shutdown.
     /// The data is send via the corresponding socket.
-    pub fn ocp_daemon_bye(&mut self) -> Result<OCPRecData, String> {
+    pub fn ocp_daemon_bye(&self) -> Result<OCPRecData, String> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonBye,
             vec![
@@ -318,7 +322,7 @@ impl Ocp {
     /// specified socket is no longer available
     /// Usually triggered during application shutdown.
     /// The data is send via the corresponding socket.
-    pub fn ocp_debug_initiate_request(&mut self) -> (Result<OCPRecData, String>, Result<OCPRecData, String>) {
+    pub fn ocp_debug_initiate_request(&self) -> (Result<OCPRecData, String>, Result<OCPRecData, String>) {
         (
             self.d_to_k_sock_send_req_n_recv_reply_bl(
                 OveyOperation::DebugInitiateRequest,
@@ -333,7 +337,7 @@ impl Ocp {
     /// Convenient wrapper that tells the kernel to resolve a completion.
     /// This can be seen as a debug function. Real functionality will have more
     /// parameters. This function works as "fire and forget".
-    pub fn ocp_resolve_completion(&mut self, completion_id: u64) {
+    pub fn ocp_resolve_completion(&self, completion_id: u64) {
         self.reply_to_kernel(
             OveyOperation::ResolveCompletion,
             vec![
@@ -346,7 +350,7 @@ impl Ocp {
 
     /// Convenient wrapper function to tell the kernel via OCP to resolve all
     /// completions. This is useful during debugging if something got stuck.
-    pub fn ocp_debug_resolve_all_completions(&mut self) -> Result<OCPRecData, String> {
+    pub fn ocp_debug_resolve_all_completions(&self) -> Result<OCPRecData, String> {
         // Actually it's not important what socket we use here..
         // self.d_to_k_sock_send_req_n_recv_reply_bl(
         self.k_to_d_sock_send_req_n_recv_reply_bl(

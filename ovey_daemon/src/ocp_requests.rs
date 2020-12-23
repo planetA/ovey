@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// Starts a thread that continously listens for incoming Ovey kernel module OCP requests.
 /// __DAEMON_HELLO__ operation must be sent before this starts. If the daemon is shutting
 /// down `exit_work_loop` can be used to gracefully shutdown this thread.
-pub fn start_ocp_bg_reply_thread(ocp: Arc<Mutex<Ocp>>, exit_work_loop: Arc<AtomicBool>) -> JoinHandle<()> {
+pub fn start_ocp_bg_reply_thread(ocp: Arc<Ocp>, exit_work_loop: Arc<AtomicBool>) -> JoinHandle<()> {
     spawn(move || {
         info!("OCP Kernel request listening loop started in a thread");
         loop {
@@ -19,7 +19,6 @@ pub fn start_ocp_bg_reply_thread(ocp: Arc<Mutex<Ocp>>, exit_work_loop: Arc<Atomi
                 break;
             }
 
-            let mut ocp = ocp.lock().unwrap();
             let res = ocp.recv_next_kernel_req_nbl();
             if let Some(res) = res {
                 match res {

@@ -9,16 +9,19 @@ use crate::krequests::KRequest;
 
 /// Orchestrates all messages. OCP messages can either be from Userland(Daemon) to Kernel
 /// or from Kernel to Userland(Daemon).
+/// **It uses fine-grained internal locking. DON'T EVEN THINK ABOUT ADDING A GLOBAL LOCK AROUND
+/// THIS INSTANCE, because it would prevent the async two-socket async communication which is
+/// necessary to unblock certain threads.**
 pub struct OcpMessageOrchestrator {
 
     /// Receiver of a channel used to receive Kernel initiated requests from a worker thread.
-    kernel_request_channel_receiver: Receiver<Result<OveyGenNetlMsgType, NlError>>,
+    kernel_request_channel_receiver: Mutex<Receiver<Result<OveyGenNetlMsgType, NlError>>>,
 
     /// This boolean is set by the main thread to signal the child thread to gracefully exit
     worker_thread_should_stop: Arc<AtomicBool>,
 
     /// Used to send daemon-initiated requests and receive kernel replies.
-    daemon_to_kernel_socket: NlSocketHandle,
+    daemon_to_kernel_socket: Mutex<NlSocketHandle>,
 
     /// Used to receive kernel-initiated requests and send Ovey userland replies.
     kernel_to_daemon_socket: Arc<Mutex<NlSocketHandle>>,
@@ -31,8 +34,9 @@ impl OcpMessageOrchestrator {
         let (sender, receiver) = sync_channel(1);
 
         let mut x = OcpMessageOrchestrator {
-            kernel_request_channel_receiver: receiver,
-            daemon_to_kernel_socket,
+            kernel_request_channel_receiver: Mutex::new(receiver),
+            daemon_to_kernel_socket: Mutex::new(daemon_to_kernel_socket),
+            // this is an Arc because we need this in a worker thread for the orchestrator
             kernel_to_daemon_socket: Arc::new(Mutex::new(kernel_to_daemon_socket)),
             worker_thread_should_stop: Arc::new(AtomicBool::new(false))
         };
@@ -40,7 +44,7 @@ impl OcpMessageOrchestrator {
         Ok(x)
     }
 
-    fn init_kernel_to_daemon_receive_thread(&mut self, sender: SyncSender<Result<OveyGenNetlMsgType, NlError>>) {
+    fn init_kernel_to_daemon_receive_thread(&self, sender: SyncSender<Result<OveyGenNetlMsgType, NlError>>) {
         // because we don't know when to expect requests from kernel on this socket
         // we make it nonblocking. This way we can multiplex it to send or receive
         // messages easily.
@@ -88,17 +92,16 @@ impl OcpMessageOrchestrator {
 
     /// Sends a single request to the Kernel via OCP.
     /// This function operates on `self.daemon_to_kernel_socket`
-    pub fn send_request_to_kernel(&mut self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
-        let socket = &mut self.daemon_to_kernel_socket;
+    pub fn send_request_to_kernel(&self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
+        let mut socket = self.daemon_to_kernel_socket.lock().unwrap();
         socket.send(msg)
     }
 
     /// Sends a single reply to the Kernel via OCP.
     /// This function operates on `self.kernel_to_daemon_socket`
-    pub fn send_reply_to_kernel(&mut self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
+    pub fn send_reply_to_kernel(&self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
         debug!("Replying to kernel");
-        let socket = &mut self.kernel_to_daemon_socket;
-        let mut socket = socket.lock().unwrap();
+        let mut socket = self.kernel_to_daemon_socket.lock().unwrap();
         socket.send(msg)
     }
 
@@ -106,8 +109,8 @@ impl OcpMessageOrchestrator {
     /// Call this if you previously send a request where you
     /// expect an reply.
     /// This function operates on `self.daemon_to_kernel_socket`
-    pub fn receive_reply_from_kernel(&mut self) -> Result<OveyGenNetlMsgType, NlError> {
-        let socket = &mut self.daemon_to_kernel_socket;
+    pub fn receive_reply_from_kernel(&self) -> Result<OveyGenNetlMsgType, NlError> {
+        let mut socket = self.daemon_to_kernel_socket.lock().unwrap();
         // we unwrap because we wait for packages blocking
         // therefore there is no None() and always Some()
         socket.recv().map(|x| x.unwrap())
@@ -116,17 +119,19 @@ impl OcpMessageOrchestrator {
     /// Receives a single request from the kernel in a blocking way.
     /// Call this if you want to handle kernel-initiated communication/requests.
     /// This function operates on `self.kernel_to_daemon_socket`
-    pub fn receive_request_from_kernel_bl(&mut self) -> Result<OveyGenNetlMsgType, NlError> {
+    pub fn receive_request_from_kernel_bl(&self) -> Result<OveyGenNetlMsgType, NlError> {
         // blocking until a value can be received
-        self.kernel_request_channel_receiver.recv().unwrap()
+        let receiver = self.kernel_request_channel_receiver.lock().unwrap();
+        receiver.recv().unwrap()
     }
 
     /// Receives a single request from the kernel in a non-blocking way.
     /// Call this if you want to handle kernel-initiated communication/requests.
     /// This function operates on `self.kernel_to_daemon_socket`
-    pub fn receive_request_from_kernel_nbl(&mut self) -> Option<Result<KRequest, NlError>> {
+    pub fn receive_request_from_kernel_nbl(&self) -> Option<Result<KRequest, NlError>> {
         // nonblocking
-        let res = self.kernel_request_channel_receiver.try_recv();
+        let receiver = self.kernel_request_channel_receiver.lock().unwrap();
+        let res = receiver.try_recv();
         if let Err(err) = res {
             return match err {
                 TryRecvError::Empty => {

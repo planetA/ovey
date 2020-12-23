@@ -5,7 +5,6 @@ use routes::{route_get_index, route_post_create_device, route_delete_delete_devi
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_daemon::consts::OVEY_DAEMON_PORT;
 use ovey_daemon::urls::{ROUTE_DEVICE, ROUTE_DEVICES};
-use std::sync::Mutex;
 use std::sync::Arc;
 use libocp::ocp_core::Ocp;
 use libocp::ocp_core::OCPRecData;
@@ -24,11 +23,9 @@ mod ocp_requests;
 extern crate log;
 
 lazy_static::lazy_static! {
-    pub(crate) static ref OCP: Arc<Mutex<Ocp>> = {
+    pub(crate) static ref OCP: Arc<Ocp> = {
         Arc::from(
-            Mutex::from(
-                Ocp::connect().expect("OCP connection must work in order for Ovey daemon to work.")
-            )
+            Ocp::connect().expect("OCP connection must work in order for Ovey daemon to work.")
         )
     };
 }
@@ -43,7 +40,7 @@ async fn main() -> std::io::Result<()> {
 
     // init lazy static OCP + tell kernel daemon started
     {
-        let _ = OCP.lock().unwrap().ocp_daemon_hello().expect("should work");
+        let _ = OCP.ocp_daemon_hello().expect("should work");
         debug!("Daemon told kernel via OCP hello");
     }
     // We use this var to notify the Kernel request listening loop (OCP)
@@ -56,7 +53,7 @@ async fn main() -> std::io::Result<()> {
         exit_loop.store(true, Ordering::Relaxed);
         loop_thread_handle.join().unwrap();
         debug!("thread finished");
-        let bye: Result<OCPRecData, String> = OCP.lock().unwrap().ocp_daemon_bye();
+        let bye: Result<OCPRecData, String> = OCP.ocp_daemon_bye();
         match bye {
             Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
             Err(err) => { debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)  },

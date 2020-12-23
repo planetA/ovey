@@ -9,11 +9,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use libocp::krequests::KRequest;
 
 lazy_static::lazy_static! {
-    pub(crate) static ref OCP: Arc<Mutex<Ocp>> = {
+    pub(crate) static ref OCP: Arc<Ocp> = {
         Arc::from(
-            Mutex::from(
-                Ocp::connect().expect("OCP connection must work in order for Ovey daemon to work.")
-            )
+            Ocp::connect().expect("OCP connection must work in order for Ovey daemon to work.")
         )
     };
 }
@@ -34,14 +32,13 @@ fn main() {
     // ###########################################
     {
         // init lazy static var
-        let mut ocp = OCP.lock().unwrap();
-        ocp.ocp_daemon_hello().unwrap();
+        OCP.ocp_daemon_hello().unwrap();
     }
     on_shutdown!({
         // this will fail, if the request loop received a "kernel module bye"
         // because the netlink destination/socket is gone
         println!("Gracefully shutting down");
-        let bye: Result<OCPRecData, String> = OCP.lock().unwrap().ocp_daemon_bye();
+        let bye: Result<OCPRecData, String> = OCP.ocp_daemon_bye();
         match bye {
             Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
             Err(err) => { debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)  },
@@ -56,8 +53,7 @@ fn main() {
                 println!("Exiting work loop; this is like when actix event loop in daemon exits");
                 break;
             }
-            let mut ocp = ocp_t.lock().unwrap();
-            let res = ocp.recv_next_kernel_req_nbl();
+            let res = ocp_t.recv_next_kernel_req_nbl();
             if let Some(res) = res {
                 match res {
                     Ok(kreq) => {
@@ -66,7 +62,7 @@ fn main() {
                             break;
                         }
                         debug!("Received request from Kernel of type {} with completion id {}", kreq.op(), kreq.id());
-                        ocp.ocp_resolve_completion(kreq.id());
+                        ocp_t.ocp_resolve_completion(kreq.id());
                     }
                     Err(err) => {
                         error!("neli reported error (netlink/OCP): {}", err.to_string());
