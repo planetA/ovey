@@ -4,6 +4,10 @@ use std::fs::File;
 use std::io::Read;
 use liboveyutil::types::VirtualNetworkIdType;
 
+/// The name of the env variable where the daemon
+/// expects the configuration file. Can be absolute or relative.
+pub const ENV_VAR_CONFIG_FILE: &str = "OVEY_DAEMON_CFG";
+
 lazy_static::lazy_static! {
     pub static ref CONFIG: InitDataConfiguration = {
         let opt: Result<InitDataConfiguration, std::io::Error> = setup_init_config();
@@ -29,8 +33,14 @@ impl InitDataConfiguration {
 }
 
 fn setup_init_config() -> Result<InitDataConfiguration, std::io::Error> {
-    // TODO ENv Var
-    let mut file = File::open("../ovey_daemon/res/ovey_daemon.conf.json")?;
+    // this path works when the binary is executed from the IDE / via cargo run
+    let default_path ="../ovey_daemon/res/ovey_daemon.conf.json".to_string();
+    let path = match std::env::var(ENV_VAR_CONFIG_FILE) {
+        Ok(path) => {path}
+        Err(_) => {default_path}
+    };
+    info!("Using config file: '{}'", path);
+    let mut file = File::open(path)?;
     let mut file_content = String::new();
     let _length = file.read_to_string(&mut file_content)?;
 
