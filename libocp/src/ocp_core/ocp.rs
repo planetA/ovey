@@ -13,6 +13,7 @@ use liboveyutil::endianness::Endianness;
 use neli::err::NlError;
 use crate::ocp_core::orchestrator::OcpMessageOrchestrator;
 use crate::krequests::KRequest;
+use std::sync::Mutex;
 
 pub type OveyNlMsgType = u16;
 /// Returned type from neli library when we receive ovey/ocp messages.
@@ -27,6 +28,10 @@ pub type OveyGenNetlMsgType = Nlmsghdr<OveyNlMsgType, Genlmsghdr<OveyOperation, 
 pub struct Ocp {
     family_id: u16,
     orchestrator: OcpMessageOrchestrator,
+    /// This lock is used to ensure that only one thread at a time
+    /// can send + receive data in the orchestrator. Otherwise
+    /// the shared buffer could get wracked.
+    send_and_receive_lock: Mutex<()>,
 }
 
 impl Ocp {
@@ -60,6 +65,7 @@ impl Ocp {
             Self {
                 family_id,
                 orchestrator,
+                send_and_receive_lock: Mutex::new(())
             }
         )
     }
@@ -99,15 +105,21 @@ impl Ocp {
                                      attrs: Vec<Nlattr<OveyAttribute, Buffer>>,
                                      socket: OcpSocketKind,
     ) -> Result<OCPRecData, String> {
+        // We make sure that never two threads are this function
+        // otherwise I experienced, that they wrack the shared socket buffer
+        // when one wants to receive a reply
+        let _lock = self.send_and_receive_lock.lock().unwrap();
+
         let nl_msh = self.build_gnlmsg(op, attrs, socket);
 
         let reply = if socket == OcpSocketKind::DaemonInitiatedRequestsSocket {
-
             self.orchestrator.send_request_to_kernel(nl_msh)
                 .map_err(|e| e.to_string())?;
 
-            self.orchestrator.receive_reply_from_kernel()
+            self.orchestrator.receive_reply_from_kernel_bl()
         } else {
+            // this is used for DAEMON_HELLO and DAEMON_BYE only.
+            // Otherwise the socket is used in a separate thread.
             self.orchestrator.send_reply_to_kernel(nl_msh)
                 .map_err(|e| e.to_string())?;
             self.orchestrator.receive_request_from_kernel_bl()

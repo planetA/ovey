@@ -109,7 +109,7 @@ impl OcpMessageOrchestrator {
     /// Call this if you previously send a request where you
     /// expect an reply.
     /// This function operates on `self.daemon_to_kernel_socket`
-    pub fn receive_reply_from_kernel(&self) -> Result<OveyGenNetlMsgType, NlError> {
+    pub fn receive_reply_from_kernel_bl(&self) -> Result<OveyGenNetlMsgType, NlError> {
         let mut socket = self.daemon_to_kernel_socket.lock().unwrap();
         // we unwrap because we wait for packages blocking
         // therefore there is no None() and always Some()
