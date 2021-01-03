@@ -15,6 +15,7 @@ use ovey_daemon::structs::{
 };
 use ovey_daemon::util::get_all_local_ovey_devices;
 use std::str::FromStr;
+use log::debug;
 
 pub async fn route_get_index(_req: HttpRequest) -> HttpResponse {
     //println!("request: {:?}", &req);
@@ -45,6 +46,7 @@ pub async fn route_post_create_device(
     // check if device exists already in kernel
     let ocp_res = OCP.ocp_get_device_info(input.device_name());
     if ocp_res.is_ok() && ocp_res.unwrap().device_name().is_some() {
+        debug!("The device {} already exists", input.device_name());
         return Err(DaemonRestError::OcpDeviceAlreadyExists {
             info: format!(
                 "The device {} already exists inside the kernel!",
@@ -52,6 +54,7 @@ pub async fn route_post_create_device(
             ),
         });
     }
+    debug!("The device {} will be created now", input.device_name());
 
     let guid_be = guid_string_to_u64(input.virt_guid());
     let ocp_res = OCP.ocp_create_device(
@@ -60,16 +63,23 @@ pub async fn route_post_create_device(
         guid_be,
         &input.network_id().to_string(),
     );
+    debug!("OCP request to create device {} has been send", input.device_name());
     // now fetch again data; we need the parent device guid
+
     let _ocp_res = ocp_res.map_err(|err| DaemonRestError::OcpOperationFailed {
         info: format!("OCP could not create device! {}", err),
     })?;
+
+    debug!("OCP request to create device {} was successful", input.device_name());
+    debug!("Now sending request to query device {} info of via OCP", input.device_name());
     let ocp_res = OCP
         .ocp_get_device_info(input.device_name())
         .map_err(|err| DaemonRestError::OcpOperationFailed {
             info: format!("OCP could not get device data! {}", err),
         })?;
+    debug!("OCP request to query device {} info after its creation is successful", input.device_name());
 
+    debug!("Now registering device {} at coordinator", input.device_name());
     // THIRD STEP: NOW REGISTER THE DEVICE AT COORDINATOR
     let device_name = input.device_name().to_owned(); // fix use after move with input.device_name() later needed
     let resp = rest_forward_create_device(
@@ -81,7 +91,6 @@ pub async fn route_post_create_device(
         ),
     )
     .await;
-
     // if something failed; delete device on local machine again
     if resp.is_err() {
         eprintln!("A failure occurred: {:#?}", resp.as_ref().unwrap_err());
@@ -92,6 +101,8 @@ pub async fn route_post_create_device(
             });
         }
     }
+
+    debug!("registering device {} at coordinator successful", device_name);
 
     let dto = resp?;
 

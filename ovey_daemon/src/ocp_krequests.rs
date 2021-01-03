@@ -1,7 +1,7 @@
 //! Module to handle kernel OCP requests.
 
 use std::thread::{JoinHandle, spawn};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use log::{debug, error};
 use libocp::krequests::KRequest;
 use libocp::ocp_core::Ocp;

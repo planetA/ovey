@@ -9,7 +9,7 @@ use std::sync::Arc;
 use libocp::ocp_core::Ocp;
 use libocp::ocp_core::OCPRecData;
 use simple_on_shutdown::on_shutdown_move;
-use crate::ocp_requests::start_ocp_bg_reply_thread;
+use crate::ocp_krequests::start_ocp_bg_reply_thread;
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::routes::route_get_list_devices;
 
@@ -17,7 +17,7 @@ mod config;
 mod coordinator_service;
 mod routes;
 mod util;
-mod ocp_requests;
+mod ocp_krequests;
 
 #[macro_use]
 extern crate log;

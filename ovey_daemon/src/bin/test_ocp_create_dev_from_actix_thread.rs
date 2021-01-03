@@ -1,8 +1,9 @@
 use libocp::ocp_core::Ocp;
 use actix_web::{middleware, web, HttpServer, App, HttpResponse};
+use log::info;
 
 async fn index() -> HttpResponse {
-    let mut ocp = Ocp::connect().unwrap();
+    let ocp = Ocp::connect().unwrap();
 
     let device_name = "ovey0".to_string();
     let parent_device_name = "rxe0".to_string();
@@ -10,25 +11,32 @@ async fn index() -> HttpResponse {
 
     let node_guid_he = 0xdead_beef_0bad_f00d_u64;
 
-
+    info!("checking device info");
     let exists = ocp.ocp_get_device_info(&device_name);
     if exists.is_ok() {
+        info!("exists; delete");
         let _ = ocp.ocp_delete_device(&device_name).unwrap();
     }
-
+    info!("creating device");
     let _res = ocp.ocp_create_device(
         &device_name,
         &parent_device_name,
         node_guid_he,
         &network_uuid_str
     ).expect("Must be created!");
+    info!("device created");
 
-    let res = ocp.ocp_get_device_info(
+    info!("fetching device info");
+    let _res = ocp.ocp_get_device_info(
         &device_name,
-    );
+    ).unwrap();
+    info!("device info fetched");
 
-
-    let _res = res.unwrap();
+    info!("deleting device");
+    let _res = ocp.ocp_delete_device(
+        &device_name,
+    ).unwrap();
+    info!("device deleted");
 
     // HttpResponse::Ok().json(res)
     HttpResponse::Ok().json(())
