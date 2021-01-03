@@ -33,7 +33,7 @@ impl OcpMessageOrchestrator {
     ) -> Result<Self, String> {
         let (sender, receiver) = sync_channel(1);
 
-        let mut x = OcpMessageOrchestrator {
+        let x = OcpMessageOrchestrator {
             kernel_request_channel_receiver: Mutex::new(receiver),
             daemon_to_kernel_socket: Mutex::new(daemon_to_kernel_socket),
             // this is an Arc because we need this in a worker thread for the orchestrator

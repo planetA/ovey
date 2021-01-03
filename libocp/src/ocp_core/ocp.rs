@@ -13,8 +13,6 @@ use liboveyutil::endianness::Endianness;
 use neli::err::NlError;
 use crate::ocp_core::orchestrator::OcpMessageOrchestrator;
 use crate::krequests::KRequest;
-use std::thread::sleep;
-use std::time::Duration;
 
 pub type OveyNlMsgType = u16;
 /// Returned type from neli library when we receive ovey/ocp messages.
