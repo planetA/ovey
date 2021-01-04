@@ -8,7 +8,7 @@ use libocp::ocp_core::{Ocp};
 /// - gets information
 /// - deletes it
 fn main() {
-    let mut ocp = Ocp::connect().unwrap();
+    let ocp = Ocp::connect().unwrap();
 
     println!("creates, queries, and deletes ovey0 device 1000x");
 

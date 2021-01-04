@@ -8,7 +8,7 @@ use libocp::ocp_core::{Ocp};
 /// - gets information
 /// - deletes it
 fn main() {
-    let mut ocp = Ocp::connect().unwrap();
+    let ocp = Ocp::connect().unwrap();
 
     println!("creates, queries, and deletes 1000 ovey devices");
 
@@ -17,20 +17,22 @@ fn main() {
     // "dead:beef:0bad:f00d" => 1004492983682117086
     let node_guid_he = 0xdead_beef_0bad_f00d_u64;
 
-    for i in 0..1000 {
+    for i in 1..1000 {
         let device_name = format!("ovey{}", i);
+        let device_name2 = format!("ovey4");
+
+        println!("#{:>3}:Fetched device info from OCP", i);
+        let _res = ocp.ocp_get_device_info(
+            &device_name,
+        ).unwrap();
+
         println!("#{:>3}: creating device ovey{}", i, i);
         let _res = ocp.ocp_create_device(
-            &device_name,
+            &device_name2,
             &parent_device_name,
             node_guid_he,
             &network_uuid_str
         ).expect("Must be created!");
-
-        println!("#{:>3}:Fetched device info from OCP", i);
-        let res = ocp.ocp_get_device_info(
-            &device_name,
-        ).expect("must get info");
 
         println!("fetched info");
 

@@ -5,7 +5,7 @@ use crate::coordinator_service::{
 };
 use crate::OCP;
 use actix_web::{web, HttpRequest, HttpResponse};
-use libocp::ocp_core::OCPRecData;
+use libocp::ocp_core::{OCPRecData, OcpError};
 use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
 use liboveyutil::types::Uuid;
 use ovey_daemon::errors::DaemonRestError;
@@ -43,43 +43,27 @@ pub async fn route_post_create_device(
     // now we first create the device on the machine
     // and then we tell the coordinator about it
 
-    // check if device exists already in kernel
-    let ocp_res = OCP.ocp_get_device_info(input.device_name());
-    if ocp_res.is_ok() && ocp_res.unwrap().device_name().is_some() {
-        debug!("The device {} already exists", input.device_name());
-        return Err(DaemonRestError::OcpDeviceAlreadyExists {
-            info: format!(
-                "The device {} already exists inside the kernel!",
-                input.device_name()
-            ),
-        });
-    }
-    debug!("The device {} will be created now", input.device_name());
-
     let guid_be = guid_string_to_u64(input.virt_guid());
-    let ocp_res = OCP.ocp_create_device(
+    OCP.ocp_create_device(
         input.device_name(),
         input.parent_device_name(),
         guid_be,
         &input.network_id().to_string(),
-    );
-    debug!("OCP request to create device {} has been send", input.device_name());
-    // now fetch again data; we need the parent device guid
-
-    let _ocp_res = ocp_res.map_err(|err| DaemonRestError::OcpOperationFailed {
-        info: format!("OCP could not create device! {}", err),
+    ).map_err(|err| match err {
+        OcpError::DeviceAlreadyExist => DaemonRestError::OcpDeviceAlreadyExists { info: input.device_name().to_string() },
+        e => DaemonRestError::OcpOperationFailed { info: e.to_string() }
     })?;
 
-    debug!("OCP request to create device {} was successful", input.device_name());
-    debug!("Now sending request to query device {} info of via OCP", input.device_name());
+    // check that the device was really created
     let ocp_res = OCP
         .ocp_get_device_info(input.device_name())
-        .map_err(|err| DaemonRestError::OcpOperationFailed {
-            info: format!("OCP could not get device data! {}", err),
+        .map_err(|err| match err {
+            OcpError::DeviceDoesntExist => DaemonRestError::OcpDeviceNotFound { info: input.device_name().to_string() },
+            e => DaemonRestError::OcpOperationFailed { info: e.to_string() }
         })?;
-    debug!("OCP request to query device {} info after its creation is successful", input.device_name());
 
-    debug!("Now registering device {} at coordinator", input.device_name());
+
+
     // THIRD STEP: NOW REGISTER THE DEVICE AT COORDINATOR
     let device_name = input.device_name().to_owned(); // fix use after move with input.device_name() later needed
     let resp = rest_forward_create_device(
@@ -91,15 +75,12 @@ pub async fn route_post_create_device(
         ),
     )
     .await;
+
     // if something failed; delete device on local machine again
     if resp.is_err() {
         eprintln!("A failure occurred: {:#?}", resp.as_ref().unwrap_err());
-        let ocp_res = OCP.ocp_delete_device(&device_name);
-        if let Err(err) = ocp_res {
-            return Err(DaemonRestError::OcpOperationFailed {
-                info: format!("Local device deletion failed! {}", err),
-            });
-        }
+        OCP.ocp_delete_device(&device_name)
+            .map_err(|e| DaemonRestError::OcpOperationFailed { info: e.to_string() })?;
     }
 
     debug!("registering device {} at coordinator successful", device_name);
@@ -119,10 +100,12 @@ pub async fn route_delete_delete_device(
     // first step; check via OCP if device is registered on local machine
     let ocp_data = OCP
         .ocp_get_device_info(input.device_name())
-        .map_err(|_err| DaemonRestError::OcpDeviceNotFound {
-            info: input.device_name().to_owned(),
-        });
-    let ocp_data = ocp_data?;
+        .map_err(|err| match err {
+            OcpError::DeviceDoesntExist => DaemonRestError::OcpDeviceNotFound {
+                info: input.device_name().to_owned(),
+            },
+            e => DaemonRestError::OcpOperationFailed { info: e.to_string() }
+        })?;
 
     // second step: delete it on coordinator
     // fetch network id; we need it for the deletion request on the coordinator
@@ -138,11 +121,10 @@ pub async fn route_delete_delete_device(
     let coordinator_result = rest_forward_delete_device(&guid_str, &network_id).await;
 
     // actually delete device on local machine inside Ovey kernel module
-    let ocp_result = OCP.ocp_delete_device(input.device_name()).map_err(|err| {
-        DaemonRestError::OcpOperationFailed {
-            info: format!("Local device deletion failed! {}", err),
-        }
-    });
+    let ocp_result = OCP.ocp_delete_device(input.device_name())
+        .map_err(|err| match err {
+            e => DaemonRestError::OcpOperationFailed { info: e.to_string() }
+        });
 
     let deletion_state: DeletionStateDto = DeletionStateDtoBuilder::default()
         .deletion_local_successfully(ocp_result.is_ok())

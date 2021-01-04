@@ -13,3 +13,5 @@ publish = false
 neli = "0.5.1" # netlink
 liboveyutil = { path = "../liboveyutil" } # guid string conversion, types, uuid, and some other utils/re-exports
 log = "0.4.11" # for debug!, trace! etc
+derive_more = "0.99.11"
+libc = "0.2.81" # for status codes like EINVAL or EEXISTS

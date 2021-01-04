@@ -6,7 +6,7 @@ use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_daemon::consts::OVEY_DAEMON_PORT;
 use ovey_daemon::urls::{ROUTE_DEVICE, ROUTE_DEVICES};
 use std::sync::Arc;
-use libocp::ocp_core::Ocp;
+use libocp::ocp_core::{Ocp, OcpError};
 use libocp::ocp_core::OCPRecData;
 use simple_on_shutdown::on_shutdown_move;
 use crate::ocp_krequests::start_ocp_bg_reply_thread;
@@ -53,7 +53,7 @@ async fn main() -> std::io::Result<()> {
         exit_loop.store(true, Ordering::Relaxed);
         loop_thread_handle.join().unwrap();
         debug!("thread finished");
-        let bye: Result<OCPRecData, String> = OCP.ocp_daemon_bye();
+        let bye: Result<OCPRecData, OcpError> = OCP.ocp_daemon_bye();
         match bye {
             Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
             Err(err) => { debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)  },

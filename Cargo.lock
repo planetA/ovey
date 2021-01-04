@@ -1082,6 +1082,8 @@ checksum = "1482821306169ec4d07f6aca392a4681f66c75c9918aa49641a2595db64053cb"
 name = "libocp"
 version = "0.1.0"
 dependencies = [
+ "derive_more",
+ "libc",
  "liboveyutil",
  "log",
  "neli",

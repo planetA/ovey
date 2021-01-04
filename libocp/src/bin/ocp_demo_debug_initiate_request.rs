@@ -4,7 +4,7 @@ use libocp::ocp_core::Ocp;
 
 /// Demo for daemon hello + daemon bye command.
 fn main() {
-    let mut ocp = Ocp::connect().unwrap();
+    let ocp = Ocp::connect().unwrap();
 
     ocp.ocp_daemon_hello().unwrap();
 

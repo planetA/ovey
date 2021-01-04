@@ -93,15 +93,18 @@ impl OcpMessageOrchestrator {
     /// Sends a single request to the Kernel via OCP.
     /// This function operates on `self.daemon_to_kernel_socket`
     pub fn send_request_to_kernel(&self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
+        debug!("Sending request to kernel");
         let mut socket = self.daemon_to_kernel_socket.lock().unwrap();
+        debug!("got lock");
         socket.send(msg)
     }
 
     /// Sends a single reply to the Kernel via OCP.
     /// This function operates on `self.kernel_to_daemon_socket`
     pub fn send_reply_to_kernel(&self, msg: OveyGenNetlMsgType) -> Result<(), NlError> {
-        debug!("Replying to kernel");
+        debug!("Sending reply to kernel");
         let mut socket = self.kernel_to_daemon_socket.lock().unwrap();
+        debug!("got lock");
         socket.send(msg)
     }
 
@@ -110,7 +113,11 @@ impl OcpMessageOrchestrator {
     /// expect an reply.
     /// This function operates on `self.daemon_to_kernel_socket`
     pub fn receive_reply_from_kernel_bl(&self) -> Result<OveyGenNetlMsgType, NlError> {
+        debug!("Receiving reply from kernel (blocking)");
         let mut socket = self.daemon_to_kernel_socket.lock().unwrap();
+        debug!("got lock");
+        debug!("Blocking was: {}", socket.is_blocking().unwrap());
+        socket.block().unwrap();
         // we unwrap because we wait for packages blocking
         // therefore there is no None() and always Some()
         socket.recv().map(|x| x.unwrap())

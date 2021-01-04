@@ -7,7 +7,7 @@ use std::process;
 
 /// Demo for daemon hello + daemon bye command.
 fn main() {
-    let mut ocp = Ocp::connect().unwrap();
+    let ocp = Ocp::connect().unwrap();
 
     // we also do a echo because I need to check if both sockets
     // are properly recognized at kernel

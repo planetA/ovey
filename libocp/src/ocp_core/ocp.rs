@@ -1,19 +1,20 @@
-use neli::socket::NlSocketHandle;
-use neli::nl::{Nlmsghdr, NlPayload};
-use neli::genl::{Genlmsghdr, Nlattr};
-use crate::ocp_properties::{OveyOperation, OveyAttribute, FAMILY_NAME, OcpSocketKind};
-use neli::consts::socket::NlFamily;
-use neli::utils::U32Bitmask;
-use neli::types::{Buffer, GenlBuffer};
-use crate::ocp_core::recv::OCPRecData;
-use neli::Nl;
 use std::fmt::Debug;
-use neli::consts::nl::{NlmFFlags, NlmF, Nlmsg};
-use liboveyutil::endianness::Endianness;
-use neli::err::NlError;
-use crate::ocp_core::orchestrator::OcpMessageOrchestrator;
-use crate::krequests::KRequest;
 use std::sync::Mutex;
+use neli::consts::nl::{NlmF, NlmFFlags};
+use neli::consts::socket::NlFamily;
+use neli::err::NlError;
+use neli::genl::{Genlmsghdr, Nlattr};
+use neli::nl::{Nlmsghdr, NlPayload};
+use neli::Nl;
+use neli::socket::NlSocketHandle;
+use neli::types::{Buffer, GenlBuffer};
+use neli::utils::U32Bitmask;
+use liboveyutil::endianness::Endianness;
+use crate::krequests::KRequest;
+use crate::ocp_core::orchestrator::OcpMessageOrchestrator;
+use crate::ocp_core::recv::OCPRecData;
+use crate::ocp_properties::{FAMILY_NAME, OcpSocketKind, OveyAttribute, OveyOperation};
+use crate::ocp_core::OcpError;
 
 pub type OveyNlMsgType = u16;
 /// Returned type from neli library when we receive ovey/ocp messages.
@@ -84,7 +85,7 @@ impl Ocp {
     fn k_to_d_sock_send_req_n_recv_reply_bl(&self,
                                             op: OveyOperation,
                                             attrs: Vec<Nlattr<OveyAttribute, Buffer>>,
-    ) -> Result<OCPRecData, String> {
+    ) -> Result<OCPRecData, NlError> {
         self.sock_send_req_n_recv_reply_bl(op, attrs, OcpSocketKind::KernelInitiatedRequestsSocket)
     }
 
@@ -93,7 +94,7 @@ impl Ocp {
     fn d_to_k_sock_send_req_n_recv_reply_bl(&self,
                                             op: OveyOperation,
                                             attrs: Vec<Nlattr<OveyAttribute, Buffer>>,
-    ) -> Result<OCPRecData, String> {
+    ) -> Result<OCPRecData, NlError> {
         self.sock_send_req_n_recv_reply_bl(op, attrs, OcpSocketKind::DaemonInitiatedRequestsSocket)
     }
 
@@ -104,7 +105,7 @@ impl Ocp {
                                      op: OveyOperation,
                                      attrs: Vec<Nlattr<OveyAttribute, Buffer>>,
                                      socket: OcpSocketKind,
-    ) -> Result<OCPRecData, String> {
+    ) -> Result<OCPRecData, NlError> {
         // We make sure that never two threads are this function
         // otherwise I experienced, that they wrack the shared socket buffer
         // when one wants to receive a reply
@@ -113,24 +114,16 @@ impl Ocp {
         let nl_msh = self.build_gnlmsg(op, attrs, socket);
 
         let reply = if socket == OcpSocketKind::DaemonInitiatedRequestsSocket {
-            self.orchestrator.send_request_to_kernel(nl_msh)
-                .map_err(|e| e.to_string())?;
-
+            self.orchestrator.send_request_to_kernel(nl_msh)?;
             self.orchestrator.receive_reply_from_kernel_bl()
         } else {
             // this is used for DAEMON_HELLO and DAEMON_BYE only.
             // Otherwise the socket is used in a separate thread.
-            self.orchestrator.send_reply_to_kernel(nl_msh)
-                .map_err(|e| e.to_string())?;
+            self.orchestrator.send_reply_to_kernel(nl_msh)?;
             self.orchestrator.receive_request_from_kernel_bl()
         };
 
-        let reply = reply
-            .map_err(|e| format!("Failed to get reply! {}", e.to_string()))?;
-
-        // eprintln!("res.nlmsg_hdr.nl_pid = {}", reply.nl_pid);
-
-        self.validate(op, &reply)?;
+        let reply = reply?;
 
         Ok(
             OCPRecData::new(&reply)
@@ -176,29 +169,6 @@ impl Ocp {
         )
     }
 
-    /// Does some validation
-    fn validate(&self, op: OveyOperation, res: &OveyGenNetlMsgType) -> Result<(), String> {
-        // res.nl_type is either family id (good message) or NLMSG_ERROR (0x2) for a error message!
-        if res.nl_type == u16::from(Nlmsg::Error) /*0x2, same constant is used in the kernel in standard netlink */ {
-            return Err("Received Error! Netlink Message Type is \"error\" (2) instead of our family".to_string());
-        }
-
-        // should actually never happen, but catch anyway just to be safe
-        if res.nl_type != self.family_id {
-            return Err(
-                format!("Received data from wrong family?! is={}, expected={}", res.nl_type.to_string(), self.family_id)
-            );
-        };
-
-        if res.nl_payload.get_payload().unwrap().cmd != op {
-            return Err(
-                format!("Received data (Ack) has wrong operation! is={}, expected={}", res.nl_type.to_string(), self.family_id)
-            );
-        }
-
-        Ok(())
-    }
-
     /// This function is "fire and forget". It just sends a reply. It doesn't check if
     /// the kernel accepted the reply.
     fn reply_to_kernel(&self, op: OveyOperation, attrs: Vec<Nlattr<OveyAttribute, Buffer>>) {
@@ -224,7 +194,7 @@ impl Ocp {
                              parent_device_name: &str,
                              node_guid_he: u64,
                              network_uuid_str: &str,
-    ) -> Result<OCPRecData, String> {
+    ) -> Result<OCPRecData, OcpError> {
         let node_guid_be = Endianness::u64he_to_u64be(node_guid_he);
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::CreateDevice,
@@ -234,7 +204,14 @@ impl Ocp {
                 build_nl_attr(OveyAttribute::NodeGuid, node_guid_be),
                 build_nl_attr(OveyAttribute::VirtNetUuidStr, network_uuid_str),
             ],
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(e) => if e.error ==  libc::EEXIST {
+                OcpError::DeviceAlreadyExist
+            } else {
+                OcpError::Invalid(e.error)
+            }
+            nlerr => OcpError::LowLevelError(nlerr)
+        })
     }
 
     /// Convenient wrapper function that deletes a n
@@ -243,13 +220,16 @@ impl Ocp {
     /// successfully or not.
     pub fn ocp_delete_device(&self,
                              device_name: &str,
-    ) -> Result<OCPRecData, String> {
+    ) -> Result<OCPRecData, OcpError> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DeleteDevice,
             vec![
                 build_nl_attr(OveyAttribute::DeviceName, device_name)
             ],
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(_) => { OcpError::DeviceDoesntExist }
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })
     }
 
     /// Convenient wrapper function that gets info about an
@@ -258,13 +238,16 @@ impl Ocp {
     /// successfully or not.
     pub fn ocp_get_device_info(&self,
                                device_name: &str,
-    ) -> Result<OCPRecData, String> {
+    ) -> Result<OCPRecData, OcpError> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DeviceInfo,
             vec![
                 build_nl_attr(OveyAttribute::DeviceName, device_name)
             ],
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(_) => { OcpError::DeviceDoesntExist }
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })
     }
 
     /// Convenient wrapper function that tests OCP
@@ -273,22 +256,32 @@ impl Ocp {
     /// message with the proper content.
     pub fn ocp_echo(&self,
                     echo_msg: &str,
-    ) -> Result<OCPRecData, String> {
+    ) -> Result<OCPRecData, OcpError> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::Echo,
             vec![
                 build_nl_attr(OveyAttribute::Msg, echo_msg)
             ]
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })
     }
 
     /// Convenient wrapper function that triggers a
     /// error response via OCP by the Ovey Kernel Module.
-    pub fn ocp_debug_respond_error(&self) -> Result<OCPRecData, String> {
+    pub fn ocp_debug_respond_error(&self) -> Result<OCPRecData, OcpError> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DebugRespondError,
             vec![],
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(errmsg) => {
+                debug!("received expected error reply: {:?}", errmsg);
+                // eprintln!("received expected error reply: {:?}", errmsg);
+                OcpError::Invalid(errmsg.error)
+            }
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })
     }
 
     /// Convenient function to tell the kernel module that the
@@ -298,53 +291,74 @@ impl Ocp {
     ///
     /// THIS IS NECESSARY TO SUPPORT KERNEL-INITIATED REQUESTS.
     // TODO return tuple?!
-    pub fn ocp_daemon_hello(&self) -> Result<OCPRecData, String> {
+    pub fn ocp_daemon_hello(&self) -> Result<OCPRecData, OcpError> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonHello,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::DaemonInitiatedRequestsSocket)
             ],
-        )?;
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(e) => OcpError::Invalid(e.error),
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })?;
+
         self.k_to_d_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonHello,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::KernelInitiatedRequestsSocket)
             ],
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })
     }
 
     /// Function is used to tell the kernel module that the
     /// specified socket is no longer available
     /// Usually triggered during application shutdown.
     /// The data is send via the corresponding socket.
-    pub fn ocp_daemon_bye(&self) -> Result<OCPRecData, String> {
+    pub fn ocp_daemon_bye(&self) -> Result<OCPRecData, OcpError> {
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonBye,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::DaemonInitiatedRequestsSocket)
             ],
-        )?;
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(e) => OcpError::Invalid(e.error),
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })?;
+
         self.k_to_d_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonBye,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::KernelInitiatedRequestsSocket)
             ],
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(e) => OcpError::Invalid(e.error),
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })
     }
 
     /// Function is used to tell the kernel module that the
     /// specified socket is no longer available
     /// Usually triggered during application shutdown.
     /// The data is send via the corresponding socket.
-    pub fn ocp_debug_initiate_request(&self) -> (Result<OCPRecData, String>, Result<OCPRecData, String>) {
+    pub fn ocp_debug_initiate_request(&self) -> (Result<OCPRecData, OcpError>, Result<OCPRecData, OcpError>) {
         (
             self.d_to_k_sock_send_req_n_recv_reply_bl(
                 OveyOperation::DebugInitiateRequest,
                 vec![],
-            ),
+            ).map_err(|e| match e {
+                NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
+                nlerr => { OcpError::LowLevelError(nlerr) }
+            }),
+
             self.orchestrator.receive_request_from_kernel_bl()
                 .map(|x| OCPRecData::new(&x))
-                .map_err(|e| e.to_string())
+                .map_err(|e| match e {
+                    NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
+                    nlerr => { OcpError::LowLevelError(nlerr) }
+                })
         )
     }
 
@@ -364,13 +378,16 @@ impl Ocp {
 
     /// Convenient wrapper function to tell the kernel via OCP to resolve all
     /// completions. This is useful during debugging if something got stuck.
-    pub fn ocp_debug_resolve_all_completions(&self) -> Result<OCPRecData, String> {
+    pub fn ocp_debug_resolve_all_completions(&self) -> Result<OCPRecData, OcpError> {
         // Actually it's not important what socket we use here..
         // self.d_to_k_sock_send_req_n_recv_reply_bl(
         self.k_to_d_sock_send_req_n_recv_reply_bl(
             OveyOperation::DebugResolveAllCompletions,
             vec![],
-        )
+        ).map_err(|e| match e {
+            NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
+            nlerr => { OcpError::LowLevelError(nlerr) }
+        })
     }
 }
 
