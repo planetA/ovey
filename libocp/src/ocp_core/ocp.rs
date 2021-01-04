@@ -31,7 +31,9 @@ pub struct Ocp {
     orchestrator: OcpMessageOrchestrator,
     /// This lock is used to ensure that only one thread at a time
     /// can send + receive data in the orchestrator. Otherwise
-    /// the shared buffer could get wracked.
+    /// the shared buffer could get wracked. Send + receive are
+    /// two operations. The lock ensures that after one send
+    /// one read can happen.
     send_and_receive_lock: Mutex<()>,
 }
 
