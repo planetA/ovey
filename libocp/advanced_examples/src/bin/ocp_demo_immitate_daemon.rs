@@ -1,6 +1,6 @@
 //! Demo to imitate the daemon.
 
-use libocp::ocp_core::{Ocp, OCPRecData};
+use libocp::ocp_core::{Ocp, OCPRecData, OcpError};
 use std::thread::spawn;
 use std::sync::{Arc, Mutex};
 use log::{error, debug, info};
@@ -38,7 +38,7 @@ fn main() {
         // this will fail, if the request loop received a "kernel module bye"
         // because the netlink destination/socket is gone
         println!("Gracefully shutting down");
-        let bye: Result<OCPRecData, NlError> = OCP.ocp_daemon_bye();
+        let bye: Result<OCPRecData, OcpError> = OCP.ocp_daemon_bye();
         match bye {
             Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
             Err(err) => { debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)  },
