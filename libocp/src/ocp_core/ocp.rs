@@ -198,7 +198,11 @@ impl Ocp {
                              network_uuid_str: &str,
     ) -> Result<OCPRecData, OcpError> {
         let node_guid_be = Endianness::u64he_to_u64be(node_guid_he);
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
+
+        // Workaround: currently we handle all neli low level errors as fatal
+        // and we panic. Because it would make our socket unusable anyway.
+        // Workaround: signal error via regular ovey attribute
+        let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::CreateDevice,
             vec![
                 build_nl_attr(OveyAttribute::DeviceName, device_name),
@@ -206,14 +210,13 @@ impl Ocp {
                 build_nl_attr(OveyAttribute::NodeGuid, node_guid_be),
                 build_nl_attr(OveyAttribute::VirtNetUuidStr, network_uuid_str),
             ],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(e) => if e.error ==  libc::EEXIST {
-                OcpError::DeviceAlreadyExist
-            } else {
-                OcpError::Invalid(e.error)
-            }
-            nlerr => OcpError::LowLevelError(nlerr)
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::DeviceAlreadyExist)
+        } else {
+            Ok(res)
+        }
     }
 
     /// Convenient wrapper function that deletes a n
@@ -223,15 +226,18 @@ impl Ocp {
     pub fn ocp_delete_device(&self,
                              device_name: &str,
     ) -> Result<OCPRecData, OcpError> {
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
+        let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DeleteDevice,
             vec![
                 build_nl_attr(OveyAttribute::DeviceName, device_name)
             ],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(_) => { OcpError::DeviceDoesntExist }
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::DeviceDoesntExist)
+        } else {
+            Ok(res)
+        }
     }
 
     /// Convenient wrapper function that gets info about an
@@ -241,15 +247,18 @@ impl Ocp {
     pub fn ocp_get_device_info(&self,
                                device_name: &str,
     ) -> Result<OCPRecData, OcpError> {
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
+        let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DeviceInfo,
             vec![
                 build_nl_attr(OveyAttribute::DeviceName, device_name)
             ],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(_) => { OcpError::DeviceDoesntExist }
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::DeviceDoesntExist)
+        } else {
+            Ok(res)
+        }
     }
 
     /// Convenient wrapper function that tests OCP
@@ -259,31 +268,33 @@ impl Ocp {
     pub fn ocp_echo(&self,
                     echo_msg: &str,
     ) -> Result<OCPRecData, OcpError> {
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
+        let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::Echo,
             vec![
                 build_nl_attr(OveyAttribute::Msg, echo_msg)
             ]
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::Invalid(code))
+        } else {
+            Ok(res)
+        }
     }
 
     /// Convenient wrapper function that triggers a
     /// error response via OCP by the Ovey Kernel Module.
     pub fn ocp_debug_respond_error(&self) -> Result<OCPRecData, OcpError> {
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
+        let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DebugRespondError,
             vec![],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(errmsg) => {
-                debug!("received expected error reply: {:?}", errmsg);
-                // eprintln!("received expected error reply: {:?}", errmsg);
-                OcpError::Invalid(errmsg.error)
-            }
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::Invalid(code))
+        } else {
+            Ok(res)
+        }
     }
 
     /// Convenient function to tell the kernel module that the
@@ -294,25 +305,31 @@ impl Ocp {
     /// THIS IS NECESSARY TO SUPPORT KERNEL-INITIATED REQUESTS.
     // TODO return tuple?!
     pub fn ocp_daemon_hello(&self) -> Result<OCPRecData, OcpError> {
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
+        let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonHello,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::DaemonInitiatedRequestsSocket)
             ],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(e) => OcpError::Invalid(e.error),
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })?;
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::Invalid(code))
+        } else {
+            Ok(res)
+        }?;
 
-        self.k_to_d_sock_send_req_n_recv_reply_bl(
+        let res = self.k_to_d_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonHello,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::KernelInitiatedRequestsSocket)
             ],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::Invalid(code))
+        } else {
+            Ok(res)
+        }
     }
 
     /// Function is used to tell the kernel module that the
@@ -320,25 +337,31 @@ impl Ocp {
     /// Usually triggered during application shutdown.
     /// The data is send via the corresponding socket.
     pub fn ocp_daemon_bye(&self) -> Result<OCPRecData, OcpError> {
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
+        let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonBye,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::DaemonInitiatedRequestsSocket)
             ],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(e) => OcpError::Invalid(e.error),
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })?;
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::Invalid(code))
+        } else {
+            Ok(res)
+        }?;
 
-        self.k_to_d_sock_send_req_n_recv_reply_bl(
+        let res = self.k_to_d_sock_send_req_n_recv_reply_bl(
             OveyOperation::DaemonBye,
             vec![
                 build_nl_attr(OveyAttribute::SocketKind, OcpSocketKind::KernelInitiatedRequestsSocket)
             ],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(e) => OcpError::Invalid(e.error),
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::Invalid(code))
+        } else {
+            Ok(res)
+        }
     }
 
     /// Function is used to tell the kernel module that the
@@ -347,20 +370,33 @@ impl Ocp {
     /// The data is send via the corresponding socket.
     pub fn ocp_debug_initiate_request(&self) -> (Result<OCPRecData, OcpError>, Result<OCPRecData, OcpError>) {
         (
-            self.d_to_k_sock_send_req_n_recv_reply_bl(
-                OveyOperation::DebugInitiateRequest,
-                vec![],
-            ).map_err(|e| match e {
-                NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
-                nlerr => { OcpError::LowLevelError(nlerr) }
-            }),
-
-            self.orchestrator.receive_request_from_kernel_bl()
-                .map(|x| OCPRecData::new(&x))
-                .map_err(|e| match e {
-                    NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
-                    nlerr => { OcpError::LowLevelError(nlerr) }
-                })
+            {
+                let res = self.d_to_k_sock_send_req_n_recv_reply_bl(
+                    OveyOperation::DebugInitiateRequest,
+                    vec![],
+                ).unwrap();
+                if let Some(code) = res.error_code() {
+                    debug!("Received error({}) via workaround error signaling mechanism!", code);
+                    Err(OcpError::Invalid(code))
+                } else {
+                    Ok(res)
+                }
+            },
+            {
+                let res = self.orchestrator.receive_request_from_kernel_bl()
+                    .map(|x| OCPRecData::new(&x))
+                    .map_err(|e| match e {
+                        NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
+                        nlerr => { OcpError::LowLevelError(nlerr) }
+                    })
+                    .unwrap();
+                if let Some(code) = res.error_code() {
+                    debug!("Received error({}) via workaround error signaling mechanism!", code);
+                    Err(OcpError::Invalid(code))
+                } else {
+                    Ok(res)
+                }
+            }
         )
     }
 
@@ -383,13 +419,16 @@ impl Ocp {
     pub fn ocp_debug_resolve_all_completions(&self) -> Result<OCPRecData, OcpError> {
         // Actually it's not important what socket we use here..
         // self.d_to_k_sock_send_req_n_recv_reply_bl(
-        self.k_to_d_sock_send_req_n_recv_reply_bl(
+        let res = self.k_to_d_sock_send_req_n_recv_reply_bl(
             OveyOperation::DebugResolveAllCompletions,
             vec![],
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
+        ).unwrap();
+        if let Some(code) = res.error_code() {
+            debug!("Received error({}) via workaround error signaling mechanism!", code);
+            Err(OcpError::Invalid(code))
+        } else {
+            Ok(res)
+        }
     }
 }
 

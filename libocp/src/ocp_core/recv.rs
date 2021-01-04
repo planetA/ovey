@@ -28,6 +28,9 @@ pub struct OCPRecData {
     virt_network_uuid_str: Option<String>,
     socket_kind: Option<u32>,
     completion_id: Option<u64>,
+    // THIS IS PART OF OCP WORKAROUND AROUND USERLAND NELI RUST LIB
+    // WHICH IS UNSTABLE WITH REGULAR NETLINK ERRORS.
+    error_code: Option<i32>,
 }
 
 impl OCPRecData {
@@ -43,6 +46,7 @@ impl OCPRecData {
         let mut virt_network_uuid_str = None;
         let mut socket_kind = None;
         let mut completion_id = None;
+        let mut error_code = None;
 
         let payload = res.get_payload().unwrap();
 
@@ -72,7 +76,9 @@ impl OCPRecData {
                 OveyAttribute::CompletionId => {
                     completion_id.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
                 }
-
+                OveyAttribute::ErrorCode => {
+                    error_code.replace(i32::deserialize(attr.nla_payload.as_ref()).unwrap());
+                }
                 OveyAttribute::UnrecognizedVariant(_) => {panic!("Received UnrecognizedVariant")}
                 OveyAttribute::Unspec => { panic!("Received unspec") }
             }
@@ -89,6 +95,7 @@ impl OCPRecData {
             virt_network_uuid_str,
             socket_kind,
             completion_id,
+            error_code,
         }
     }
 
@@ -132,6 +139,11 @@ impl OCPRecData {
     pub fn completion_id(&self) -> Option<u64> {
         self.completion_id
     }
+
+    /// Return the error code that the kernel added.
+    pub fn error_code(&self) -> Option<i32> {
+        self.error_code
+    }
 }
 
 impl Display for OCPRecData {
@@ -147,6 +159,7 @@ impl Display for OCPRecData {
             \x20   virt_network_uuid_str: {:?}\n\
             \x20   socket_kind: {:?}\n\
             \x20   CompletionId: {:?}\n\
+            \x20   error_code: {:?}\n\
         }}",
                self.msg,
                self.device_name,
@@ -157,7 +170,8 @@ impl Display for OCPRecData {
                self.parent_node_guid_str(),
                self.virt_network_uuid_str,
                self.socket_kind,
-               self.completion_id
+               self.completion_id,
+               self.error_code,
         )
     }
 }
