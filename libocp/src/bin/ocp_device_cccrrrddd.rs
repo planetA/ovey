@@ -19,22 +19,27 @@ fn main() {
 
     for i in 1..1000 {
         let device_name = format!("ovey{}", i);
-        let device_name2 = format!("ovey4");
+        println!("#{:>3}: creating device ovey{}", i, i);
+
+        let _res = ocp.ocp_create_device(
+            &device_name,
+            &parent_device_name,
+            node_guid_he,
+            &network_uuid_str
+        ).expect("Must be created!");
+    }
+
+    for i in 1..1000 {
+        let device_name = format!("ovey{}", i);
 
         println!("#{:>3}:Fetched device info from OCP", i);
         let _res = ocp.ocp_get_device_info(
             &device_name,
         ).unwrap();
+    }
 
-        println!("#{:>3}: creating device ovey{}", i, i);
-        let _res = ocp.ocp_create_device(
-            &device_name2,
-            &parent_device_name,
-            node_guid_he,
-            &network_uuid_str
-        ).expect("Must be created!");
-
-        println!("fetched info");
+    for i in 1..1000 {
+        let device_name = format!("ovey{}", i);
 
         println!("#{:>3}:deleting device ovey{}", i, i);
         let _res = ocp.ocp_delete_device(
