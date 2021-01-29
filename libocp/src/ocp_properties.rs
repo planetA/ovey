@@ -66,10 +66,7 @@ neli::impl_var!( // also impls copy
     ParentNodeGuid => 5,
     VirtNetUuidStr => 6,
     SocketKind => 7,
-    CompletionId => 8,
-    // THIS IS PART OF OCP WORKAROUND AROUND USERLAND NELI RUST LIB
-    // WHICH IS UNSTABLE WITH REGULAR NETLINK ERRORS.
-    ErrorCode => 9
+    CompletionId => 8
 );
 impl neli::consts::genl::NlAttrType for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
@@ -85,7 +82,6 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
             OveyAttribute::SocketKind => write!(f, "OveyAttribute::SocketKind({})", numeric_value),
             OveyAttribute::CompletionId => write!(f, "OveyAttribute::CompletionId({})", numeric_value),
-            OveyAttribute::ErrorCode => write!(f, "OveyAttribute::ErrorCode({})", numeric_value),
             _ => write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }
