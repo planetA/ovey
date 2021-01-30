@@ -25,12 +25,12 @@ lazy_static::lazy_static! {
 
 fn setup_init_config() -> Result<InitDataConfiguration, std::io::Error> {
     // this path works when the binary is executed from the IDE / via cargo run
-    let default_path = "../ovey_coordinator/res/ovey_coordinator.conf.json".to_string();
+    let default_path = "./ovey_coordinator/res/ovey_coordinator.conf.json".to_string();
     let path = match std::env::var(ENV_VAR_CONFIG_FILE) {
         Ok(path) => {path}
         Err(_) => {default_path}
     };
-    info!("Using config file: '{}'", path);
+    eprintln!("Using config file: '{}'", path);
     let mut file = File::open(path)?;
     let mut file_content = String::new();
     let _length = file.read_to_string(&mut file_content)?;

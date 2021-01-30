@@ -34,7 +34,7 @@ impl InitDataConfiguration {
 
 fn setup_init_config() -> Result<InitDataConfiguration, std::io::Error> {
     // this path works when the binary is executed from the IDE / via cargo run
-    let default_path ="../ovey_daemon/res/ovey_daemon.conf.json".to_string();
+    let default_path ="./ovey_daemon/res/ovey_daemon.conf.json".to_string();
     let path = match std::env::var(ENV_VAR_CONFIG_FILE) {
         Ok(path) => {path}
         Err(_) => {default_path}

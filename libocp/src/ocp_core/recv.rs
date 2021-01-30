@@ -72,9 +72,12 @@ impl OCPRecData {
                 OveyAttribute::CompletionId => {
                     completion_id.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
                 }
-
                 OveyAttribute::UnrecognizedVariant(_) => {panic!("Received UnrecognizedVariant")}
                 OveyAttribute::Unspec => { panic!("Received unspec") }
+
+                // they will never appear in this struct
+                OveyAttribute::VirtPropertyU32 => {}
+                OveyAttribute::RealPropertyU32 => {}
             }
         });
 

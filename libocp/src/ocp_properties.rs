@@ -28,7 +28,8 @@ neli::impl_var!( // also impls copy
     DebugInitiateRequest => 8,
     ResolveCompletion => 9,
     DebugResolveAllCompletions => 10,
-    KernelModuleBye => 11
+    KernelModuleBye => 11,
+    StoreVirtPropertyPortLid => 12
 );
 impl neli::consts::genl::Cmd for OveyOperation {}
 impl fmt::Display for OveyOperation {
@@ -47,6 +48,7 @@ impl fmt::Display for OveyOperation {
             OveyOperation::ResolveCompletion => write!(f, "OveyOperation::ResolveCompletion({})", numeric_value),
             OveyOperation::DebugResolveAllCompletions => write!(f, "OveyOperation::DebugResolveAllCompletions({})", numeric_value),
             OveyOperation::KernelModuleBye => write!(f, "OveyOperation::KernelModuleBye({})", numeric_value),
+            OveyOperation::StoreVirtPropertyPortLid => write!(f, "OveyOperation::StoreVirtPropertyPortLid({})", numeric_value),
             _ =>  write!(f, "OveyOperation::<unknown>({})", numeric_value),
         }
     }
@@ -66,7 +68,9 @@ neli::impl_var!( // also impls copy
     ParentNodeGuid => 5,
     VirtNetUuidStr => 6,
     SocketKind => 7,
-    CompletionId => 8
+    CompletionId => 8,
+    VirtPropertyU32 => 9,
+    RealPropertyU32 => 10
 );
 impl neli::consts::genl::NlAttrType for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
@@ -82,6 +86,8 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
             OveyAttribute::SocketKind => write!(f, "OveyAttribute::SocketKind({})", numeric_value),
             OveyAttribute::CompletionId => write!(f, "OveyAttribute::CompletionId({})", numeric_value),
+            OveyAttribute::VirtPropertyU32 => write!(f, "OveyAttribute::VirtPropertyU32({})", numeric_value),
+            OveyAttribute::RealPropertyU32 => write!(f, "OveyAttribute::RealPropertyU32({})", numeric_value),
             _ => write!(f, "OveyAttribute::<unknown>({})", numeric_value),
         }
     }
