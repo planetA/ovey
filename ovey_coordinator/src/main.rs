@@ -47,7 +47,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/").route(web::get().to(route_index)))
     })
         // TODO also bind the local address? Because this must be called from local network or even remotely?!
-        .bind(format!("localhost:{}", OVEY_COORDINATOR_PORT))?
+        .bind(format!("0.0.0.0:{}", OVEY_COORDINATOR_PORT))?
         .run()
         .await
 }
