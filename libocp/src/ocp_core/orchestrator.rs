@@ -1,4 +1,5 @@
-use std::sync::mpsc::{Receiver, sync_channel, SyncSender, TryRecvError};
+use std::sync::mpsc::{Receiver, sync_channel, SyncSender, RecvTimeoutError};
+use std::time::Duration;
 use crate::ocp_core::ocp::OveyGenNetlMsgType;
 use neli::err::NlError;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -78,6 +79,7 @@ impl OcpMessageOrchestrator {
                     // this is a valid case. This happens if no result was found
                     // because we received nonblocking
                     //debug!("Received empty response from Kernel->Daemon Netlink socket",);
+                    std::thread::sleep(Duration::from_millis(100));
                 }
                 else {
                     let res: OveyGenNetlMsgType = res.unwrap();
@@ -138,14 +140,14 @@ impl OcpMessageOrchestrator {
     pub fn receive_request_from_kernel_nbl(&self) -> Option<Result<KRequest, NlError>> {
         // nonblocking
         let receiver = self.kernel_request_channel_receiver.lock().unwrap();
-        let res = receiver.try_recv();
+        let res = receiver.recv_timeout(Duration::from_millis(100));
         if let Err(err) = res {
             return match err {
-                TryRecvError::Empty => {
+                RecvTimeoutError::Timeout => {
                     // No message received; okay because we wait for messages non blocking
                     None
                 }
-                TryRecvError::Disconnected => {
+                RecvTimeoutError::Disconnected => {
                     error!("Channel is disconnected");
                     // TODO panic?
                     None
