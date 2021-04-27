@@ -23,12 +23,17 @@ lazy_static::lazy_static! {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InitDataConfiguration {
     /// Mapping from virtual network id to url / REST-Service of the coordinator.
-    coordinators: HashMap<VirtualNetworkIdType, String>
+    coordinators: HashMap<VirtualNetworkIdType, String>,
+    check_coordinators: bool
 }
 
 impl InitDataConfiguration {
     pub fn coordinators(&self) -> &HashMap<VirtualNetworkIdType, String> {
         &self.coordinators
+    }
+
+    pub fn check_coordinators(&self) -> bool {
+        self.check_coordinators
     }
 }
 

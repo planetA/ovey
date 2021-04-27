@@ -1,8 +1,7 @@
-use ovey_coordinator::rest::structs::*;
 use config::CONFIG;
 use actix_web::{middleware, web, HttpServer, App};
+use crate::coordinator_service::check_config_and_environment;
 use routes::{route_get_index, route_post_create_device, route_delete_delete_device};
-use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_daemon::consts::OVEY_DAEMON_PORT;
 use ovey_daemon::urls::{ROUTE_DEVICE, ROUTE_DEVICES};
 use std::sync::Arc;
@@ -89,42 +88,4 @@ async fn main() -> std::io::Result<()> {
         .bind(format!("localhost:{}", OVEY_DAEMON_PORT))?
         .run()
         .await
-}
-
-async fn check_config_and_environment() -> Result<(), String> {
-    let mut actual_up = 0;
-    let expected_up = CONFIG.coordinators().len();
-
-    if expected_up == 0 {
-        return Err("There is not a single Ovey coordinator configured.".to_owned());
-    }
-
-    // check all hosts are available
-    for (network, host) in CONFIG.coordinators() {
-        let mut host = host.to_owned();
-        // e.g. http://localhost:13337
-        host.push_str(&format!(":{}", OVEY_COORDINATOR_PORT));
-
-        let resp = reqwest::get(&host).await;
-        let resp = resp.map_err(|_| format!("Ovey coordinator on configured host '{}' IS NOT UP.", &host))?;
-        let resp = resp.json::<AllNetworksDtoType>().await;
-        let json = resp.map_err(|_| format!("Ovey coordinator @ host '{}' sent invalid response.", &host))?;
-
-        if json.contains_key(network) {
-            actual_up += 1;
-        } else {
-            error!(
-                "Ovey coordinator on configured host '{}' does not know about network '{}'!",
-                &host,
-                network
-            );
-        }
-    }
-
-    return if actual_up != expected_up {
-        Err("WARNING: Not all Ovey coordinators are available.".to_owned())
-    } else {
-        debug!("INFO: All Ovey coordinators are available.");
-        Ok(())
-    }
 }

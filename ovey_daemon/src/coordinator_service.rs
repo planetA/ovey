@@ -1,6 +1,6 @@
 //! Service-layer for the communication with Ovey coordinator.
 
-use ovey_coordinator::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, VirtualizedDeviceInputBuilder, InitDataConfiguration as CoordinatorInitDataConfiguration};
+use ovey_coordinator::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, VirtualizedDeviceInputBuilder, InitDataConfiguration as CoordinatorInitDataConfiguration, AllNetworksDtoType};
 use ovey_daemon::errors::DaemonRestError;
 use ovey_daemon::structs::{CreateDeviceInput};
 use crate::config::CONFIG;
@@ -154,3 +154,45 @@ fn find_device_guid_by_name_in_list(list: &Vec<VirtualizedDeviceDTO>, dev_name: 
     let guid = if vec.is_empty() { None } else { Some((vec[0]).to_owned()) };
     guid
 }*/
+
+pub async fn check_config_and_environment() -> Result<(), String> {
+    let mut actual_up = 0;
+    let expected_up = CONFIG.coordinators().len();
+
+    if !CONFIG.check_coordinators() {
+        return Ok(());
+    }
+
+    if expected_up == 0 {
+        return Err("There is not a single Ovey coordinator configured.".to_owned());
+    }
+
+    // check all hosts are available
+    for (network, host) in CONFIG.coordinators() {
+        let mut host = host.to_owned();
+        // e.g. http://localhost:13337
+        host.push_str(&format!(":{}", OVEY_COORDINATOR_PORT));
+
+        let resp = reqwest::get(&host).await;
+        let resp = resp.map_err(|_| format!("Ovey coordinator on configured host '{}' IS NOT UP.", &host))?;
+        let resp = resp.json::<AllNetworksDtoType>().await;
+        let json = resp.map_err(|_| format!("Ovey coordinator @ host '{}' sent invalid response.", &host))?;
+
+        if json.contains_key(network) {
+            actual_up += 1;
+        } else {
+            error!(
+                "Ovey coordinator on configured host '{}' does not know about network '{}'!",
+                &host,
+                network
+            );
+        }
+    }
+
+    return if actual_up != expected_up {
+        Err("WARNING: Not all Ovey coordinators are available.".to_owned())
+    } else {
+        debug!("INFO: All Ovey coordinators are available.");
+        Ok(())
+    }
+}
