@@ -32,17 +32,17 @@ pub fn start_ocp_bg_reply_thread(ocp: Arc<Ocp>, exit_work_loop: Arc<AtomicBool>)
                             }
                             KRequest::StoreVirtPortLid { .. } => {
                                 // so far: only simulate REST request to measure overhead
-                                let res = reqwest::blocking::get(&format!("http://localhost:{}", OVEY_COORDINATOR_PORT));
-                                if let Ok(resp) = res {
-                                    let json = resp.json::<Vec<VirtualizedDeviceDTO>>();
-                                    if let Ok(json) = json {
-                                        debug!("Got dummy response from coordinator: {:#?}", json);
-                                    } else {
-                                        error!("Dummy response from coordinator failed")
-                                    }
-                                } else {
-                                    error!("Dummy response from coordinator failed")
-                                }
+                                // let res = reqwest::blocking::get(&format!("http://localhost:{}", OVEY_COORDINATOR_PORT));
+                                // if let Ok(resp) = res {
+                                //     let json = resp.json::<Vec<VirtualizedDeviceDTO>>();
+                                //     if let Ok(json) = json {
+                                //         debug!("Got dummy response from coordinator: {:#?}", json);
+                                //     } else {
+                                //         error!("Dummy response from coordinator failed")
+                                //     }
+                                // } else {
+                                //     error!("Dummy response from coordinator failed")
+                                // }
 
                                 debug!("Received request from Kernel of type {} with completion id {}", kreq.op(), kreq.id());
                                 ocp.ocp_resolve_completion(kreq.id());
