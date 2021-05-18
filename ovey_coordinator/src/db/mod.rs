@@ -102,20 +102,6 @@ pub fn db_add_device_to_network(network_id: &VirtualNetworkIdType, dev: Virtuali
             );
         }
 
-
-        // mutable ref to immutable ref
-        let network_ref = &*network;
-        // check if device name is unique
-        // because device name (like ovey0) and device guid are both unique identifiers
-        if db_check_device_name_is_unique(network_ref, dev.device_name()) {
-            return Err(
-                CoordinatorRestError::VirtDeviceNameAlreadyRegistered{
-                    network: network_id.to_owned(),
-                    name: dev.device_name().to_owned()
-                }
-            )
-        }
-
         let key = dev.virtual_device_guid_string().to_owned();
         let entity = VirtualizedDevice::new(dev);
         network.insert(key, entity);
@@ -136,17 +122,6 @@ pub fn db_delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: 
     let dto = dto.map(|e| VirtualizedDeviceDTO::new(&e));
     let dto = dto.ok_or(CoordinatorRestError::VirtDeviceNotYetRegistered(network_id.to_owned(), dev_id.to_owned()));
     dto
-}
-
-/// Checks if a device name is unique inside a network. This is because no two
-/// devices with a different guid inside the same virtual network should have
-/// the same device name. Device name is for example "ovey0".
-/// * `network`: reference to hashmap for the current network
-/// * `new_dev_name`: the name of the new device: must be unique
-fn db_check_device_name_is_unique(network: &VirtualizedNetworkDataType, new_dev_name: &str) -> bool {
-    network.values()
-        .map(|dev| dev.virtual_device_name())
-        .any(|dev_name| dev_name == new_dev_name)
 }
 
 /// Checks against the coordinator config if the specified device is allowed inside the specified network.
