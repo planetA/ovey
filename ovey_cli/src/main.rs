@@ -56,6 +56,7 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) -> MyResult {
         .build();
     match input {
         Ok(val) => {
+            println!("Creating device: {:#?}", val);
             let res = forward_create_to_daemon(val);
             match res {
                 Ok(dto) => {
