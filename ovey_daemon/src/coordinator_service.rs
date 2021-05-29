@@ -50,49 +50,6 @@ pub async fn rest_lookup_device_guid_by_name(network_id: &VirtualNetworkIdType, 
     Ok(guid)
 }*/
 
-/// Forwards the request from the CLI to create a device to the coordinator.
-/// Returns the DTO from the coordinator on success.
-pub async fn rest_forward_create_device(input: CreateDeviceInput, physical_guid_str: GuidString) -> Result<VirtualizedDeviceDTO, DaemonRestError> {
-    let host = get_host(&input.network_id())?;
-    // endpoint inside REST service with starting /
-    let endpoint = ovey_coordinator::urls::build_add_device_url(input.network_id().to_owned());
-    let url = format!("{}{}", host, endpoint);
-
-    // Transform payload from cli request to payload for ovey coordinator
-    let payload: Result<VirtualizedDeviceInput, String> = VirtualizedDeviceInputBuilder::default()
-        .virtual_device_guid_string(input.virt_guid())
-        .physical_device_guid_string(physical_guid_str)
-        .parent_device_name(input.parent_device_name())
-        .device_name(input.device_name())
-        .build();
-    let payload = payload.map_err(|e| DaemonRestError::MalformedPayload(e))?;
-
-    let client = reqwest::Client::new();
-    let res = client.post(&url)
-        .json(&payload)
-        .send()
-        .await;
-
-    let res = res.map_err(|_| DaemonRestError::CoordinatorDoesntRespond(input.network_id().to_owned()))?;
-
-    if res.status() == StatusCode::NOT_FOUND {
-        return Err(DaemonRestError::DeviceDoesntExist(
-            input.virt_guid().to_owned(),
-            input.network_id().to_owned())
-        );
-    }
-    if res.status() == StatusCode::CONFLICT {
-        return Err(DaemonRestError::DeviceAlreadyRegistered(
-            input.virt_guid().to_owned(),
-            input.network_id().to_owned())
-        );
-    }
-
-    let res = res.json::<VirtualizedDeviceDTO>().await;
-    let res = res.map_err(|_| DaemonRestError::IllegalCoordinatorResponse)?;
-    Ok(res)
-}
-
 /// Forwards the request from the CLI to delete a device to the coordinator.
 /// Returns the DTO from the coordinator on success.
 pub async fn rest_forward_delete_device(device_id: &GuidString, network_id: &VirtualNetworkIdType) -> Result<VirtualizedDeviceDTO, DaemonRestError> {

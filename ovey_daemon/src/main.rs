@@ -1,7 +1,7 @@
 use config::CONFIG;
 use actix_web::{middleware, web, HttpServer, App};
 use crate::coordinator_service::check_config_and_environment;
-use routes::{route_get_index, route_post_create_device, route_delete_delete_device};
+use routes::{route_get_index, route_delete_delete_device};
 use ovey_daemon::consts::OVEY_DAEMON_PORT;
 use ovey_daemon::urls::{ROUTE_DEVICE, ROUTE_DEVICES};
 use std::sync::Arc;
@@ -79,7 +79,6 @@ async fn main() -> std::io::Result<()> {
             )
             .service(
                 web::resource(ROUTE_DEVICE)
-                    .route(web::post().to(route_post_create_device))
                     .route(web::delete().to(route_delete_delete_device))
             )
             .service(web::resource("/").route(web::get().to(route_get_index)))
