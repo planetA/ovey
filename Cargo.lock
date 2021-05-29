@@ -1347,6 +1347,7 @@ version = "0.1.0"
 dependencies = [
  "actix-http",
  "clap",
+ "env_logger",
  "lazy_static",
  "libocp",
  "liboveyutil",

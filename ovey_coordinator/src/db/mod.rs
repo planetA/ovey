@@ -115,6 +115,7 @@ pub fn db_add_device_to_network(network_id: &VirtualNetworkIdType, dev: Virtuali
 
 /// Returns the old device as DTO on success, otherwise error.
 pub fn db_delete_device_from_network(network_id: &VirtualNetworkIdType, dev_id: &GuidString) -> Result<VirtualizedDeviceDTO, CoordinatorRestError> {
+    debug!("Deleting dev {} from {}", dev_id, network_id);
     let mut network = DB.lock().unwrap();
     let network = network.get_mut(network_id);
     let network = network.ok_or(CoordinatorRestError::VirtNetworkNotSupported(network_id.to_owned()))?;

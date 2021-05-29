@@ -50,31 +50,6 @@ pub async fn rest_lookup_device_guid_by_name(network_id: &VirtualNetworkIdType, 
     Ok(guid)
 }*/
 
-/// Forwards the request from the CLI to delete a device to the coordinator.
-/// Returns the DTO from the coordinator on success.
-pub async fn rest_forward_delete_device(device_id: &GuidString, network_id: &VirtualNetworkIdType) -> Result<VirtualizedDeviceDTO, DaemonRestError> {
-    // http://localhost or http://123.56.78.1 or https://foo.bar
-    let host = get_host(network_id)?;
-    // endpoint inside REST service with starting /
-    let endpoint = ovey_coordinator::urls::build_device_url(network_id.to_owned(), device_id.to_owned());
-    let url = format!("{}{}", host, endpoint);
-
-    let client = reqwest::Client::new();
-    let res = client.delete(&url).send().await;
-    let res = res.map_err(|_| DaemonRestError::CoordinatorDoesntRespond(network_id.to_owned()))?;
-
-    if res.status() == StatusCode::NOT_FOUND {
-        return Err(DaemonRestError::DeviceDoesntExist(
-            device_id.to_owned(),
-            network_id.to_owned())
-        );
-    }
-
-    let res = res.json::<VirtualizedDeviceDTO>().await;
-    let res = res.map_err(|_| DaemonRestError::IllegalCoordinatorResponse)?;
-    Ok(res)
-}
-
 /// Checks if the coordinator allows the specific device in the specific network.
 /// This is useful to check beforehand if a create device operation is allowed.
 /// We fetch the data from /config endpoint from coordinator.

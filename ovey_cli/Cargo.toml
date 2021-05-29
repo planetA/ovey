@@ -20,4 +20,5 @@ reqwest = { version = "0.10.10", features = ["json", "blocking"] }
 actix-http = "2.1.0" # for StatusCode-enum
 lazy_static = "1.4.0"
 log = "0.4.11"
+env_logger = "0.8.2"
 

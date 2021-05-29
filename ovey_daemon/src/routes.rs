@@ -1,7 +1,7 @@
 //! Crate-private handlers for the REST API of Ovey Daemon. They get invoked by Ovey CLI.
 
 use crate::coordinator_service::{
-    rest_check_device_is_allowed, rest_forward_delete_device,
+    rest_check_device_is_allowed,
 };
 use crate::OCP;
 use actix_web::{web, HttpRequest, HttpResponse};

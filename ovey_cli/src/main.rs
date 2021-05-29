@@ -1,12 +1,14 @@
 use clap::ArgMatches;
 use std::sync::Arc;
 use ovey_cli::cli::assert_and_get_args;
-use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder};
-use crate::daemon::{forward_delete_to_daemon, forward_list_to_daemon};
+use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder,
+                           DeleteDeviceInput, DeletionStateDto,
+                           DeletionStateDtoBuilder, DeleteDeviceInputBuilder};
+use crate::daemon::forward_list_to_daemon;
 use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
 use liboveyutil::types::GuidString;
 use liboveyutil::lid::lid_string_to_u16;
-use liboveyutil::types::Uuid;
+use liboveyutil::types::{VirtualNetworkIdType, Uuid};
 use libocp::ocp_core::Ocp;
 use actix_http::http::StatusCode;
 use ovey_daemon::coordinator_rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInputBuilder};
@@ -24,10 +26,14 @@ lazy_static::lazy_static! {
     };
 }
 
+fn get_host(_network_id: &VirtualNetworkIdType) -> Result<String, String> {
+    Ok("nadu1:13337".to_string())
+}
+
 /// Forwards the request from the CLI to create a device to the coordinator.
 /// Returns the DTO from the coordinator on success.
 pub fn rest_forward_create_device(input: CreateDeviceInput, physical_guid_str: GuidString) -> Result<VirtualizedDeviceDTO, String> {
-    let host = "nadu1:13337";
+    let host = get_host(input.network_id())?;
     // endpoint inside REST service with starting /
     let endpoint = ovey_coordinator::urls::build_add_device_url(input.network_id().to_owned());
     let url = format!("http://{}{}", host, endpoint);
@@ -68,6 +74,7 @@ fn main() {
     // if args are invalid this function will exit the program
     let matches = assert_and_get_args();
     let verbosity = matches.occurrences_of("v") as u8;
+    env_logger::init();
     // println!("{:#?}", matches);
 
    /* let ga = Ocp::connect(FAMILY_NAME, verbosity).unwrap();
@@ -185,6 +192,80 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) -> MyResult {
     }
 }
 
+/// Forwards the request from the CLI to delete a device to the coordinator.
+/// Returns the DTO from the coordinator on success.
+pub fn rest_forward_delete_device(device_id: &GuidString, network_id: &VirtualNetworkIdType) -> Result<VirtualizedDeviceDTO, String> {
+    // http://localhost or http://123.56.78.1 or https://foo.bar
+    let host = get_host(network_id)?;
+    // endpoint inside REST service with starting /
+    let endpoint = ovey_coordinator::urls::build_device_url(network_id.to_owned(), device_id.to_owned());
+    let url = format!("http://{}{}", host, endpoint);
+
+    let client = reqwest::blocking::Client::new();
+    let res = client.delete(&url).send();
+    let res = res.map_err(|e| format!("Failed to talk to coordinator: {}", e))?;
+
+    if res.status() == StatusCode::NOT_FOUND {
+        return Err(format!("Device does not exist: {} {}",
+            device_id.to_owned(),
+            network_id.to_owned())
+        );
+    }
+
+    let res = res.json::<VirtualizedDeviceDTO>()
+        .map_err(|e| format!("Failed to parse deletion: {}", e))?;
+    Ok(res)
+}
+
+pub fn route_delete_delete_device(input: DeleteDeviceInput) -> Result<DeletionStateDto, String> {
+    // verify input
+
+    // first step; check via OCP if device is registered on local machine
+    let ocp_data = OCP
+        .ocp_get_device_info(input.device_name())
+        .map_err(|err| format!("Failed to get device info {}", err))?;
+
+    // second step: delete it on coordinator
+    // fetch network id; we need it for the deletion request on the coordinator
+    let network_id = ocp_data.virt_network_uuid_str().unwrap();
+    let network_id = Uuid::parse_str(network_id)
+        .map_err(|err| format!("Failed to convert to UUID: {}", err))?;
+    let guid_str = guid_u64_to_string(ocp_data.node_guid().unwrap());
+
+    // delete in both places without early canceling (no .unwrap() or ?)
+
+    let coordinator_result = rest_forward_delete_device(&guid_str, &network_id);
+    debug!("Delete at coordinator: {:#?}", coordinator_result);
+
+    // actually delete device on local machine inside Ovey kernel module
+    let ocp_result = OCP.ocp_delete_device(input.device_name())
+        .map_err(|err| format!("Failed to delete device: {}", err));
+
+    debug!("Finished delete: {:#?}", ocp_result);
+
+    let deletion_state: DeletionStateDto = DeletionStateDtoBuilder::default()
+        .deletion_local_successfully(ocp_result.is_ok())
+        .deletion_local_info_msg(
+            ocp_result
+                .err()
+                // display is implemented by a derive macro
+                // even if IDE doesn't recognize it
+                .map(|e| format!("{}", e)),
+        )
+        .deletion_coordinator_successfully(coordinator_result.is_ok())
+        .deletion_coordinator_info_msg(
+            coordinator_result
+                .err()
+                // display is implemented by a derive macro
+                // even if IDE doesn't recognize it
+                .map(|e| format!("{}", e)),
+        )
+        .build()
+        .unwrap();
+
+    Ok(deletion_state)
+}
+
 fn action_delete_device(verbosity: u8, matches: &ArgMatches) -> MyResult {
     let device_name = matches.value_of("name").unwrap();
     if verbosity > 0 {
@@ -197,7 +278,7 @@ fn action_delete_device(verbosity: u8, matches: &ArgMatches) -> MyResult {
         .build();
     match input {
         Ok(val) => {
-            let res = forward_delete_to_daemon(val);
+            let res = route_delete_delete_device(val);
             match res {
                 Ok(dto) => {
                     if verbosity > 0 {
