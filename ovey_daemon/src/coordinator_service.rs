@@ -6,7 +6,7 @@ use ovey_daemon::structs::{CreateDeviceInput};
 use crate::config::CONFIG;
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use actix_web::http::StatusCode;
-use liboveyutil::types::{VirtualNetworkIdType, GuidIdType};
+use liboveyutil::types::{VirtualNetworkIdType, GuidString};
 
 fn get_host(network_id: &VirtualNetworkIdType) -> Result<String, DaemonRestError> {
     // http://localhost or http://123.56.78.1 or https://foo.bar
@@ -52,7 +52,7 @@ pub async fn rest_lookup_device_guid_by_name(network_id: &VirtualNetworkIdType, 
 
 /// Forwards the request from the CLI to create a device to the coordinator.
 /// Returns the DTO from the coordinator on success.
-pub async fn rest_forward_create_device(input: CreateDeviceInput, physical_guid_str: GuidIdType) -> Result<VirtualizedDeviceDTO, DaemonRestError> {
+pub async fn rest_forward_create_device(input: CreateDeviceInput, physical_guid_str: GuidString) -> Result<VirtualizedDeviceDTO, DaemonRestError> {
     let host = get_host(&input.network_id())?;
     // endpoint inside REST service with starting /
     let endpoint = ovey_coordinator::urls::build_add_device_url(input.network_id().to_owned());
@@ -95,7 +95,7 @@ pub async fn rest_forward_create_device(input: CreateDeviceInput, physical_guid_
 
 /// Forwards the request from the CLI to delete a device to the coordinator.
 /// Returns the DTO from the coordinator on success.
-pub async fn rest_forward_delete_device(device_id: &GuidIdType, network_id: &VirtualNetworkIdType) -> Result<VirtualizedDeviceDTO, DaemonRestError> {
+pub async fn rest_forward_delete_device(device_id: &GuidString, network_id: &VirtualNetworkIdType) -> Result<VirtualizedDeviceDTO, DaemonRestError> {
     // http://localhost or http://123.56.78.1 or https://foo.bar
     let host = get_host(network_id)?;
     // endpoint inside REST service with starting /
@@ -121,7 +121,7 @@ pub async fn rest_forward_delete_device(device_id: &GuidIdType, network_id: &Vir
 /// Checks if the coordinator allows the specific device in the specific network.
 /// This is useful to check beforehand if a create device operation is allowed.
 /// We fetch the data from /config endpoint from coordinator.
-pub async fn rest_check_device_is_allowed(network_id: &VirtualNetworkIdType, guid_str: &GuidIdType) -> Result<bool, DaemonRestError> {
+pub async fn rest_check_device_is_allowed(network_id: &VirtualNetworkIdType, guid_str: &GuidString) -> Result<bool, DaemonRestError> {
     let host = get_host(network_id)?;
     let endpoint = ovey_coordinator::urls::ROUTE_GET_CONFIG_URL;
     let url = format!("{}{}", host, endpoint);

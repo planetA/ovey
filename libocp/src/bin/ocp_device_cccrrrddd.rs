@@ -15,7 +15,8 @@ fn main() {
     let parent_device_name = "rxe0".to_string();
     let network_uuid_str = "c929e96d-6285-4528-b98e-b364d64790ae".to_string();
     // "dead:beef:0bad:f00d" => 1004492983682117086
-    let node_guid_he = 0xdead_beef_0bad_f00d_u64;
+    let node_guid = 0xdead_beef_0bad_f00d_u64;
+    let node_lid = 0xdead_u16;
 
     for i in 1..1000 {
         let device_name = format!("ovey{}", i);
@@ -24,7 +25,8 @@ fn main() {
         let _res = ocp.ocp_create_device(
             &device_name,
             &parent_device_name,
-            node_guid_he,
+            node_guid,
+            node_lid,
             &network_uuid_str
         ).expect("Must be created!");
     }

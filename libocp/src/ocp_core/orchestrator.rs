@@ -68,12 +68,6 @@ impl OcpMessageOrchestrator {
 
                 // now check if we actually received something
                 // because this is non blocking there is no guarantee
-                // TODO this probably needs refactoring ... lets check what happens here
-                //  with nonblocking receive
-                if let Err(ref err) = res {
-                    error!("Received error from Kernel->Daemon Netlink socket: {}", err);
-                    // panic!("Aborting. Because at this point we can't decide if a non blocking ", err);
-                }
                 let res = res.unwrap();
                 if res.is_none() {
                     // this is a valid case. This happens if no result was found
@@ -148,7 +142,7 @@ impl OcpMessageOrchestrator {
                     None
                 }
                 RecvTimeoutError::Disconnected => {
-                    error!("Channel is disconnected");
+                    panic!("Channel is disconnected");
                     // TODO panic?
                     None
                     // No message received; okay because we wait for messages non blocking

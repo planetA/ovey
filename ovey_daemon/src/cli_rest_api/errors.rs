@@ -3,7 +3,7 @@ use actix_web::{
 };
 
 use derive_more::{Display};
-use liboveyutil::types::{VirtualNetworkIdType, GuidIdType};
+use liboveyutil::types::{VirtualNetworkIdType, GuidString};
 
 
 #[derive(Debug, Display, Clone)]
@@ -33,13 +33,13 @@ pub enum DaemonRestError {
     #[display(fmt = "The given network '{}' is unknown/not configured for this Ovey daemon.", _0)]
     UnknownNetwork(VirtualNetworkIdType),
     #[display(fmt = "The device '{}' is already registered in the network {}", _0, _1)]
-    DeviceAlreadyRegistered(GuidIdType, VirtualNetworkIdType),
+    DeviceAlreadyRegistered(GuidString, VirtualNetworkIdType),
     #[display(fmt = "The device '{}' can't be deleted because it doesn't exist in the network '{}'", _0, _1)]
-    DeviceDoesntExist(GuidIdType, VirtualNetworkIdType),
+    DeviceDoesntExist(GuidString, VirtualNetworkIdType),
     #[display(fmt = "The request payload is invalid because of: '{}'", _0)]
     MalformedPayload(String),
     #[display(fmt = "The device with guid '{}' is not allowed inside the network '{}' according to the config of the coordinator!", virt_guid, network_id)]
-    DeviceNotAllowed{network_id: VirtualNetworkIdType, virt_guid: GuidIdType }
+    DeviceNotAllowed{network_id: VirtualNetworkIdType, virt_guid: GuidString }
 }
 
 // IDE says Display is not implemented but it gets implemented during compile time

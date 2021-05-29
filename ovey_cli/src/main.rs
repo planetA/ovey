@@ -40,6 +40,7 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) -> MyResult {
     let new_device_name = matches.value_of("name").unwrap(); // unwrap because required
     let parent_device_name = matches.value_of("parent").unwrap();
     let guid_str = matches.value_of("guid").unwrap();
+    let lid_str = matches.value_of("lid").or(Some("42")).unwrap();
     let network_uuid_str = matches.value_of("vnetid").unwrap();
     let network_uuid = Uuid::parse_str(network_uuid_str).unwrap();
 
@@ -50,6 +51,7 @@ fn action_create_new_device(verbosity: u8, matches: &ArgMatches) -> MyResult {
     // build request body for REST request to Ovey daemon
     let input: Result<CreateDeviceInput, String> = CreateDeviceInputBuilder::default()
         .virt_guid(guid_str)
+        .virt_lid(lid_str)
         .device_name(new_device_name)
         .parent_device_name(parent_device_name)
         .network_id(network_uuid)

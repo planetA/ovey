@@ -7,6 +7,9 @@ pub use uuid::Uuid;
 pub type GuidInternalType = u64;
 /// Virtual GUID as String (e.g. dead:beef:affe:cafe) is the key.
 /// This is easier to read/write during development and overhead is neglible.
-pub type GuidIdType = String;
+pub type GuidString = String;
+/// Virtual LID as String (e.g. 0x41) is the key.
+/// This is easier to read/write during development and overhead is neglible.
+pub type LidString = String;
 /// Virtual networks are identified by an UUID.
 pub type VirtualNetworkIdType = Uuid;

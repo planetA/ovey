@@ -65,12 +65,13 @@ neli::impl_var!( // also impls copy
     DeviceName => 2,
     ParentDeviceName => 3,
     NodeGuid => 4,
-    ParentNodeGuid => 5,
-    VirtNetUuidStr => 6,
-    SocketKind => 7,
-    CompletionId => 8,
-    VirtPropertyU32 => 9,
-    RealPropertyU32 => 10
+    NodeLid => 5,
+    ParentNodeGuid => 6,
+    VirtNetUuidStr => 7,
+    SocketKind => 8,
+    CompletionId => 9,
+    VirtPropertyU32 => 10,
+    RealPropertyU32 => 11
 );
 impl neli::consts::genl::NlAttrType for OveyAttribute {}
 impl fmt::Display for OveyAttribute {
@@ -82,6 +83,7 @@ impl fmt::Display for OveyAttribute {
             OveyAttribute::DeviceName => write!(f, "OveyAttribute::DeviceName({})", numeric_value),
             OveyAttribute::ParentDeviceName => write!(f, "OveyAttribute::ParentDeviceName({})", numeric_value),
             OveyAttribute::NodeGuid => write!(f, "OveyAttribute::NodeGuid({})", numeric_value),
+            OveyAttribute::NodeLid => write!(f, "OveyAttribute::NodeLid({})", numeric_value),
             OveyAttribute::ParentNodeGuid => write!(f, "OveyAttribute::ParentNodeGuid({})", numeric_value),
             OveyAttribute::VirtNetUuidStr => write!(f, "OveyAttribute::VirtNetUuidStr({})", numeric_value),
             OveyAttribute::SocketKind => write!(f, "OveyAttribute::SocketKind({})", numeric_value),

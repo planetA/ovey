@@ -1,29 +1,23 @@
 use crate::ocp_properties::OveyAttribute;
-use liboveyutil::endianness::Endianness;
 use std::fmt::{Display, Formatter};
 use std::fmt;
 use liboveyutil::guid::guid_u64_to_string;
+use liboveyutil::lid::lid_u16_to_string;
 use crate::ocp_core::ocp::{OveyGenNetlMsgType};
 use neli::Nl;
-use liboveyutil::types::{GuidInternalType, GuidIdType};
+use liboveyutil::types::{GuidInternalType, GuidString, LidString};
 
 /// Struct that holds all the data that can be received via OCP from the kernel. It's up
 /// to the caller function to extract the right data.
 /// We derive Serialize and Deserialize because it's useful to pass this via REST
 /// for debugging. Also, additional compile time overhead is negligible.
-///
-/// OCP takes care of guid endianness divergence between kernel and userland.
-/// Inside the kernel module the guid is stored as big endian. If you
-/// write or read data from/to kernel via OCP, OCP takes care of the
-/// right endianness.
 #[derive(Debug)]
 pub struct OCPRecData {
     msg: Option<String>,
     device_name: Option<String>,
     parent_device_name: Option<String>,
-    // in host endianness!
     node_guid: Option<u64>,
-    // in host endianness!
+    node_lid: Option<u16>,
     parent_node_guid: Option<u64>,
     virt_network_uuid_str: Option<String>,
     socket_kind: Option<u32>,
@@ -38,8 +32,9 @@ impl OCPRecData {
         let mut msg = None;
         let mut device_name = None;
         let mut parent_device_name = None;
-        let mut node_guid_be = None;
-        let mut parent_node_guid_be = None;
+        let mut node_guid = None;
+        let mut node_lid = None;
+        let mut parent_node_guid = None;
         let mut virt_network_uuid_str = None;
         let mut socket_kind = None;
         let mut completion_id = None;
@@ -61,10 +56,13 @@ impl OCPRecData {
                     virt_network_uuid_str.replace(String::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::NodeGuid => {
-                    node_guid_be.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
+                    node_guid.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
+                },
+                OveyAttribute::NodeLid => {
+                    node_lid.replace(u16::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::ParentNodeGuid => {
-                    parent_node_guid_be.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
+                    parent_node_guid.replace(u64::deserialize(attr.nla_payload.as_ref()).unwrap());
                 },
                 OveyAttribute::SocketKind => {
                     socket_kind.replace(u32::deserialize(attr.nla_payload.as_ref()).unwrap());
@@ -87,8 +85,9 @@ impl OCPRecData {
             parent_device_name,
             // we receive it in big endian format from be;
             // restore host endian format
-            node_guid: node_guid_be.map(|u64be| Endianness::u64be_to_u64he(u64be)),
-            parent_node_guid: parent_node_guid_be.map(|u64be| Endianness::u64be_to_u64he(u64be)),
+            node_guid: node_guid,
+            node_lid: node_lid,
+            parent_node_guid: parent_node_guid,
             virt_network_uuid_str,
             socket_kind,
             completion_id,
@@ -115,16 +114,23 @@ impl OCPRecData {
     pub fn node_guid(&self) -> Option<GuidInternalType> {
         self.node_guid
     }
+    /// Getter for [`node_guid`]
+    pub fn node_lid(&self) -> Option<u16> {
+        self.node_lid
+    }
     /// Getter for [`parent_node_guid`]
     pub fn parent_node_guid(&self) -> Option<GuidInternalType> {
         self.parent_node_guid
     }
     /// Getter for [`msg`]
-    pub fn node_guid_str(&self) -> Option<GuidIdType> {
+    pub fn node_guid_str(&self) -> Option<GuidString> {
         self.node_guid.map(|val| guid_u64_to_string(val))
     }
+    pub fn node_lid_str(&self) -> Option<LidString> {
+        self.node_lid.map(|val| lid_u16_to_string(val))
+    }
     /// Getter for [`msg`]
-    pub fn parent_node_guid_str(&self) -> Option<GuidIdType> {
+    pub fn parent_node_guid_str(&self) -> Option<GuidString> {
         self.parent_node_guid.map(|val| guid_u64_to_string(val))
     }
     /// Getter for [`socket_kind`]

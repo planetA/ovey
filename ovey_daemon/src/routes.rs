@@ -7,11 +7,12 @@ use crate::OCP;
 use actix_web::{web, HttpRequest, HttpResponse};
 use libocp::ocp_core::{OCPRecData, OcpError};
 use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
+use liboveyutil::lid::{lid_string_to_u16, lid_u16_to_string};
 use liboveyutil::types::Uuid;
 use ovey_daemon::errors::DaemonRestError;
 use ovey_daemon::structs::{
     CreateDeviceInput, CreateDeviceInputBuilder, DeleteDeviceInput, DeleteDeviceInputBuilder,
-    DeletionStateDto, DeletionStateDtoBuilder, DeviceInfoDto, DeviceInfoDtoBuilder,
+    DeletionStateDto, DeletionStateDtoBuilder, DeviceInfoDto,
 };
 use ovey_daemon::util::get_all_local_ovey_devices;
 use std::str::FromStr;
@@ -43,11 +44,13 @@ pub async fn route_post_create_device(
     // now we first create the device on the machine
     // and then we tell the coordinator about it
 
-    let guid_be = guid_string_to_u64(input.virt_guid());
+    let guid = guid_string_to_u64(input.virt_guid());
+    let lid = lid_string_to_u16(input.virt_lid());
     OCP.ocp_create_device(
         input.device_name(),
         input.parent_device_name(),
-        guid_be,
+        guid,
+        lid,
         &input.network_id().to_string(),
     ).map_err(|err| match err {
         OcpError::DeviceAlreadyExist => DaemonRestError::OcpDeviceAlreadyExists { info: input.device_name().to_string() },
@@ -187,16 +190,14 @@ pub async fn route_get_list_devices() -> Result<actix_web::HttpResponse, DaemonR
     let devs = devs
         .into_iter()
         .map(|data| {
-            DeviceInfoDtoBuilder::default()
-                .dev_name(data.device_name().unwrap().to_string())
-                .parent_dev_name(data.parent_device_name().unwrap().to_string())
-                .guid(data.node_guid().unwrap())
-                .guid_str(data.node_guid_str().unwrap())
-                .parent_guid(data.parent_node_guid().unwrap())
-                .parent_guid_str(data.parent_node_guid_str().unwrap())
-                .virtual_network_id(Uuid::from_str(data.virt_network_uuid_str().unwrap()).unwrap())
-                .build()
-                .unwrap()
+            DeviceInfoDto{
+                dev_name: data.device_name().unwrap().to_string(),
+                parent_dev_name: data.parent_device_name().unwrap().to_string(),
+                guid: data.node_guid().unwrap(),
+                lid: data.node_lid().unwrap(),
+                parent_guid: data.parent_node_guid().unwrap(),
+                virtual_network_id: Uuid::from_str(data.virt_network_uuid_str().unwrap()).unwrap()
+            }
         })
         .collect::<Vec<DeviceInfoDto>>();
 

@@ -3,10 +3,10 @@
 use std::collections::HashMap;
 use crate::rest::structs::VirtualizedDeviceInput;
 use liboveyutil::guid;
-use liboveyutil::types::{GuidIdType, VirtualNetworkIdType, GuidInternalType};
+use liboveyutil::types::{GuidString, VirtualNetworkIdType, GuidInternalType};
 
 /// Virtualized networks are a map from virtual guid of the device to the virtualized data of that device.
-pub type VirtualizedNetworkDataType = HashMap<GuidIdType, VirtualizedDevice>;
+pub type VirtualizedNetworkDataType = HashMap<GuidString, VirtualizedDevice>;
 /// The key of our database is the virtual network id. Our database can hold data
 /// for multiple virtual networks.
 /// Our database is a hashmap from virtual network id to the virtual network data.

@@ -9,7 +9,6 @@ use neli::Nl;
 use neli::socket::NlSocketHandle;
 use neli::types::{Buffer, GenlBuffer};
 use neli::utils::U32Bitmask;
-use liboveyutil::endianness::Endianness;
 use crate::krequests::KRequest;
 use crate::ocp_core::orchestrator::OcpMessageOrchestrator;
 use crate::ocp_core::recv::OCPRecData;
@@ -194,16 +193,17 @@ impl Ocp {
     pub fn ocp_create_device(&self,
                              device_name: &str,
                              parent_device_name: &str,
-                             node_guid_he: u64,
+                             node_guid: u64,
+                             node_lid: u16,
                              network_uuid_str: &str,
     ) -> Result<OCPRecData, OcpError> {
-        let node_guid_be = Endianness::u64he_to_u64be(node_guid_he);
         self.d_to_k_sock_send_req_n_recv_reply_bl(
             OveyOperation::CreateDevice,
             vec![
                 build_nl_attr(OveyAttribute::DeviceName, device_name),
                 build_nl_attr(OveyAttribute::ParentDeviceName, parent_device_name),
-                build_nl_attr(OveyAttribute::NodeGuid, node_guid_be),
+                build_nl_attr(OveyAttribute::NodeGuid, node_guid),
+                build_nl_attr(OveyAttribute::NodeLid, node_lid),
                 build_nl_attr(OveyAttribute::VirtNetUuidStr, network_uuid_str),
             ],
         ).map_err(|e| match e {

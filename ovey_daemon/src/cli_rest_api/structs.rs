@@ -3,14 +3,15 @@
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use crate::cli_rest_api::validation::{validate_device_name, validate_parent_device_name, validate_guid};
-use liboveyutil::types::{VirtualNetworkIdType, GuidInternalType, GuidIdType};
+use liboveyutil::types::{VirtualNetworkIdType, GuidInternalType, GuidString, LidString};
 
 /// Payload for the REST interface of ovey daemon to create a device in both: coordinator and kernel
 #[derive(Serialize, Deserialize, Debug, Builder, Default)]
 #[builder(setter(into), build_fn(validate = "Self::validate"))]
 pub struct CreateDeviceInput {
     network_id: VirtualNetworkIdType,
-    virt_guid: GuidIdType,
+    virt_guid: GuidString,
+    virt_lid: LidString,
     device_name: String,
     parent_device_name: String,
 }
@@ -19,8 +20,11 @@ impl CreateDeviceInput {
     pub fn network_id(&self) -> &VirtualNetworkIdType {
         &self.network_id
     }
-    pub fn virt_guid(&self) -> &GuidIdType {
+    pub fn virt_guid(&self) -> &GuidString {
         &self.virt_guid
+    }
+    pub fn virt_lid(&self) -> &LidString {
+        &self.virt_lid
     }
     pub fn device_name(&self) -> &str {
         &self.device_name
@@ -40,6 +44,7 @@ impl CreateDeviceInputBuilder {
         // construct a new instance with the builder as middleware -> validation :)
         CreateDeviceInputBuilder::default()
             .virt_guid(input.virt_guid.to_owned())
+            .virt_lid(input.virt_lid.to_owned())
             .device_name(input.device_name.to_owned())
             .parent_device_name(input.parent_device_name.to_owned())
             .network_id(input.network_id.to_owned())
@@ -135,40 +140,14 @@ impl DeletionStateDto {
 }
 
 /// Device info that is returned when using the "list" command inside Ovey CLI.
-#[derive(Serialize, Deserialize, Debug, Builder, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct DeviceInfoDto {
-    dev_name: String,
-    parent_dev_name: String,
-    guid: GuidInternalType,
-    guid_str: GuidIdType,
-    parent_guid: GuidInternalType,
-    parent_guid_str: GuidIdType,
-    virtual_network_id: VirtualNetworkIdType,
-}
-
-impl DeviceInfoDto {
-    pub fn dev_name(&self) -> &str {
-        &self.dev_name
-    }
-    pub fn parent_dev_name(&self) -> &str {
-        &self.parent_dev_name
-    }
-
-    pub fn virtual_network_id(&self) -> &VirtualNetworkIdType {
-        &self.virtual_network_id
-    }
-    pub fn guid(&self) -> GuidInternalType {
-        self.guid
-    }
-    pub fn guid_str(&self) -> &GuidIdType {
-        &self.guid_str
-    }
-    pub fn parent_guid(&self) -> GuidInternalType {
-        self.parent_guid
-    }
-    pub fn parent_guid_str(&self) -> &GuidIdType {
-        &self.parent_guid_str
-    }
+    pub dev_name: String,
+    pub parent_dev_name: String,
+    pub guid: GuidInternalType,
+    pub lid: u16,
+    pub parent_guid: GuidInternalType,
+    pub virtual_network_id: VirtualNetworkIdType,
 }
 
 #[cfg(test)]

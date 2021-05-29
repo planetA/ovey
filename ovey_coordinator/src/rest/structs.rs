@@ -8,7 +8,7 @@ use crate::data::{VirtualizedDevice};
 use derive_builder::Builder;
 use std::collections::HashMap;
 use liboveyutil::guid;
-use liboveyutil::types::{Uuid, VirtualNetworkIdType, GuidIdType};
+use liboveyutil::types::{Uuid, VirtualNetworkIdType, GuidString, LidString};
 
 /// This is the data for the REST-API that is expected as payload of a REST-Request
 /// when a new file should be created.
@@ -107,7 +107,7 @@ pub type AllNetworksDtoType = HashMap<VirtualNetworkIdType, Vec<VirtualizedDevic
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InitDataConfiguration {
-    networks: HashMap<Uuid, Vec<GuidIdType>>
+    networks: HashMap<Uuid, Vec<GuidString>>
 }
 
 impl InitDataConfiguration {
