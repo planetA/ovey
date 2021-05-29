@@ -10,12 +10,10 @@ use libocp::ocp_core::OCPRecData;
 use simple_on_shutdown::on_shutdown_move;
 use crate::ocp_krequests::start_ocp_bg_reply_thread;
 use std::sync::atomic::{AtomicBool, Ordering};
-use crate::routes::route_get_list_devices;
 
 mod config;
 mod coordinator_service;
 mod routes;
-mod util;
 mod ocp_krequests;
 
 #[macro_use]
@@ -73,10 +71,6 @@ async fn main() -> std::io::Result<()> {
             // enable logger
             .wrap(middleware::Logger::default())
             // use default value .data(web::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
-            .service(
-                web::resource(ROUTE_DEVICES)
-                    .route(web::get().to(route_get_list_devices))
-            )
             .service(web::resource("/").route(web::get().to(route_get_index)))
     })
         // I think this bind already should prevent public access and only allow localhost?!

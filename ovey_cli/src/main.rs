@@ -3,18 +3,18 @@ use std::sync::Arc;
 use ovey_cli::cli::assert_and_get_args;
 use ovey_daemon::structs::{CreateDeviceInput, CreateDeviceInputBuilder,
                            DeleteDeviceInput, DeletionStateDto,
+                           DeviceInfoDto,
                            DeletionStateDtoBuilder, DeleteDeviceInputBuilder};
-use crate::daemon::forward_list_to_daemon;
 use liboveyutil::guid::{guid_string_to_u64, guid_u64_to_string};
 use liboveyutil::types::GuidString;
 use liboveyutil::lid::lid_string_to_u16;
 use liboveyutil::types::{VirtualNetworkIdType, Uuid};
-use libocp::ocp_core::Ocp;
+use libocp::ocp_core::{Ocp, OCPRecData};
 use actix_http::http::StatusCode;
 use ovey_daemon::coordinator_rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInputBuilder};
+use ovey_cli::util::get_all_local_ovey_devices;
+use std::str::FromStr;
 use log::debug;
-
-mod daemon;
 
 type MyResult = std::result::Result<(), String>;
 
@@ -302,9 +302,60 @@ fn action_delete_device(verbosity: u8, matches: &ArgMatches) -> MyResult {
     }
 }
 
+pub fn route_get_list_devices() -> Result<Vec<DeviceInfoDto>, String> {
+    let devs = get_all_local_ovey_devices();
+    debug!("Available local ovey devices: {:#?}", &devs);
+
+    // the ? operator inside map seems not to work :/
+    let devs = devs
+        .into_iter()
+        .map(|dev| {
+            OCP.ocp_get_device_info(&dev)
+                .map_err(|e| format!(
+                        "Device not found. Could not fetch info for device '{}' via OCP. err='{}'",
+                        dev, e
+                    ),
+                )
+        })
+        .collect::<Vec<Result<OCPRecData, String>>>();
+
+    // check if there is any error and unwrap the first one
+    let errs = devs
+        .iter()
+        .filter(|x| x.is_err())
+        .map(|x| x.as_ref().unwrap_err())
+        .collect::<Vec<&String>>();
+    if !errs.is_empty() {
+        // return error
+        return Err(errs[0].clone());
+    }
+
+    // now that we know there are no errors unwrap all real objects
+    let devs = devs
+        .into_iter()
+        .map(|x| x.unwrap())
+        .collect::<Vec<OCPRecData>>();
+
+    let devs = devs
+        .into_iter()
+        .map(|data| {
+            DeviceInfoDto{
+                dev_name: data.device_name().unwrap().to_string(),
+                parent_dev_name: data.parent_device_name().unwrap().to_string(),
+                guid: data.node_guid().unwrap(),
+                lid: data.node_lid().or(Some(42)).unwrap(),
+                parent_guid: data.parent_node_guid().unwrap(),
+                virtual_network_id: Uuid::from_str(data.virt_network_uuid_str().unwrap()).unwrap()
+            }
+        })
+        .collect::<Vec<DeviceInfoDto>>();
+
+    Ok(devs)
+}
+
 /// Queries the daemon and returns information about all local Ovey devices.
 fn action_list(_verbosity: u8, _matches: &ArgMatches) -> MyResult {
-    let res = forward_list_to_daemon();
+    let res = route_get_list_devices();
     match res {
         Ok(data) => {
             println!("Found the following Ovey devices:");
