@@ -1347,8 +1347,11 @@ version = "0.1.0"
 dependencies = [
  "actix-http",
  "clap",
+ "lazy_static",
  "libocp",
  "liboveyutil",
+ "log",
+ "ovey_coordinator",
  "ovey_daemon",
  "regex",
  "reqwest",

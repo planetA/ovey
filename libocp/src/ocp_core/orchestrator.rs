@@ -143,9 +143,6 @@ impl OcpMessageOrchestrator {
                 }
                 RecvTimeoutError::Disconnected => {
                     panic!("Channel is disconnected");
-                    // TODO panic?
-                    None
-                    // No message received; okay because we wait for messages non blocking
                 }
             }
         }

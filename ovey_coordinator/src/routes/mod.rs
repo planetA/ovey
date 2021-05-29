@@ -33,7 +33,9 @@ pub async fn route_get_device_info(web::Path((network_uuid, virt_dev_id)): web::
 pub async fn route_add_device(input: web::Json<VirtualizedDeviceInput>,
                               web::Path(network_uuid): web::Path<Uuid>,
                               _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError> {
+    debug!("Creating device: {}: {:#?}", network_uuid, _req);
     let dto = db_add_device_to_network(&network_uuid, input.into_inner())?;
+    debug!("Created device: {}: {:#?}", network_uuid, dto);
     Ok(HttpResponse::Ok().json(dto))
 }
 
