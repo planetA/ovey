@@ -2,7 +2,5 @@
 //! targets the Ovey CLI. It only listens on localhost.
 
 pub mod validation;
-pub mod errors;
 pub mod structs;
 pub mod urls;
-pub mod consts;

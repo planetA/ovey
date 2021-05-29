@@ -38,6 +38,13 @@ pub fn start_ocp_bg_reply_thread(ocp: Arc<Ocp>, exit_work_loop: Arc<AtomicBool>)
         loop {
             if exit_work_loop.load(Ordering::Relaxed) {
                 info!("Received signal to exit OCP Kernel request listening loop now.");
+                let bye = ocp.ocp_daemon_bye();
+                match bye {
+                    Ok(_) => { debug!("Daemon sent DaemonBye via OCP") },
+                    Err(err) => {
+                        debug!("DaemonBye via OCP FAILED: probably the kernel module was unloaded (err='{}')", err)
+                    },
+                }
                 break;
             }
 

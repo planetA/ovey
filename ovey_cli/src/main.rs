@@ -26,6 +26,17 @@ lazy_static::lazy_static! {
     };
 }
 
+// fn get_host(network_id: &VirtualNetworkIdType) -> Result<String, DaemonRestError> {
+//     // http://localhost or http://123.56.78.1 or https://foo.bar
+//     let host = CONFIG.coordinators().get(network_id);
+//     let host = host.ok_or(DaemonRestError::UnknownNetwork(network_id.to_owned()))?;
+//     let port = OVEY_COORDINATOR_PORT;
+
+//     let url = format!("{}:{}", host, port);
+
+//     Ok(url)
+// }
+
 fn get_host(_network_id: &VirtualNetworkIdType) -> Result<String, String> {
     Ok("nadu1:13337".to_string())
 }

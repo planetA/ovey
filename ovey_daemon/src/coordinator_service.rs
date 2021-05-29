@@ -1,78 +1,10 @@
 //! Service-layer for the communication with Ovey coordinator.
 
 use ovey_coordinator::rest::structs::{VirtualizedDeviceDTO, VirtualizedDeviceInput, VirtualizedDeviceInputBuilder, InitDataConfiguration as CoordinatorInitDataConfiguration, AllNetworksDtoType};
-use ovey_daemon::errors::DaemonRestError;
 use ovey_daemon::structs::{CreateDeviceInput};
 use crate::config::CONFIG;
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
-use actix_web::http::StatusCode;
 use liboveyutil::types::{VirtualNetworkIdType, GuidString};
-
-fn get_host(network_id: &VirtualNetworkIdType) -> Result<String, DaemonRestError> {
-    // http://localhost or http://123.56.78.1 or https://foo.bar
-    let host = CONFIG.coordinators().get(network_id);
-    let host = host.ok_or(DaemonRestError::UnknownNetwork(network_id.to_owned()))?;
-    let port = OVEY_COORDINATOR_PORT;
-
-    let url = format!("{}:{}", host, port);
-
-    Ok(url)
-}
-
-// TODO why is this unused, why did I need it?
-/*/// Queries the virtual network for the specified device name. This way a device can be found by it's unique
-/// device name. Return type is Result<Option<> because:
-/// - http errors can occur (Result)
-/// - a device name may be taken or not; both is fine (Option)
-pub async fn rest_lookup_device_guid_by_name(network_id: &VirtualNetworkIdType, dev_name: &str) -> Result<Option<GuidIdType>, DaemonRestError> {
-    let host = get_host(network_id)?;
-    // endpoint inside REST service with starting /
-    let endpoint = ovey_coordinator::urls::build_network_url(network_id.to_owned());
-    let url = format!("{}{}", host, endpoint);
-
-    let client = reqwest::Client::new();
-    let res = client.get(&url)
-        .send()
-        .await;
-
-    let res = res.map_err(|_| DaemonRestError::CoordinatorDoesntRespond(network_id.to_owned()))?;
-    if res.status() == StatusCode::NOT_FOUND {
-        return Err(DaemonRestError::UnknownNetwork(network_id.to_owned()));
-    }
-    let network_devices = res.json::<Vec<VirtualizedDeviceDTO>>().await;
-    let network_devices = network_devices.map_err(|_e| DaemonRestError::IllegalCoordinatorResponse)?;
-
-    // now search in all devices of the network for the guid of the specified device name
-    // because the coordinator makes sure that device name is unique per network we can assume here
-    // as well, that there will only be one.
-    let guid = find_device_guid_by_name_in_list(&network_devices, dev_name);
-
-    Ok(guid)
-}*/
-
-/// Checks if the coordinator allows the specific device in the specific network.
-/// This is useful to check beforehand if a create device operation is allowed.
-/// We fetch the data from /config endpoint from coordinator.
-pub async fn rest_check_device_is_allowed(network_id: &VirtualNetworkIdType, guid_str: &GuidString) -> Result<bool, DaemonRestError> {
-    let host = get_host(network_id)?;
-    let endpoint = ovey_coordinator::urls::ROUTE_GET_CONFIG_URL;
-    let url = format!("{}{}", host, endpoint);
-
-    let client = reqwest::Client::new();
-    let res = client.get(&url)
-        .send()
-        .await;
-
-    let res = res.map_err(|_| DaemonRestError::CoordinatorDoesntRespond(network_id.to_owned()))?;
-    let coordinator_cfg = res.json::<CoordinatorInitDataConfiguration>().await;
-    let coordinator_cfg = coordinator_cfg.map_err(|e| DaemonRestError::MalformedPayload(e.to_string()))?;
-
-    let network = coordinator_cfg.networks().get(network_id);
-    let network = network.ok_or(DaemonRestError::UnknownNetwork(network_id.to_owned()))?;
-
-    let found = network.iter().any(|guid| guid == guid_str);
-    Ok(found)
-}
 
 // TODO remove?
 /*/// This function can be used to find if a device with a specific device name (e.g. ovey0)
@@ -87,7 +19,7 @@ fn find_device_guid_by_name_in_list(list: &Vec<VirtualizedDeviceDTO>, dev_name: 
     guid
 }*/
 
-pub async fn check_config_and_environment() -> Result<(), String> {
+pub async fn check_config_and_environment() -> std::io::Result<()> {
     let mut actual_up = 0;
     let expected_up = CONFIG.coordinators().len();
 
@@ -96,7 +28,8 @@ pub async fn check_config_and_environment() -> Result<(), String> {
     }
 
     if expected_up == 0 {
-        return Err("There is not a single Ovey coordinator configured.".to_owned());
+        return Err(std::io::Error::new(std::io::ErrorKind::Other,
+            "There is not a single Ovey coordinator configured."));
     }
 
     // check all hosts are available
@@ -106,9 +39,13 @@ pub async fn check_config_and_environment() -> Result<(), String> {
         host.push_str(&format!(":{}", OVEY_COORDINATOR_PORT));
 
         let resp = reqwest::get(&host).await;
-        let resp = resp.map_err(|_| format!("Ovey coordinator on configured host '{}' IS NOT UP.", &host))?;
+        let resp = resp.map_err(|_| std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Ovey coordinator on configured host '{}' IS NOT UP.", &host)))?;
         let resp = resp.json::<AllNetworksDtoType>().await;
-        let json = resp.map_err(|_| format!("Ovey coordinator @ host '{}' sent invalid response.", &host))?;
+        let json = resp.map_err(|_| std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Ovey coordinator @ host '{}' sent invalid response.", &host)))?;
 
         if json.contains_key(network) {
             actual_up += 1;
@@ -122,7 +59,9 @@ pub async fn check_config_and_environment() -> Result<(), String> {
     }
 
     return if actual_up != expected_up {
-        Err("WARNING: Not all Ovey coordinators are available.".to_owned())
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "WARNING: Not all Ovey coordinators are available."))
     } else {
         debug!("INFO: All Ovey coordinators are available.");
         Ok(())
