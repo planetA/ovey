@@ -6,7 +6,7 @@ use libocp::ocp_core::{Ocp, OcpError};
 fn main() {
     let ocp = Ocp::connect().unwrap();
 
-    for i in 0..1 {
+    for _ in 0..1 {
         let res = ocp.ocp_debug_respond_error();
 
         if let Err(e) = res {
