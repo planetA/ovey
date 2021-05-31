@@ -24,11 +24,10 @@ neli::impl_var!( // also impls copy
     DeviceInfo => 4,
     DaemonHello => 5,
     DaemonBye => 6,
-    DebugInitiateRequest => 7,
-    ResolveCompletion => 8,
-    DebugResolveAllCompletions => 9,
-    KernelModuleBye => 10,
-    StoreVirtPropertyPortLid => 11
+    ResolveCompletion => 7,
+    DebugResolveAllCompletions => 8,
+    KernelModuleBye => 9,
+    StoreVirtPropertyPortLid => 10
 );
 impl neli::consts::genl::Cmd for OveyOperation {}
 impl fmt::Display for OveyOperation {
@@ -42,7 +41,6 @@ impl fmt::Display for OveyOperation {
             OveyOperation::DeviceInfo => write!(f, "OveyOperation::DeviceInfo({})", numeric_value),
             OveyOperation::DaemonHello => write!(f, "OveyOperation::DaemonHello({})", numeric_value),
             OveyOperation::DaemonBye => write!(f, "OveyOperation::DaemonBye({})", numeric_value),
-            OveyOperation::DebugInitiateRequest => write!(f, "OveyOperation::DebugInitiateRequest({})", numeric_value),
             OveyOperation::ResolveCompletion => write!(f, "OveyOperation::ResolveCompletion({})", numeric_value),
             OveyOperation::DebugResolveAllCompletions => write!(f, "OveyOperation::DebugResolveAllCompletions({})", numeric_value),
             OveyOperation::KernelModuleBye => write!(f, "OveyOperation::KernelModuleBye({})", numeric_value),

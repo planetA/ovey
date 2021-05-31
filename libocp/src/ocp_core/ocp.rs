@@ -321,29 +321,6 @@ impl Ocp {
         })
     }
 
-    /// Function is used to tell the kernel module that the
-    /// specified socket is no longer available
-    /// Usually triggered during application shutdown.
-    /// The data is send via the corresponding socket.
-    pub fn ocp_debug_initiate_request(&self) -> (Result<OCPRecData, OcpError>, Result<OCPRecData, OcpError>) {
-        (
-            self.d_to_k_sock_send_req_n_recv_reply_bl(
-                OveyOperation::DebugInitiateRequest,
-                vec![],
-            ).map_err(|e| match e {
-                NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
-                nlerr => { OcpError::LowLevelError(nlerr) }
-            }),
-
-            self.orchestrator.receive_request_from_kernel_bl()
-                .map(|x| OCPRecData::new(&x))
-                .map_err(|e| match e {
-                    NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
-                    nlerr => { OcpError::LowLevelError(nlerr) }
-                })
-        )
-    }
-
     /// Convenient wrapper that tells the kernel to resolve a completion.
     /// This can be seen as a debug function. Real functionality will have more
     /// parameters. This function works as "fire and forget".
