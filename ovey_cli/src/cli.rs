@@ -83,14 +83,6 @@ pub fn assert_and_get_args<'a>() -> ArgMatches<'a> {
             .display_order(1)
             .about("Lists all Ovey devices on the local machine.")
         )
-        .subcommand(SubCommand::with_name("echo")
-            .display_order(2)
-            .about("sends a message via netlink and receives a message back")
-            .arg(Arg::with_name("value")
-                .long("value")
-                .takes_value(true)
-                .required(true)
-                .help("text to send to kernel")))
         .get_matches()
 }
 

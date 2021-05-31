@@ -202,8 +202,6 @@ impl Ocp {
             vec![
                 build_nl_attr(OveyAttribute::DeviceName, device_name),
                 build_nl_attr(OveyAttribute::ParentDeviceName, parent_device_name),
-                build_nl_attr(OveyAttribute::NodeGuid, node_guid),
-                build_nl_attr(OveyAttribute::NodeLid, node_lid),
                 build_nl_attr(OveyAttribute::VirtNetUuidStr, network_uuid_str),
             ],
         ).map_err(|e| match e {
@@ -248,24 +246,6 @@ impl Ocp {
             ],
         ).map_err(|e| match e {
             NlError::Nlmsgerr(_) => { OcpError::DeviceDoesntExist }
-            nlerr => { OcpError::LowLevelError(nlerr) }
-        })
-    }
-
-    /// Convenient wrapper function that tests OCP
-    /// with the Kernel Module by sending an ECHO
-    /// request. Kernel should reply with an
-    /// message with the proper content.
-    pub fn ocp_echo(&self,
-                    echo_msg: &str,
-    ) -> Result<OCPRecData, OcpError> {
-        self.d_to_k_sock_send_req_n_recv_reply_bl(
-            OveyOperation::Echo,
-            vec![
-                build_nl_attr(OveyAttribute::Msg, echo_msg)
-            ]
-        ).map_err(|e| match e {
-            NlError::Nlmsgerr(errmsg) => { OcpError::Invalid(errmsg.error) }
             nlerr => { OcpError::LowLevelError(nlerr) }
         })
     }

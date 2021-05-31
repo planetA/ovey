@@ -18,18 +18,17 @@ neli::impl_var!( // also impls copy
     pub OveyOperation,
     u8,
     Unspec => 0,
-    Echo => 1,
-    CreateDevice => 2,
-    DeleteDevice => 3,
-    DebugRespondError => 4,
-    DeviceInfo => 5,
-    DaemonHello => 6,
-    DaemonBye => 7,
-    DebugInitiateRequest => 8,
-    ResolveCompletion => 9,
-    DebugResolveAllCompletions => 10,
-    KernelModuleBye => 11,
-    StoreVirtPropertyPortLid => 12
+    CreateDevice => 1,
+    DeleteDevice => 2,
+    DebugRespondError => 3,
+    DeviceInfo => 4,
+    DaemonHello => 5,
+    DaemonBye => 6,
+    DebugInitiateRequest => 7,
+    ResolveCompletion => 8,
+    DebugResolveAllCompletions => 9,
+    KernelModuleBye => 10,
+    StoreVirtPropertyPortLid => 11
 );
 impl neli::consts::genl::Cmd for OveyOperation {}
 impl fmt::Display for OveyOperation {
@@ -37,7 +36,6 @@ impl fmt::Display for OveyOperation {
         let numeric_value: u8 = u8::from(self);
         match self {
             OveyOperation::Unspec => write!(f, "OveyOperation::Unspec({})", numeric_value),
-            OveyOperation::Echo => write!(f, "OveyOperation::Echo({})", numeric_value),
             OveyOperation::CreateDevice => write!(f, "OveyOperation::CreateDevice({})", numeric_value),
             OveyOperation::DeleteDevice => write!(f, "OveyOperation::DeleteDevice({})", numeric_value),
             OveyOperation::DebugRespondError => write!(f, "OveyOperation::DebugRespondError({})", numeric_value),

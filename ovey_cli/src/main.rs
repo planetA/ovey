@@ -95,8 +95,6 @@ fn main() {
         action_create_new_device(verbosity, matches)
     } else if let Some(matches) = matches.subcommand_matches("delete") {
         action_delete_device(verbosity, matches)
-    } else if let Some(matches) = matches.subcommand_matches("echo") {
-        action_echo(verbosity, matches)
     }  else if let Some(matches) = matches.subcommand_matches("list") {
         action_list(verbosity, matches)
     } else {
@@ -380,17 +378,3 @@ fn action_list(_verbosity: u8, _matches: &ArgMatches) -> MyResult {
         }
     }
 }
-
-fn action_echo(verbosity: u8, matches: &ArgMatches) -> MyResult {
-    let value = matches.value_of("value").unwrap(); // unwrap
-    if verbosity > 0 {
-        println!("sending echo request with value={}", value);
-    }
-
-    // TODO!!
-    //let res = forward_echo_to_daemon()
-    //println!("Received from kernel: {}", res.get_msg().unwrap());*/
-
-    Ok(())
-}
-
