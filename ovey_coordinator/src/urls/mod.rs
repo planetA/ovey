@@ -1,6 +1,7 @@
 //! Route paths/urls for the REST-API for Ovey Daemon.
 
-use liboveyutil::types::{VirtualNetworkIdType, GuidString};
+use uuid::Uuid;
+use liboveyutil::types::GuidString;
 
 /// Returns the configuration of the coordinator.
 pub const ROUTE_GET_CONFIG_URL: &str  = "/config";
@@ -16,20 +17,20 @@ pub const ROUTE_DEVICE_URL: &str      = "/network/{network}/device/{device_id}";
 /// Builds the endpoint starting with / inside Ovey coordinator REST Service,
 /// where new devices can be created.
 #[allow(dead_code)]
-pub fn build_add_device_url(network_id: VirtualNetworkIdType) -> String {
+pub fn build_add_device_url(network_id: Uuid) -> String {
     ROUTE_ADD_DEVICE_URL.replace("{network}", &network_id.to_string())
 }
 
 /// Builds the endpoint starting with / inside Ovey coordinator REST Service,
 /// where a network can be queried with all its devices.
 #[allow(dead_code)]
-pub fn build_network_url(network_id: VirtualNetworkIdType) -> String {
+pub fn build_network_url(network_id: Uuid) -> String {
     ROUTE_NETWORK_URL.replace("{network}", &network_id.to_string())
 }
 
 /// Builds the endpoint url do modify a device.
 #[allow(dead_code)]
-pub fn build_device_url(network_id: VirtualNetworkIdType, device_id: GuidString) -> String {
+pub fn build_device_url(network_id: Uuid, device_id: GuidString) -> String {
     ROUTE_DEVICE_URL
         .replace("{network}", &network_id.to_string())
         .replace("{device_id}", &device_id)

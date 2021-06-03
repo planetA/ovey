@@ -2,4 +2,3 @@
 //! the Ovey Daemon.
 
 pub mod errors;
-pub mod structs;

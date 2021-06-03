@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap};
 use std::fs::File;
 use std::io::Read;
-use liboveyutil::types::VirtualNetworkIdType;
+use uuid::Uuid;
+use ovey_coordinator::OVEY_COORDINATOR_PORT;
 
 /// The name of the env variable where the daemon
 /// expects the configuration file. Can be absolute or relative.
@@ -23,17 +24,22 @@ lazy_static::lazy_static! {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InitDataConfiguration {
     /// Mapping from virtual network id to url / REST-Service of the coordinator.
-    coordinators: HashMap<VirtualNetworkIdType, String>,
+    coordinators: HashMap<Uuid, String>,
     check_coordinators: bool
 }
 
 impl InitDataConfiguration {
-    pub fn coordinators(&self) -> &HashMap<VirtualNetworkIdType, String> {
+    pub fn coordinators(&self) -> &HashMap<Uuid, String> {
         &self.coordinators
     }
 
     pub fn check_coordinators(&self) -> bool {
         self.check_coordinators
+    }
+
+    pub fn get_coordinator(&self, network: &Uuid) -> Option<String> {
+        let host = self.coordinators.get(network)?;
+        Some(format!("{}:{}", host, OVEY_COORDINATOR_PORT))
     }
 }
 

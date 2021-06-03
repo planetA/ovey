@@ -2,7 +2,7 @@ use actix_web::{
     dev::HttpResponseBuilder, error, http::header, http::StatusCode, HttpResponse,
 };
 use derive_more::Display;
-use liboveyutil::types::{Uuid, VirtualNetworkIdType};
+use uuid::Uuid;
 
 #[derive(Debug, Display)]
 pub enum CoordinatorRestError {

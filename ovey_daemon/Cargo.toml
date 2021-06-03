@@ -22,6 +22,8 @@ lazy_static = "1.4.0"
 log = "0.4.11"
 simple_on_shutdown = "0.3.0"
 futures = "0.3"
+cty = "0.2"
+uuid = { version = "0.8", features = ["serde", "v4"] }
 
 ovey_coordinator = { path = "../ovey_coordinator" }
 libocp = { path = "../libocp" }

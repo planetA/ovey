@@ -15,8 +15,6 @@ use ovey_coordinator::urls::{ROUTE_DEVICE_URL, ROUTE_NETWORK_URL};
 
 mod config;
 mod rest;
-mod data;
-mod db;
 mod routes;
 mod urls;
 

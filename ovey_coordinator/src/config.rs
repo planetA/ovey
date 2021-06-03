@@ -1,6 +1,14 @@
 use std::fs::File;
 use std::io::Read;
-use ovey_coordinator::rest::structs::InitDataConfiguration;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use uuid::Uuid;
+use liboveyutil::types::GuidString;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct InitDataConfiguration {
+    networks: HashMap<Uuid, Vec<GuidString>>
+}
 
 /// The name of the env variable where the coordinator
 /// expects the configuration file. Can be absolute or relative.
@@ -15,8 +23,8 @@ lazy_static::lazy_static! {
         let cfg = opt.unwrap();
 
         // register all networks
-        cfg.networks().keys().for_each(|key| {
-            crate::db::db_register_network(key.to_owned()).unwrap();
+        cfg.networks.keys().for_each(|key| {
+            // crate::db::db_register_network(key.to_owned()).unwrap();
         });
 
         cfg

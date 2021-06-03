@@ -3,13 +3,14 @@
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use crate::cli_rest_api::validation::{validate_device_name, validate_parent_device_name, validate_guid};
-use liboveyutil::types::{VirtualNetworkIdType, GuidInternalType, GuidString, LidString};
+use liboveyutil::types::{GuidInternalType, GuidString, LidString};
+use uuid::Uuid;
 
 /// Payload for the REST interface of ovey daemon to create a device in both: coordinator and kernel
 #[derive(Serialize, Deserialize, Debug, Builder, Default)]
 #[builder(setter(into), build_fn(validate = "Self::validate"))]
 pub struct CreateDeviceInput {
-    network_id: VirtualNetworkIdType,
+    network_id: Uuid,
     virt_guid: GuidString,
     virt_lid: LidString,
     device_name: String,
@@ -17,7 +18,7 @@ pub struct CreateDeviceInput {
 }
 
 impl CreateDeviceInput {
-    pub fn network_id(&self) -> &VirtualNetworkIdType {
+    pub fn network_id(&self) -> &Uuid {
         &self.network_id
     }
     pub fn virt_guid(&self) -> &GuidString {
@@ -70,13 +71,13 @@ impl CreateDeviceInputBuilder {
 #[derive(Serialize, Deserialize, Debug, Builder, Default)]
 #[builder(setter(into), build_fn(validate = "Self::validate"))]
 pub struct DeleteDeviceInput {
-    // network_id: VirtualNetworkIdType,
+    // network_id: Uuid,
     // virt_guid: VirtualGuidType,
     device_name: String,
 }
 
 impl DeleteDeviceInput {
-    /*pub fn network_id(&self) -> VirtualNetworkIdType {
+    /*pub fn network_id(&self) -> Uuid {
         self.network_id
     }*/
     /* pub fn virt_guid(&self) -> &str {
@@ -147,7 +148,7 @@ pub struct DeviceInfoDto {
     pub guid: GuidInternalType,
     pub lid: u16,
     pub parent_guid: GuidInternalType,
-    pub virtual_network_id: VirtualNetworkIdType,
+    pub virtual_network_id: Uuid,
 }
 
 #[cfg(test)]

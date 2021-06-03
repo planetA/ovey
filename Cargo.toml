@@ -14,7 +14,6 @@ members = [
     "libocp",
     "libocp/advanced_examples",
     "liboveyutil",
-    "ovey_cli",
     "ovey_coordinator",
     "ovey_daemon"
 ]
@@ -24,6 +23,5 @@ members = [
 # => cargo build will build all bins and libs
 "libocp" = { path = "./libocp" }
 "liboveyutil" = { path = "./liboveyutil" }
-"ovey_cli" = { path = "./ovey_cli" }
 "ovey_coordinator" = { path = "./ovey_coordinator" }
 "ovey_daemon" = { path = "./ovey_daemon" }
