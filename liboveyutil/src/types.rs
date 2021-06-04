@@ -15,7 +15,7 @@ pub struct LeaseDeviceReq {
     pub guid: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LeaseDeviceResp {
     pub guid: u64,
 }

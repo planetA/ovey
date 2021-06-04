@@ -34,7 +34,11 @@ pub async fn route_add_device(
 {
     let input: LeaseDeviceReq = input.into_inner();
     debug!("Creating device: {}: {:#?} {:#?}", network_uuid, _req, input);
-    Ok(HttpResponse::Ok().json(input))
+
+    let output = LeaseDeviceResp{
+        guid: input.guid,
+    };
+    Ok(HttpResponse::Ok().json(output))
 }
 
 

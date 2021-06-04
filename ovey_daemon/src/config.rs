@@ -29,14 +29,6 @@ pub struct InitDataConfiguration {
 }
 
 impl InitDataConfiguration {
-    pub fn coordinators(&self) -> &HashMap<Uuid, String> {
-        &self.coordinators
-    }
-
-    pub fn check_coordinators(&self) -> bool {
-        self.check_coordinators
-    }
-
     pub fn get_coordinator(&self, network: &Uuid) -> Option<String> {
         let host = self.coordinators.get(network)?;
         Some(format!("{}:{}", host, OVEY_COORDINATOR_PORT))

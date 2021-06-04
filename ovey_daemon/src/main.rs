@@ -1,8 +1,9 @@
+use std::io::Write;
 use std::io::Read;
 use config::CONFIG;
 use std::{thread, time};
 use std::sync::Arc;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use simple_on_shutdown::on_shutdown_move;
 use std::sync::atomic::{AtomicBool, Ordering};
 use futures::executor::block_on;
@@ -12,6 +13,9 @@ use std::io;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::convert::TryFrom;
+use std::slice;
+use std::mem;
+use reqwest::StatusCode;
 use liboveyutil::types::*;
 
 mod config;
@@ -26,7 +30,7 @@ enum OveydRequestType {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct oveydr_req_hdr {
+struct oveyd_req_hdr {
     pub req_type: u16,
     pub len: u16,
     pub seq: u32,
@@ -38,8 +42,23 @@ type U64Be = u64;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct oveydr_lease_device {
-    pub hdr: oveydr_req_hdr,
+struct oveyd_lease_device {
+    pub hdr: oveyd_req_hdr,
+    guid: U64Be,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct oveyd_resp_hdr {
+    pub resp_type: u16,
+    pub len: u16,
+    pub seq: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct oveyd_lease_device_resp {
+    pub hdr: oveyd_resp_hdr,
     guid: U64Be,
 }
 
@@ -66,11 +85,22 @@ pub enum OveydCmd {
     LeaseDevice(LeaseDeviceReq)
 }
 
+#[derive(Debug)]
+pub enum OveydCmdResp {
+    LeaseDevice(LeaseDeviceResp)
+}
+
+pub struct OveydResp {
+    seq: u32,
+    network: Uuid,
+    cmd: OveydCmdResp,
+}
+
 fn parse_request_lease_device(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
-    if buffer.len() < size_of::<oveydr_lease_device>() {
+    if buffer.len() < size_of::<oveyd_lease_device>() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
     }
-    let req: oveydr_lease_device = unsafe {
+    let req: oveyd_lease_device = unsafe {
         std::ptr::read(buffer.as_ptr() as *const _)
     };
 
@@ -84,10 +114,10 @@ fn parse_request_lease_device(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
 }
 
 fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
-    if buffer.len() < size_of::<oveydr_req_hdr>() {
+    if buffer.len() < size_of::<oveyd_req_hdr>() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
     }
-    let hdr: oveydr_req_hdr = unsafe {
+    let hdr: oveyd_req_hdr = unsafe {
         std::ptr::read(buffer.as_ptr() as *const _)
     };
 
@@ -99,27 +129,75 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     }
 }
 
-fn process_request(req: OveydReq) -> Result<(), io::Error> {
+/// Safe to use with any wholly initialized memory `ptr`
+fn raw_byte_repr<'a, T>(ptr: &'a T) -> &'a [u8]
+{
+    let p: *const T = ptr;
+    let p: *const u8 = p as *const u8;
+    let s: &[u8] = unsafe {
+        slice::from_raw_parts(p, mem::size_of::<T>())
+    };
+    s
+}
+
+fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
+    match resp.cmd {
+        OveydCmdResp::LeaseDevice(cmd) => {
+            let c_resp = oveyd_lease_device_resp{
+                hdr: oveyd_resp_hdr{
+                    resp_type: OveydRequestType::LeaseDevice as u16,
+                    len: size_of::<oveyd_lease_device>() as u16,
+                    seq: resp.seq,
+                },
+                guid: cmd.guid,
+            };
+            let size = file.write(raw_byte_repr(&c_resp)).unwrap();
+            println!("Wrote struct size {}: {:#?}", size, c_resp);
+        }
+    }
+}
+
+fn process_request(req: OveydReq) -> Result<OveydResp, io::Error> {
+    println!("Request parsed: {:#?}", req);
+
     let mut host = CONFIG.get_coordinator(&req.network)
         .ok_or(io::Error::new(io::ErrorKind::NotFound,
                            "Coordinator not found for the network"))?;
-    match req.cmd {
+    let cmd = match req.cmd {
         OveydCmd::LeaseDevice(cmd) => {
             let endpoint = ovey_coordinator::urls::build_add_device_url(req.network);
             host.push_str(&endpoint);
             let client = reqwest::blocking::Client::new();
-            let res = client.post(&host).json(&cmd).send();
+            let res = client.post(&host).json(&cmd)
+                .send()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-            println!("Received reply: {:#?}", res);
+            match res.status() {
+                StatusCode::OK => {
+                    OveydCmdResp::LeaseDevice(res.json::<LeaseDeviceResp>()
+                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
+                },
+                s => {
+                    println!("Received response: {}", s);
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
+                }
+            }
         }
-    }
-    Ok(())
+    };
+
+    Ok(OveydResp{
+        seq: req.seq,
+        network: req.network,
+        cmd: cmd,
+    })
 }
 
 pub fn cdev_thread(exit_work_loop: Arc<AtomicBool>) -> JoinHandle<()> {
     spawn(move || {
         info!("Kernel request listening loop started in a thread");
-        let mut file = File::open("/dev/ovey").unwrap();
+        let mut file = OpenOptions::new()
+            .read(true).write(true)
+            .open("/dev/ovey").unwrap();
 
         loop {
             if exit_work_loop.load(Ordering::Relaxed) {
@@ -135,12 +213,9 @@ pub fn cdev_thread(exit_work_loop: Arc<AtomicBool>) -> JoinHandle<()> {
             }
 
             let req = parse_request(buffer);
-            match req {
-                Ok(req) => {
-                    println!("Request parsed: {:#?}", req);
-                    if let Err(err) = process_request(req) {
-                        println!("Failed to process request: {}", err);
-                    }
+            match req.and_then(|req| process_request(req)) {
+                Ok(resp) => {
+                    reply_request(&mut file, resp);
                 },
                 Err(err) => {
                     println!("Failed to parse request: {}", err);
