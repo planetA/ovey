@@ -26,6 +26,7 @@ extern crate log;
 
 enum OveydRequestType {
     LeaseDevice = 0,
+    LeaseGid = 1,
 }
 
 // Big endian u64 type
@@ -46,8 +47,18 @@ struct oveyd_lease_device {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct oveyd_lease_gid {
+    port: u16,
+    idx: u32,
+    subnet_prefix: U64Be,
+    interface_id: U64Be,
+}
+
+#[repr(C)]
 union cmd_union {
     pub lease_device: oveyd_lease_device,
+    pub lease_gid: oveyd_lease_gid,
 }
 
 #[repr(C)]
@@ -73,6 +84,7 @@ impl TryFrom<u16> for OveydRequestType {
     fn try_from(v: u16) -> Result<Self, Self::Error> {
         match v {
             x if x == OveydRequestType::LeaseDevice as u16 => Ok(OveydRequestType::LeaseDevice),
+            x if x == OveydRequestType::LeaseGid as u16 => Ok(OveydRequestType::LeaseGid),
             _ => Err(()),
         }
     }
@@ -87,12 +99,14 @@ struct OveydReq {
 
 #[derive(Debug)]
 pub enum OveydCmd {
-    LeaseDevice(LeaseDeviceReq)
+    LeaseDevice(LeaseDeviceReq),
+    LeaseGid(LeaseGidReq)
 }
 
 #[derive(Debug)]
 pub enum OveydCmdResp {
-    LeaseDevice(LeaseDeviceResp)
+    LeaseDevice(LeaseDeviceResp),
+    LeaseGid(LeaseGidResp)
 }
 
 pub struct OveydResp {
@@ -115,6 +129,23 @@ fn parse_request_lease_device(req: oveyd_req_pkt) -> Result<OveydReq, io::Error>
     })
 }
 
+fn parse_request_lease_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_lease_gid = unsafe {
+        req.cmd.lease_gid
+    };
+
+    Ok(OveydReq{
+        seq: req.seq,
+        network: Uuid::from_bytes(req.network),
+        cmd: OveydCmd::LeaseGid(LeaseGidReq{
+            port: cmd.port,
+            idx: cmd.idx,
+            subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
+            interface_id: u64::from_be(cmd.interface_id.0),
+        }),
+    })
+}
+
 fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     if buffer.len() < size_of::<oveyd_req_pkt>() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
@@ -128,6 +159,7 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
 
     match pkt.cmd_type.try_into() {
         Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(pkt),
+        Ok(OveydRequestType::LeaseGid) => parse_request_lease_gid(pkt),
         Err(_) => Err(io::Error::new(io::ErrorKind::InvalidInput, "UnknownType")),
     }
 }
@@ -161,6 +193,26 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
             println!("Size struct {}", buf.len());
             let size = file.write(buf).unwrap();
             println!("Wrote struct size {}", size);
+        },
+        OveydCmdResp::LeaseGid(cmd) => {
+            let c_resp = oveyd_resp_pkt{
+                cmd_type: OveydRequestType::LeaseGid as u16,
+                len: size_of::<oveyd_resp_pkt>() as u16,
+                seq: resp.seq,
+                cmd: cmd_union{
+                    lease_gid: oveyd_lease_gid{
+                        port: cmd.port,
+                        idx: cmd.idx,
+                        subnet_prefix: cmd.subnet_prefix.into(),
+                        interface_id: cmd.interface_id.into(),
+                    },
+                },
+            };
+            println!("Size struct {}", size_of::<oveyd_resp_pkt>());
+            let buf = raw_byte_repr(&c_resp);
+            println!("Size struct {}", buf.len());
+            let size = file.write(buf).unwrap();
+            println!("Wrote struct size {}", size);
         }
     }
 }
@@ -183,6 +235,25 @@ fn process_request(req: OveydReq) -> Result<OveydResp, io::Error> {
             match res.status() {
                 StatusCode::OK => {
                     OveydCmdResp::LeaseDevice(res.json::<LeaseDeviceResp>()
+                                              .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
+                },
+                s => {
+                    println!("Received response: {}", s);
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
+                }
+            }
+        },
+        OveydCmd::LeaseGid(cmd) => {
+            let endpoint = ovey_coordinator::urls::build_lease_gid_url(req.network);
+            host.push_str(&endpoint);
+            let client = reqwest::blocking::Client::new();
+            let res = client.post(&host).json(&cmd)
+                .send()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+            match res.status() {
+                StatusCode::OK => {
+                    OveydCmdResp::LeaseGid(res.json::<LeaseGidResp>()
                         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
                 },
                 s => {

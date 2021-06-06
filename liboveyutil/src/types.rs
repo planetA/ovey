@@ -19,3 +19,19 @@ pub struct LeaseDeviceReq {
 pub struct LeaseDeviceResp {
     pub guid: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LeaseGidReq {
+    pub port: u16,
+    pub idx: u32,
+    pub subnet_prefix: u64,
+    pub interface_id: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LeaseGidResp {
+    pub port: u16,
+    pub idx: u32,
+    pub subnet_prefix: u64,
+    pub interface_id: u64,
+}
