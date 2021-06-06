@@ -39,6 +39,7 @@ async fn main() -> std::io::Result<()> {
             //.service(web::resource("/network/{network}").route(web::get().to(route_add_device)))
             .service(web::resource(ROUTE_ADD_DEVICE_URL).route(web::post().to(route_add_device)))
             .service(web::resource(ROUTE_LEASE_GID_URL).route(web::post().to(route_lease_gid)))
+            .service(web::resource(ROUTE_RESOLVE_GID_URL).route(web::post().to(route_resolve_gid)))
             .service(web::resource(ROUTE_NETWORK_URL).route(web::get().to(route_get_network_info)))
             .service(web::resource(ROUTE_DEVICE_URL)
                 .route(web::delete().to(route_delete_device))

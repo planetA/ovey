@@ -27,6 +27,7 @@ extern crate log;
 enum OveydRequestType {
     LeaseDevice = 0,
     LeaseGid = 1,
+    ResolveGid = 2,
 }
 
 // Big endian u64 type
@@ -56,9 +57,17 @@ struct oveyd_lease_gid {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct oveyd_resolve_gid {
+    subnet_prefix: U64Be,
+    interface_id: U64Be,
+}
+
+#[repr(C)]
 union cmd_union {
     pub lease_device: oveyd_lease_device,
     pub lease_gid: oveyd_lease_gid,
+    pub resolve_gid: oveyd_resolve_gid,
 }
 
 #[repr(C)]
@@ -85,6 +94,7 @@ impl TryFrom<u16> for OveydRequestType {
         match v {
             x if x == OveydRequestType::LeaseDevice as u16 => Ok(OveydRequestType::LeaseDevice),
             x if x == OveydRequestType::LeaseGid as u16 => Ok(OveydRequestType::LeaseGid),
+            x if x == OveydRequestType::ResolveGid as u16 => Ok(OveydRequestType::ResolveGid),
             _ => Err(()),
         }
     }
@@ -100,13 +110,15 @@ struct OveydReq {
 #[derive(Debug)]
 pub enum OveydCmd {
     LeaseDevice(LeaseDeviceReq),
-    LeaseGid(LeaseGidReq)
+    LeaseGid(LeaseGidReq),
+    ResolveGid(ResolveGidReq),
 }
 
 #[derive(Debug)]
 pub enum OveydCmdResp {
     LeaseDevice(LeaseDeviceResp),
-    LeaseGid(LeaseGidResp)
+    LeaseGid(LeaseGidResp),
+    ResolveGid(ResolveGidResp),
 }
 
 pub struct OveydResp {
@@ -146,6 +158,21 @@ fn parse_request_lease_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     })
 }
 
+fn parse_request_resolve_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_resolve_gid = unsafe {
+        req.cmd.resolve_gid
+    };
+
+    Ok(OveydReq{
+        seq: req.seq,
+        network: Uuid::from_bytes(req.network),
+        cmd: OveydCmd::ResolveGid(ResolveGidReq{
+            subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
+            interface_id: u64::from_be(cmd.interface_id.0),
+        }),
+    })
+}
+
 fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     if buffer.len() < size_of::<oveyd_req_pkt>() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
@@ -160,6 +187,7 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     match pkt.cmd_type.try_into() {
         Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(pkt),
         Ok(OveydRequestType::LeaseGid) => parse_request_lease_gid(pkt),
+        Ok(OveydRequestType::ResolveGid) => parse_request_resolve_gid(pkt),
         Err(_) => Err(io::Error::new(io::ErrorKind::InvalidInput, "UnknownType")),
     }
 }
@@ -176,9 +204,9 @@ fn raw_byte_repr<'a, T>(ptr: &'a T) -> &'a [u8]
 }
 
 fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
-    match resp.cmd {
+    let c_resp = match resp.cmd {
         OveydCmdResp::LeaseDevice(cmd) => {
-            let c_resp = oveyd_resp_pkt{
+            oveyd_resp_pkt{
                 cmd_type: OveydRequestType::LeaseDevice as u16,
                 len: size_of::<oveyd_resp_pkt>() as u16,
                 seq: resp.seq,
@@ -187,15 +215,10 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                         guid: cmd.guid.into(),
                     },
                 },
-            };
-            println!("Size struct {}", size_of::<oveyd_resp_pkt>());
-            let buf = raw_byte_repr(&c_resp);
-            println!("Size struct {}", buf.len());
-            let size = file.write(buf).unwrap();
-            println!("Wrote struct size {}", size);
+            }
         },
         OveydCmdResp::LeaseGid(cmd) => {
-            let c_resp = oveyd_resp_pkt{
+            oveyd_resp_pkt{
                 cmd_type: OveydRequestType::LeaseGid as u16,
                 len: size_of::<oveyd_resp_pkt>() as u16,
                 seq: resp.seq,
@@ -207,14 +230,24 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                         interface_id: cmd.interface_id.into(),
                     },
                 },
-            };
-            println!("Size struct {}", size_of::<oveyd_resp_pkt>());
-            let buf = raw_byte_repr(&c_resp);
-            println!("Size struct {}", buf.len());
-            let size = file.write(buf).unwrap();
-            println!("Wrote struct size {}", size);
-        }
-    }
+            }
+        },
+        OveydCmdResp::ResolveGid(cmd) => {
+            oveyd_resp_pkt{
+                cmd_type: OveydRequestType::ResolveGid as u16,
+                len: size_of::<oveyd_resp_pkt>() as u16,
+                seq: resp.seq,
+                cmd: cmd_union{
+                    resolve_gid: oveyd_resolve_gid{
+                        subnet_prefix: cmd.subnet_prefix.into(),
+                        interface_id: cmd.interface_id.into(),
+                    },
+                },
+            }
+        },
+    };
+    let buf = raw_byte_repr(&c_resp);
+    let size = file.write(buf).unwrap();
 }
 
 fn process_request(req: OveydReq) -> Result<OveydResp, io::Error> {
@@ -261,7 +294,26 @@ fn process_request(req: OveydReq) -> Result<OveydResp, io::Error> {
                     return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
                 }
             }
-        }
+        },
+        OveydCmd::ResolveGid(cmd) => {
+            let endpoint = ovey_coordinator::urls::build_resolve_gid_url(req.network);
+            host.push_str(&endpoint);
+            let client = reqwest::blocking::Client::new();
+            let res = client.post(&host).json(&cmd)
+                .send()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+            match res.status() {
+                StatusCode::OK => {
+                    OveydCmdResp::ResolveGid(res.json::<ResolveGidResp>()
+                                           .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
+                },
+                s => {
+                    println!("Received response: {}", s);
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
+                }
+            }
+        },
     };
 
     Ok(OveydResp{
@@ -307,7 +359,7 @@ pub fn cdev_thread(exit_work_loop: Arc<AtomicBool>) -> JoinHandle<()> {
                     reply_request(&mut file, resp);
                 },
                 Err(err) => {
-                    println!("Failed to parse request: {}", err);
+                    panic!("Failed request. Need to report error to the app: {} ", err);
                 }
             }
 

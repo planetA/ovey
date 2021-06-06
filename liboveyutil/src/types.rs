@@ -35,3 +35,15 @@ pub struct LeaseGidResp {
     pub subnet_prefix: u64,
     pub interface_id: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResolveGidReq {
+    pub subnet_prefix: u64,
+    pub interface_id: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResolveGidResp {
+    pub subnet_prefix: u64,
+    pub interface_id: u64,
+}
