@@ -214,10 +214,20 @@ pub fn cdev_thread(exit_work_loop: Arc<AtomicBool>) -> JoinHandle<()> {
             }
 
             let mut buffer: Vec<u8> = vec![0; 128 as usize];
-            let size = file.read(&mut buffer).unwrap();
-            if size == 0 {
-                thread::sleep(time::Duration::from_millis(500));
-                continue;
+            let res = file.read(&mut buffer);
+            match res {
+                Err(err) if err.kind() == io::ErrorKind::Interrupted =>
+                    continue,
+                Ok(size) if size == 0 => {
+                    thread::sleep(time::Duration::from_millis(500));
+                    continue;
+                },
+                Err(err) => {
+                    panic!("Failed read with: {}", err);
+                },
+                Ok(_) => {
+                    // Read something let's check it out
+                }
             }
 
             let req = parse_request(buffer);
