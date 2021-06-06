@@ -41,6 +41,23 @@ pub async fn route_add_device(
     Ok(HttpResponse::Ok().json(output))
 }
 
+pub async fn route_lease_gid(
+    input: web::Json<LeaseGidReq>,
+    web::Path(network_uuid): web::Path<Uuid>,
+    _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
+{
+    let input: LeaseGidReq = input.into_inner();
+    debug!("Creating device: {}: {:#?} {:#?}", network_uuid, _req, input);
+
+    let output = LeaseGidResp{
+        port: input.port,
+        idx: input.idx,
+        subnet_prefix: input.subnet_prefix.into(),
+        interface_id: input.interface_id.into(),
+    };
+    Ok(HttpResponse::Ok().json(output))
+}
+
 
 pub async fn route_delete_device(web::Path((network_uuid, virt_dev_id)): web::Path<(Uuid, GuidString)>)
     -> Result<actix_web::HttpResponse, CoordinatorRestError> {

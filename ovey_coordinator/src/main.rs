@@ -10,8 +10,8 @@ use actix_web::{
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use config::CONFIG;
 use crate::urls::{ROUTE_ADD_DEVICE_URL, ROUTE_GET_CONFIG_URL};
-use crate::routes::{route_config, route_add_device, route_index, route_get_device_info, route_delete_device, route_get_network_info};
-use ovey_coordinator::urls::{ROUTE_DEVICE_URL, ROUTE_NETWORK_URL};
+use crate::routes::*;
+use ovey_coordinator::urls::*;
 
 mod config;
 mod rest;
@@ -38,6 +38,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource(ROUTE_GET_CONFIG_URL).route(web::get().to(route_config)))
             //.service(web::resource("/network/{network}").route(web::get().to(route_add_device)))
             .service(web::resource(ROUTE_ADD_DEVICE_URL).route(web::post().to(route_add_device)))
+            .service(web::resource(ROUTE_LEASE_GID_URL).route(web::post().to(route_lease_gid)))
             .service(web::resource(ROUTE_NETWORK_URL).route(web::get().to(route_get_network_info)))
             .service(web::resource(ROUTE_DEVICE_URL)
                 .route(web::delete().to(route_delete_device))
