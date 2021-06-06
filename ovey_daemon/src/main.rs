@@ -28,38 +28,43 @@ enum OveydRequestType {
     LeaseDevice = 0,
 }
 
+// Big endian u64 type
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct oveyd_req_hdr {
-    pub req_type: u16,
-    pub len: u16,
-    pub seq: u32,
-    pub network: [u8; 16],
-}
+struct U64Be(u64);
 
-// Big endian u64 type
-type U64Be = u64;
+impl From<u64> for U64Be {
+    fn from(val: u64) -> Self {
+        Self(u64::to_be(val))
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct oveyd_lease_device {
-    pub hdr: oveyd_req_hdr,
     guid: U64Be,
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
-struct oveyd_resp_hdr {
-    pub resp_type: u16,
+union cmd_union {
+    pub lease_device: oveyd_lease_device,
+}
+
+#[repr(C)]
+struct oveyd_req_pkt {
+    pub cmd_type: u16,
     pub len: u16,
     pub seq: u32,
+    pub network: [u8; 16],
+    pub cmd: cmd_union,
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
-struct oveyd_lease_device_resp {
-    pub hdr: oveyd_resp_hdr,
-    guid: U64Be,
+struct oveyd_resp_pkt {
+    pub cmd_type: u16,
+    pub len: u16,
+    pub seq: u32,
+    pub cmd: cmd_union,
 }
 
 impl TryFrom<u16> for OveydRequestType {
@@ -96,35 +101,33 @@ pub struct OveydResp {
     cmd: OveydCmdResp,
 }
 
-fn parse_request_lease_device(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
-    if buffer.len() < size_of::<oveyd_lease_device>() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
-    }
-    let req: oveyd_lease_device = unsafe {
-        std::ptr::read(buffer.as_ptr() as *const _)
+fn parse_request_lease_device(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_lease_device = unsafe {
+        req.cmd.lease_device
     };
 
     Ok(OveydReq{
-        seq: req.hdr.seq,
-        network: Uuid::from_bytes(req.hdr.network),
+        seq: req.seq,
+        network: Uuid::from_bytes(req.network),
         cmd: OveydCmd::LeaseDevice(LeaseDeviceReq{
-            guid: u64::from_be(req.guid),
+            guid: u64::from_be(cmd.guid.0),
         }),
     })
 }
 
 fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
-    if buffer.len() < size_of::<oveyd_req_hdr>() {
+    if buffer.len() < size_of::<oveyd_req_pkt>() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
     }
-    let hdr: oveyd_req_hdr = unsafe {
-        std::ptr::read(buffer.as_ptr() as *const _)
+    let pkt: oveyd_req_pkt = unsafe {
+        let pkt = std::ptr::read(buffer.as_ptr() as *const _);
+        pkt
     };
 
-    println!("Read {}: {:?} hdr {:#?}", buffer.len(), buffer, hdr);
+    println!("Read {}: {:?} hdr", buffer.len(), buffer);
 
-    match hdr.req_type.try_into() {
-        Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(buffer),
+    match pkt.cmd_type.try_into() {
+        Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(pkt),
         Err(_) => Err(io::Error::new(io::ErrorKind::InvalidInput, "UnknownType")),
     }
 }
@@ -143,16 +146,21 @@ fn raw_byte_repr<'a, T>(ptr: &'a T) -> &'a [u8]
 fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
     match resp.cmd {
         OveydCmdResp::LeaseDevice(cmd) => {
-            let c_resp = oveyd_lease_device_resp{
-                hdr: oveyd_resp_hdr{
-                    resp_type: OveydRequestType::LeaseDevice as u16,
-                    len: size_of::<oveyd_lease_device>() as u16,
-                    seq: resp.seq,
+            let c_resp = oveyd_resp_pkt{
+                cmd_type: OveydRequestType::LeaseDevice as u16,
+                len: size_of::<oveyd_resp_pkt>() as u16,
+                seq: resp.seq,
+                cmd: cmd_union{
+                    lease_device: oveyd_lease_device{
+                        guid: cmd.guid.into(),
+                    },
                 },
-                guid: cmd.guid,
             };
-            let size = file.write(raw_byte_repr(&c_resp)).unwrap();
-            println!("Wrote struct size {}: {:#?}", size, c_resp);
+            println!("Size struct {}", size_of::<oveyd_resp_pkt>());
+            let buf = raw_byte_repr(&c_resp);
+            println!("Size struct {}", buf.len());
+            let size = file.write(buf).unwrap();
+            println!("Wrote struct size {}", size);
         }
     }
 }
