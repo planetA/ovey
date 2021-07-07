@@ -64,12 +64,14 @@ pub async fn route_resolve_gid(
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     let input: ResolveGidReq = input.into_inner();
-    debug!("Resolve gid: {}: {:#?} {:#?}", network_uuid, _req, input);
 
     let output = ResolveGidResp{
         subnet_prefix: input.subnet_prefix.into(),
-        interface_id: input.interface_id.into(),
+        interface_id: input.interface_id - 0x640000,
     };
+
+    debug!("Resolve gid: {}: {:#?} {:#?} -> {:#?}", network_uuid, _req,
+           input, output);
     Ok(HttpResponse::Ok().json(output))
 }
 
