@@ -3,8 +3,6 @@
 use uuid::Uuid;
 use liboveyutil::types::GuidString;
 
-/// Returns the configuration of the coordinator.
-pub const ROUTE_GET_CONFIG_URL: &str  = "/config";
 /// {network} is uuid of the network.
 pub const ROUTE_ADD_DEVICE_URL: &str  = "/network/{network}/device";
 /// {network} is uuid of the network.

@@ -8,10 +8,6 @@ use crate::rest::errors::CoordinatorRestError;
 use uuid::Uuid;
 use liboveyutil::types::*;
 
-pub async fn route_config() -> HttpResponse {
-    HttpResponse::Gone().finish() // <- send response
-}
-
 pub async fn route_index(_req: HttpRequest) -> HttpResponse {
     //println!("request: {:?}", &req);
     HttpResponse::Gone().finish() // <- send response
