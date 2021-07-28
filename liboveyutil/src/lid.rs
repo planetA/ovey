@@ -1,6 +1,6 @@
 /// Parse LID string to number for internal representation
 pub fn lid_string_to_u16(repr: &str) -> u16 {
-    repr.parse::<u16>().unwrap()
+    u16::from_str_radix(repr.trim_start_matches("0x"), 16).unwrap()
 }
 
 /// Converts an LID to its string representation (like it is done in libibverbs).
@@ -15,7 +15,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_guid_string_to_ube64() {
+    fn test_lid_string_to_ube64() {
         // input host endianness
         let input_he = "0xdead";
         let expected_he = 0xdead_u16;
@@ -24,7 +24,7 @@ mod tests {
     }
 
     #[test]
-    fn test_guid_he_to_string() {
+    fn test_lid_he_to_string() {
         // input host endianness
         let input_he = 0xdead_u16;
         let expected_he = "0xdead";

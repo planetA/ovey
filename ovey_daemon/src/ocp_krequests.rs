@@ -9,25 +9,25 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use ovey_coordinator::rest::structs::{VirtualizedDeviceDTO};
 
-fn store_virt_port_lid(id: u64, real_lid: u32, virt_lid: u32) {
-    debug!("Received a request {} for vLID translation {} -> {}", id, real_lid, virt_lid);
+// fn store_virt_port_lid(id: u64, real_lid: u32, virt_lid: u32) {
+//     debug!("Received a request {} for vLID translation {} -> {}", id, real_lid, virt_lid);
 
-    // so far: only simulate REST request to measure overhead
-    let res = reqwest::blocking::get(&format!("http://localhost:{}", OVEY_COORDINATOR_PORT));
-    debug!("Received request from the coordinator {:#?}", res);
-    if let Ok(resp) = res {
-        let json = resp.json::<Vec<VirtualizedDeviceDTO>>();
-        if let Ok(json) = json {
-            debug!("Got dummy response from coordinator: {:#?}", json);
-        } else {
-            error!("Dummy response from coordinator failed")
-        }
-    } else {
-        error!("Dummy response from coordinator failed")
-    }
+//     // so far: only simulate REST request to measure overhead
+//     let res = reqwest::blocking::get(&format!("http://localhost:{}", OVEY_COORDINATOR_PORT));
+//     debug!("Received request from the coordinator {:#?}", res);
+//     if let Ok(resp) = res {
+//         let json = resp.json::<Vec<VirtualizedDeviceDTO>>();
+//         if let Ok(json) = json {
+//             debug!("Got dummy response from coordinator: {:#?}", json);
+//         } else {
+//             error!("Dummy response from coordinator failed")
+//         }
+//     } else {
+//         error!("Dummy response from coordinator failed")
+//     }
 
-    debug!("Received request from Kernel with completion id {}", id);
-}
+//     debug!("Received request from Kernel with completion id {}", id);
+// }
 
 /// Starts a thread that continously listens for incoming Ovey kernel module OCP requests.
 /// __DAEMON_HELLO__ operation must be sent before this starts. If the daemon is shutting
@@ -57,7 +57,8 @@ pub fn start_ocp_bg_reply_thread(ocp: Arc<Ocp>, exit_work_loop: Arc<AtomicBool>)
                             ocp.ocp_resolve_completion(kreq.id());
                         }
                         KRequest::StoreVirtPortLid { id, real_lid, virt_lid } => {
-                            store_virt_port_lid(id, real_lid, virt_lid);
+                            panic!("Unimplemented");
+                            // store_virt_port_lid(id, real_lid, virt_lid);
                             ocp.ocp_resolve_completion(id);
                         }
                         KRequest::ShutdownDaemon => {

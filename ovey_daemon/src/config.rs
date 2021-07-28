@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use std::collections::{HashMap};
 use std::fs::File;
 use std::io::Read;
@@ -21,7 +21,7 @@ lazy_static::lazy_static! {
     };
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct InitDataConfiguration {
     /// Mapping from virtual network id to url / REST-Service of the coordinator.
     coordinators: HashMap<Uuid, String>,

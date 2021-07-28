@@ -9,7 +9,6 @@ use actix_web::{
 };
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use config::CONFIG;
-use crate::urls::{ROUTE_ADD_DEVICE_URL};
 use crate::routes::*;
 use ovey_coordinator::urls::*;
 
@@ -29,21 +28,24 @@ async fn main() -> std::io::Result<()> {
     info!("Starting REST service on localhost:{}", OVEY_COORDINATOR_PORT);
 
     // println!("Starting REST service on localhost:{}", OVEY_COORDINATOR_PORT);
+    let state = new_app_state();
 
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
-            .service(web::resource(ROUTE_ADD_DEVICE_URL).route(web::post().to(route_add_device)))
-            .service(web::resource(ROUTE_LEASE_GID_URL).route(web::post().to(route_lease_gid)))
-            .service(web::resource(ROUTE_RESOLVE_GID_URL).route(web::post().to(route_resolve_gid)))
+            .app_data(state.clone())
+            .service(route_guid_post)
+            .service(route_gid_post)
+            .service(route_resolve_gid)
+            .service(route_gid_put)
             .service(web::resource(ROUTE_NETWORK_URL).route(web::get().to(route_get_network_info)))
             .service(web::resource(ROUTE_DEVICE_URL)
                 .route(web::delete().to(route_delete_device))
                 .route(web::get().to(route_get_device_info)))
             .service(web::resource("/").route(web::get().to(route_index)))
     })
-        // TODO also bind the local address? Because this must be called from local network or even remotely?!
+    // TODO also bind the local address? Because this must be called from local network or even remotely?!
         .bind(format!("0.0.0.0:{}", OVEY_COORDINATOR_PORT))?
         .run()
         .await

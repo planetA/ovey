@@ -3,20 +3,17 @@ use std::io::Read;
 use config::CONFIG;
 use std::{thread, time};
 use std::sync::Arc;
-use std::fs::{File, OpenOptions};
+use std::fs::{OpenOptions};
 use simple_on_shutdown::on_shutdown_move;
 use std::sync::atomic::{AtomicBool, Ordering};
-use futures::executor::block_on;
-use std::thread::{JoinHandle, spawn};
 use std::mem::size_of;
 use std::io;
-use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::convert::TryFrom;
 use std::slice;
 use std::mem;
-use reqwest::StatusCode;
 use liboveyutil::types::*;
+use reqwest::{Client, StatusCode, RequestBuilder};
 
 mod config;
 use uuid::Uuid;
@@ -28,6 +25,7 @@ enum OveydRequestType {
     LeaseDevice = 0,
     LeaseGid = 1,
     ResolveGid = 2,
+    SetGid = 3,
 }
 
 // Big endian u64 type
@@ -58,6 +56,19 @@ struct oveyd_lease_gid {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+struct oveyd_set_gid {
+    real_port: u16,
+    virt_port: u16,
+    real_idx: u32,
+    virt_idx: u32,
+    real_subnet_prefix: U64Be,
+    real_interface_id: U64Be,
+    virt_subnet_prefix: U64Be,
+    virt_interface_id: U64Be,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 struct oveyd_resolve_gid {
     subnet_prefix: U64Be,
     interface_id: U64Be,
@@ -68,6 +79,7 @@ union cmd_union {
     pub lease_device: oveyd_lease_device,
     pub lease_gid: oveyd_lease_gid,
     pub resolve_gid: oveyd_resolve_gid,
+    pub set_gid: oveyd_set_gid,
 }
 
 #[repr(C)]
@@ -76,6 +88,7 @@ struct oveyd_req_pkt {
     pub len: u16,
     pub seq: u32,
     pub network: [u8; 16],
+    pub device: [u8; 16],
     pub cmd: cmd_union,
 }
 
@@ -100,33 +113,6 @@ impl TryFrom<u16> for OveydRequestType {
     }
 }
 
-#[derive(Debug)]
-struct OveydReq {
-    seq: u32,
-    network: Uuid,
-    cmd: OveydCmd,
-}
-
-#[derive(Debug)]
-pub enum OveydCmd {
-    LeaseDevice(LeaseDeviceReq),
-    LeaseGid(LeaseGidReq),
-    ResolveGid(ResolveGidReq),
-}
-
-#[derive(Debug)]
-pub enum OveydCmdResp {
-    LeaseDevice(LeaseDeviceResp),
-    LeaseGid(LeaseGidResp),
-    ResolveGid(ResolveGidResp),
-}
-
-pub struct OveydResp {
-    seq: u32,
-    network: Uuid,
-    cmd: OveydCmdResp,
-}
-
 fn parse_request_lease_device(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     let cmd: oveyd_lease_device = unsafe {
         req.cmd.lease_device
@@ -135,7 +121,8 @@ fn parse_request_lease_device(req: oveyd_req_pkt) -> Result<OveydReq, io::Error>
     Ok(OveydReq{
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
-        cmd: OveydCmd::LeaseDevice(LeaseDeviceReq{
+        query: Box::new(LeaseDeviceQuery{
+            device: Uuid::from_bytes(req.device),
             guid: u64::from_be(cmd.guid.0),
         }),
     })
@@ -149,7 +136,8 @@ fn parse_request_lease_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     Ok(OveydReq{
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
-        cmd: OveydCmd::LeaseGid(LeaseGidReq{
+        query: Box::new(LeaseGidQuery{
+            device: Uuid::from_bytes(req.device),
             port: cmd.port,
             idx: cmd.idx,
             subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
@@ -166,9 +154,32 @@ fn parse_request_resolve_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> 
     Ok(OveydReq{
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
-        cmd: OveydCmd::ResolveGid(ResolveGidReq{
+        query: Box::new(ResolveGidQuery{
+            device: Uuid::from_bytes(req.device),
             subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
             interface_id: u64::from_be(cmd.interface_id.0),
+        }),
+    })
+}
+
+fn parse_request_set_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_set_gid = unsafe {
+        req.cmd.set_gid
+    };
+
+    Ok(OveydReq{
+        seq: req.seq,
+        network: Uuid::from_bytes(req.network),
+        query: Box::new(SetGidQuery{
+            device: Uuid::from_bytes(req.device),
+            real_port: cmd.real_port,
+            virt_port: cmd.virt_port,
+            real_idx: cmd.real_idx,
+            virt_idx: cmd.virt_idx,
+            virt_subnet_prefix: u64::from_be(cmd.virt_subnet_prefix.0),
+            virt_interface_id: u64::from_be(cmd.virt_interface_id.0),
+            real_subnet_prefix: u64::from_be(cmd.real_subnet_prefix.0),
+            real_interface_id: u64::from_be(cmd.real_interface_id.0),
         }),
     })
 }
@@ -188,6 +199,7 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
         Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(pkt),
         Ok(OveydRequestType::LeaseGid) => parse_request_lease_gid(pkt),
         Ok(OveydRequestType::ResolveGid) => parse_request_resolve_gid(pkt),
+        Ok(OveydRequestType::SetGid) => parse_request_set_gid(pkt),
         Err(_) => Err(io::Error::new(io::ErrorKind::InvalidInput, "UnknownType")),
     }
 }
@@ -245,75 +257,48 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                 },
             }
         },
+        OveydCmdResp::SetGid(cmd) => {
+            oveyd_resp_pkt{
+                cmd_type: OveydRequestType::SetGid as u16,
+                len: size_of::<oveyd_resp_pkt>() as u16,
+                seq: resp.seq,
+                cmd: cmd_union{
+                    set_gid: oveyd_set_gid{
+                        real_port: cmd.real_port,
+                        virt_port: cmd.virt_port,
+                        real_idx: cmd.real_idx,
+                        virt_idx: cmd.virt_idx,
+                        virt_subnet_prefix: cmd.virt_subnet_prefix.into(),
+                        virt_interface_id: cmd.virt_interface_id.into(),
+                        real_subnet_prefix: cmd.real_subnet_prefix.into(),
+                        real_interface_id: cmd.real_interface_id.into(),
+                    },
+                },
+            }
+        },
     };
     let buf = raw_byte_repr(&c_resp);
-    let size = file.write(buf).unwrap();
+    let _ = file.write(buf).unwrap();
 }
 
-fn process_request(req: OveydReq) -> Result<OveydResp, io::Error> {
-    println!("Request parsed: {:#?}", req);
+pub async fn process_request(req: OveydReq, host: String) -> Result<OveydResp, io::Error> {
+    let client = Client::new();
+    let res = client
+        .request(req.query.method(),
+                 format!("{}{}", host, req.query.query(req.network)))
+        .send()
+        .await
+        .unwrap();
 
-    let mut host = CONFIG.get_coordinator(&req.network)
-        .ok_or(io::Error::new(io::ErrorKind::NotFound,
-                           "Coordinator not found for the network"))?;
-    let cmd = match req.cmd {
-        OveydCmd::LeaseDevice(cmd) => {
-            let endpoint = ovey_coordinator::urls::build_add_device_url(req.network);
-            host.push_str(&endpoint);
-            let client = reqwest::blocking::Client::new();
-            let res = client.post(&host).json(&cmd)
-                .send()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-            match res.status() {
-                StatusCode::OK => {
-                    OveydCmdResp::LeaseDevice(res.json::<LeaseDeviceResp>()
-                                              .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
-                },
-                s => {
-                    println!("Received response: {}", s);
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
-                }
-            }
-        },
-        OveydCmd::LeaseGid(cmd) => {
-            let endpoint = ovey_coordinator::urls::build_lease_gid_url(req.network);
-            host.push_str(&endpoint);
-            let client = reqwest::blocking::Client::new();
-            let res = client.post(&host).json(&cmd)
-                .send()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-            match res.status() {
-                StatusCode::OK => {
-                    OveydCmdResp::LeaseGid(res.json::<LeaseGidResp>()
-                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
-                },
-                s => {
-                    println!("Received response: {}", s);
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
-                }
-            }
-        },
-        OveydCmd::ResolveGid(cmd) => {
-            let endpoint = ovey_coordinator::urls::build_resolve_gid_url(req.network);
-            host.push_str(&endpoint);
-            let client = reqwest::blocking::Client::new();
-            let res = client.post(&host).json(&cmd)
-                .send()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-            match res.status() {
-                StatusCode::OK => {
-                    OveydCmdResp::ResolveGid(res.json::<ResolveGidResp>()
-                                           .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)
-                },
-                s => {
-                    println!("Received response: {}", s);
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
-                }
-            }
-        },
+    let cmd = match res.status() {
+        StatusCode::OK | StatusCode::CREATED => {
+            req.query.parse_response(res.text().await
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?)?
+        }
+        s => {
+            println!("Received response: {:#?}", s);
+            return Err(io::Error::new(io::ErrorKind::InvalidData, ""));
+        }
     };
 
     Ok(OveydResp{
@@ -323,52 +308,47 @@ fn process_request(req: OveydReq) -> Result<OveydResp, io::Error> {
     })
 }
 
-pub fn cdev_thread(exit_work_loop: Arc<AtomicBool>) -> JoinHandle<()> {
-    spawn(move || {
-        info!("Kernel request listening loop started in a thread");
-        let mut file = OpenOptions::new()
-            .read(true).write(true)
-            .open("/dev/ovey").unwrap();
+pub async fn cdev_thread(exit_work_loop: Arc<AtomicBool>) {
+    info!("Kernel request listening loop started in a thread");
+    let mut file = OpenOptions::new()
+        .read(true).write(true)
+        .open("/dev/ovey").unwrap();
 
-        loop {
-            if exit_work_loop.load(Ordering::Relaxed) {
-                info!("Received signal to exit.");
-                break;
-            }
-
-            let mut buffer: Vec<u8> = vec![0; 128 as usize];
-            let res = file.read(&mut buffer);
-            match res {
-                Err(err) if err.kind() == io::ErrorKind::Interrupted =>
-                    continue,
-                Ok(size) if size == 0 => {
-                    thread::sleep(time::Duration::from_millis(500));
-                    continue;
-                },
-                Err(err) => {
-                    panic!("Failed read with: {}", err);
-                },
-                Ok(_) => {
-                    // Read something let's check it out
-                }
-            }
-
-            let req = parse_request(buffer);
-            match req.and_then(|req| process_request(req)) {
-                Ok(resp) => {
-                    reply_request(&mut file, resp);
-                },
-                Err(err) => {
-                    panic!("Failed request. Need to report error to the app: {} ", err);
-                }
-            }
-
+    loop {
+        if exit_work_loop.load(Ordering::Relaxed) {
+            info!("Received signal to exit.");
+            break;
         }
-        info!("Kernel request listening loop thread done. Consider restarting Ovey daemon.");
-    })
+
+        let mut buffer: Vec<u8> = vec![0; 128 as usize];
+        let res = file.read(&mut buffer);
+        match res {
+            Err(err) if err.kind() == io::ErrorKind::Interrupted =>
+                continue,
+            Ok(size) if size == 0 => {
+                thread::sleep(time::Duration::from_millis(500));
+                continue;
+            },
+            Err(err) => {
+                panic!("Failed read with: {}", err);
+            },
+            Ok(_) => {
+                // Read something let's check it out
+            }
+        }
+
+        let req = parse_request(buffer).unwrap();
+        println!("Request parsed: {:#?}", req);
+        let host = CONFIG.get_coordinator(&req.network)
+            .expect("Coordinator not found for the network");
+        let resp = process_request(req, host).await.unwrap();
+        reply_request(&mut file, resp);
+    }
+    info!("Kernel request listening loop thread done. Consider restarting Ovey daemon.");
 }
 
-fn main() -> std::io::Result<()> {
+#[tokio::main]
+pub async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
@@ -376,7 +356,7 @@ fn main() -> std::io::Result<()> {
     debug!("{:#?}", *CONFIG);
 
     let exit_loop = Arc::new(AtomicBool::new(false));
-    let loop_thread_handle = cdev_thread(exit_loop.clone());
+    cdev_thread(exit_loop.clone()).await;
 
     // Important that this value lives through the whole lifetime of main()
     on_shutdown_move!({
@@ -384,9 +364,6 @@ fn main() -> std::io::Result<()> {
         exit_loop.store(true, Ordering::Relaxed);
         debug!("thread finished");
     });
-
-    // check if all coordinators are up and valid
-    loop_thread_handle.join().unwrap();
 
     Ok(())
 }

@@ -30,7 +30,6 @@ pub fn guid_u64_to_string(guid: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::endianness::Endianness;
 
     #[test]
     fn test_guid_string_to_ube64() {
@@ -48,25 +47,5 @@ mod tests {
         let expected_he = "dead:beef:0000:0000";
         let actual_he = guid_u64_to_string(input_he);
         assert_eq!(expected_he, actual_he);
-    }
-
-    /// u64 to string and backwards with an intermediate step for
-    /// big endian transformation. This test is important for
-    /// little endian platforms like x86.
-    #[test]
-    fn test_be_transformation_step() {
-        let input    = "dead:beef:0000:0000";
-        let expected = "dead:beef:0000:0000";
-
-        let input_he = guid_string_to_u64(input);
-
-        // pretend it gets stored in kernel (big endian u64)
-        let stored_guid_u64_be = Endianness::u64he_to_u64be(input_he);
-        // pretend we load the data from kernel into host endianness
-        let input_he = Endianness::u64be_to_u64he(stored_guid_u64_be);
-
-        let actual = guid_u64_to_string(input_he);
-
-        assert_eq!(expected, actual)
     }
 }

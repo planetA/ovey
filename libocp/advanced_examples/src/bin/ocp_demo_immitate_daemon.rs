@@ -2,7 +2,7 @@
 
 use libocp::ocp_core::{Ocp, OCPRecData, OcpError};
 use std::thread::spawn;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use log::{error, debug, info};
 use simple_on_shutdown::on_shutdown;
 use std::sync::atomic::{AtomicBool, Ordering};

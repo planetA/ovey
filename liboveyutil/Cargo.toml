@@ -12,6 +12,13 @@ publish = false
 regex = "1.3.9"
 serde = { version = "1.0.118", features = ["derive"] }
 uuid = { version = "0.8.1", features = ["v4", "serde"] }
+enum_dispatch = { version = "0.3.7" }
+actix-web = {version = "3.3.2"}
+actix-rt = {version = "1.1.1"}
+awc = {version = "2.0"}
+serde_json = "1.0"
+serde_urlencoded = "0.7"
+http = "0.2"
 
 [dev-dependencies]
 libocp = { path = "../libocp" } # consts for tests
