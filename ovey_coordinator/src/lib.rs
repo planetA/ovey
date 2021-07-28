@@ -5,4 +5,3 @@
 pub const OVEY_COORDINATOR_PORT: usize = 13337;
 
 pub mod rest; // Export the layout of *Input-Structs and *Dto-Structs.
-pub mod urls; // export all urls.

@@ -10,12 +10,11 @@ use actix_web::{
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use config::CONFIG;
 use crate::routes::*;
-use ovey_coordinator::urls::*;
+use liboveyutil::urls::*;
 
 mod config;
 mod rest;
 mod routes;
-mod urls;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
