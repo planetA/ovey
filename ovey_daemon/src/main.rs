@@ -108,6 +108,7 @@ impl TryFrom<u16> for OveydRequestType {
             x if x == OveydRequestType::LeaseDevice as u16 => Ok(OveydRequestType::LeaseDevice),
             x if x == OveydRequestType::LeaseGid as u16 => Ok(OveydRequestType::LeaseGid),
             x if x == OveydRequestType::ResolveGid as u16 => Ok(OveydRequestType::ResolveGid),
+            x if x == OveydRequestType::SetGid as u16 => Ok(OveydRequestType::SetGid),
             _ => Err(()),
         }
     }
@@ -155,7 +156,6 @@ fn parse_request_resolve_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> 
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
         query: Box::new(ResolveGidQuery{
-            device: Uuid::from_bytes(req.device),
             subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
             interface_id: u64::from_be(cmd.interface_id.0),
         }),
@@ -166,6 +166,8 @@ fn parse_request_set_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     let cmd: oveyd_set_gid = unsafe {
         req.cmd.set_gid
     };
+
+    println!("parse_request_set_gid: {:?}", cmd);
 
     Ok(OveydReq{
         seq: req.seq,
@@ -195,6 +197,7 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
 
     println!("Read {}: {:?} hdr", buffer.len(), buffer);
 
+    println!("PKT: cmd {} len {} seq {}", pkt.cmd_type, pkt.len, pkt.seq);
     match pkt.cmd_type.try_into() {
         Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(pkt),
         Ok(OveydRequestType::LeaseGid) => parse_request_lease_gid(pkt),

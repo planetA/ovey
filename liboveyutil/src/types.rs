@@ -106,7 +106,6 @@ pub struct LeaseGidResp {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResolveGidQuery {
-    pub device: Uuid,
     pub subnet_prefix: u64,
     pub interface_id: u64,
 }
