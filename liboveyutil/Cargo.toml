@@ -19,6 +19,3 @@ awc = {version = "2.0"}
 serde_json = "1.0"
 serde_urlencoded = "0.7"
 http = "0.2"
-
-[dev-dependencies]
-libocp = { path = "../libocp" } # consts for tests

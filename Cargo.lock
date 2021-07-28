@@ -504,16 +504,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctrlc"
-version = "3.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b57a92e9749e10f25a171adcebfafe72991d45e7ec2dcb853e8f83d9dafaeb08"
-dependencies = [
- "nix",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "cty"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1111,29 +1101,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320cfe77175da3a483efed4bc0adc1968ca050b098ce4f2f1c13a56626128790"
 
 [[package]]
-name = "libocp"
-version = "0.1.0"
-dependencies = [
- "derive_more",
- "libc",
- "liboveyutil",
- "log",
- "neli",
-]
-
-[[package]]
-name = "libocp-advanced-examples"
-version = "0.1.0"
-dependencies = [
- "ctrlc",
- "env_logger",
- "lazy_static",
- "libocp",
- "log",
- "simple_on_shutdown",
-]
-
-[[package]]
 name = "liboveyutil"
 version = "0.1.0"
 dependencies = [
@@ -1142,7 +1109,6 @@ dependencies = [
  "awc",
  "enum_dispatch",
  "http",
- "libocp",
  "regex",
  "serde",
  "serde_json",
@@ -1300,16 +1266,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "neli"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da4fa0a855a69cc627eeb823fea620094318f5e9b676cd6073b392f37cbafefd"
-dependencies = [
- "byteorder",
- "libc",
-]
-
-[[package]]
 name = "net2"
 version = "0.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1318,18 +1274,6 @@ dependencies = [
  "cfg-if 0.1.10",
  "libc",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "nix"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83450fe6a6142ddd95fb064b746083fc4ef1705fe81f64a64e1d4b39f54a1055"
-dependencies = [
- "bitflags",
- "cc",
- "cfg-if 0.1.10",
- "libc",
 ]
 
 [[package]]
@@ -1433,7 +1377,6 @@ dependencies = [
  "futures",
  "json",
  "lazy_static",
- "libocp",
  "liboveyutil",
  "log",
  "ovey_coordinator",
@@ -1628,7 +1571,6 @@ dependencies = [
 name = "rdma_ovey"
 version = "0.1.0"
 dependencies = [
- "libocp",
  "liboveyutil",
  "ovey_coordinator",
  "ovey_daemon",

@@ -94,11 +94,6 @@ impl DeviceTable {
         self.0.iter_mut().find(|e| e.device == dev)
     }
 
-    fn find<F>(&mut self, func: F) -> Option<&DeviceEntry> where
-        F: FnMut(&&DeviceEntry) -> bool {
-        self.0.iter().find(func)
-    }
-
     fn insert(&mut self, entry: DeviceEntry) {
         self.0.push(entry);
     }
