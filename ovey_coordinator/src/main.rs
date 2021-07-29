@@ -5,12 +5,11 @@
 extern crate log; // import macros
 
 use actix_web::{
-    middleware, web, App, HttpServer,
+    middleware, App, HttpServer,
 };
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
 use config::CONFIG;
 use crate::routes::*;
-use liboveyutil::urls::*;
 
 mod config;
 mod rest;
@@ -34,15 +33,7 @@ async fn main() -> std::io::Result<()> {
             // enable logger
             .wrap(middleware::Logger::default())
             .app_data(state.clone())
-            .service(route_guid_post)
-            .service(route_gid_post)
-            .service(route_resolve_gid)
-            .service(route_gid_put)
-            .service(web::resource(ROUTE_NETWORK_URL).route(web::get().to(route_get_network_info)))
-            .service(web::resource(ROUTE_DEVICE_URL)
-                .route(web::delete().to(route_delete_device))
-                .route(web::get().to(route_get_device_info)))
-            .service(web::resource("/").route(web::get().to(route_index)))
+            .configure(config)
     })
     // TODO also bind the local address? Because this must be called from local network or even remotely?!
         .bind(format!("0.0.0.0:{}", OVEY_COORDINATOR_PORT))?

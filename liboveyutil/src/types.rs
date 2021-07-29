@@ -13,11 +13,13 @@ pub type GuidString = String;
 /// Virtual LID as String (e.g. 0x41) is the key.
 /// This is easier to read/write during development and overhead is neglible.
 pub type LidString = String;
+use crate::urls::*;
 
 #[derive(Debug)]
 pub struct OveydReq {
     pub seq: u32,
     pub network: Uuid,
+    pub device: Option<Uuid>,
     pub query: Box<dyn OveydQuery>,
 }
 
@@ -38,7 +40,24 @@ pub struct OveydResp {
 pub trait OveydQuery: fmt::Debug {
     fn method(&self) -> http::Method;
 
-    fn query(&self, network: Uuid) -> String;
+    /// Endpoint at the coordinator that processes the query
+    fn endpoint(&self) -> &str;
+
+    /// Convert the query to urlencoded string
+    fn query(&self) -> String;
+
+    fn compile(&self, host: Option<&str>, network: Uuid, device: Option<Uuid>) -> String {
+        let url = if let Some(device_uuid) = device {
+            build_device_url(self.endpoint(), network, device_uuid)
+        } else {
+            build_network_url(self.endpoint(), network)
+        };
+        if let Some(host) = host {
+            format!("{}{}?{}", host, url, self.query())
+        } else {
+            format!("{}?{}", url, self.query())
+        }
+    }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error>;
 }
@@ -46,7 +65,6 @@ pub trait OveydQuery: fmt::Debug {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LeaseDeviceQuery {
-    pub device: Uuid,
     pub guid: u64,
 }
 
@@ -60,9 +78,12 @@ impl OveydQuery for LeaseDeviceQuery {
         http::Method::POST
     }
 
-    fn query(&self, network: Uuid) -> String {
-        let query = serde_urlencoded::to_string(&self).unwrap();
-        format!("/net/{}/guid?{}", network, query)
+    fn endpoint(&self) -> &str {
+        ROUTE_GUIDS_DEVICE
+    }
+
+    fn query(&self) -> String {
+        serde_urlencoded::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -72,7 +93,6 @@ impl OveydQuery for LeaseDeviceQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeaseGidQuery {
-    pub device: Uuid,
     pub port: u16,
     pub idx: u32,
     pub subnet_prefix: u64,
@@ -84,9 +104,12 @@ impl OveydQuery for LeaseGidQuery {
         http::Method::POST
     }
 
-    fn query(&self, network: Uuid) -> String {
-        let query = serde_urlencoded::to_string(&self).unwrap();
-        format!("/net/{}/gid?{}", network, query)
+    fn endpoint(&self) -> &str {
+        ROUTE_GIDS_DEVICE
+    }
+
+    fn query(&self) -> String {
+        serde_urlencoded::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -114,9 +137,13 @@ impl OveydQuery for ResolveGidQuery {
     fn method(&self) -> http::Method {
         http::Method::GET
     }
-    fn query(&self, network: Uuid) -> String {
-        let query = serde_urlencoded::to_string(&self).unwrap();
-        format!("/net/{}/gid?{}", network, query)
+
+    fn endpoint(&self) -> &str {
+        ROUTE_GIDS_ALL
+    }
+
+    fn query(&self) -> String {
+        serde_urlencoded::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -133,7 +160,6 @@ pub struct ResolveGidResp {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetGidQuery {
-    pub device: Uuid,
     pub real_port: u16,
     pub virt_port: u16,
     pub real_idx: u32,
@@ -149,9 +175,12 @@ impl OveydQuery for SetGidQuery {
         http::Method::PUT
     }
 
-    fn query(&self, network: Uuid) -> String {
-        let query = serde_urlencoded::to_string(&self).unwrap();
-        format!("/net/{}/gid?{}", network, query)
+    fn endpoint(&self) -> &str {
+        ROUTE_GIDS_DEVICE
+    }
+
+    fn query(&self) -> String {
+        serde_urlencoded::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -162,7 +191,6 @@ impl OveydQuery for SetGidQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetGidResp {
-    pub device: Uuid,
     pub real_port: u16,
     pub virt_port: u16,
     pub real_idx: u32,

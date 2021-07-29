@@ -1,7 +1,7 @@
 //! Handles all routes/controllers. Functions that get invoked on a specific route from
 //! Ovey daemon requests.
 
-use actix_web::{HttpResponse, HttpRequest, web, post, get, put};
+use actix_web::{HttpResponse, HttpRequest, web};
 use actix_web::http::StatusCode;
 
 use crate::config::CONFIG;
@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
 use rand::prelude::*;
+use liboveyutil::urls::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Virt<T> {
@@ -125,36 +126,34 @@ pub fn new_app_state() -> web::Data<CoordState> {
     })
 }
 
-pub async fn route_index(_req: HttpRequest) -> HttpResponse {
-    //println!("request: {:?}", &req);
-    HttpResponse::Gone().finish() // <- send response
+pub fn config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::resource(ROUTE_GUIDS_DEVICE)
+            .route(web::post().to(route_guid_post))
+    ).service(
+        web::resource(ROUTE_GIDS_ALL)
+            .route(web::get().to(route_resolve_gid))
+    ).service(
+        web::resource(ROUTE_GIDS_DEVICE)
+            .route(web::post().to(route_gid_post))
+            .route(web::put().to(route_gid_put))
+    );
 }
 
-pub async fn route_get_network_info(web::Path(network_uuid): web::Path<Uuid>)
-  -> Result<actix_web::HttpResponse, CoordinatorRestError> {
-    Ok(HttpResponse::Gone().finish())
-}
-
-pub async fn route_get_device_info(web::Path((network_uuid, virt_dev_id)): web::Path<(Uuid, GuidString)>)
-    -> Result<actix_web::HttpResponse, CoordinatorRestError> {
-    Ok(HttpResponse::Gone().finish())
-}
-
-#[post("/net/{network}/guid")]
 pub async fn route_guid_post(
     state: web::Data<CoordState>,
-    web::Path(network_uuid): web::Path<Uuid>,
+    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
     web::Query(query): web::Query<LeaseDeviceQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     let mut networks = state.networks.lock().unwrap();
     let network = networks.entry(network_uuid).or_insert(NetworkState::new());
 
-    let (status, virt) = if let Some(mut device) = network.devices.by_device(query.device) {
+    let (status, virt) = if let Some(mut device) = network.devices.by_device(device_uuid) {
         device.lease = Instant::now();
         (StatusCode::OK, device.guid.unwrap().virt)
     } else {
-        let device = DeviceEntry::new(query.device)
+        let device = DeviceEntry::new(device_uuid)
             .set_guid(Virt{
                 real: query.guid,
                 virt: random::<u64>(),
@@ -172,10 +171,9 @@ pub async fn route_guid_post(
     Ok(HttpResponse::build(status).json(output))
 }
 
-#[post("/net/{network}/gid")]
 pub async fn route_gid_post(
     state: web::Data<CoordState>,
-    web::Path(network_uuid): web::Path<Uuid>,
+    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
     web::Query(query): web::Query<LeaseGidQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
@@ -183,7 +181,7 @@ pub async fn route_gid_post(
     let network = networks.get_mut(&network_uuid).unwrap();
     debug!("Lease gd: {}: {:#?} {:#?}", network_uuid, _req, query);
 
-    if let Some(device) = network.devices.by_device(query.device) {
+    if let Some(device) = network.devices.by_device(device_uuid) {
         // Find the next available index
         let idx = device.gid.iter()
             .map(|e| e.virt.idx)
@@ -219,7 +217,6 @@ pub async fn route_gid_post(
     }
 }
 
-#[get("/net/{network}/gid")]
 pub async fn route_resolve_gid(
     state: web::Data<CoordState>,
     web::Path(network_uuid): web::Path<Uuid>,
@@ -250,10 +247,9 @@ pub async fn route_resolve_gid(
     Ok(HttpResponse::Ok().json(output))
 }
 
-#[put("/net/{network}/gid")]
 pub async fn route_gid_put(
     state: web::Data<CoordState>,
-    web::Path(network_uuid): web::Path<Uuid>,
+    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
     web::Query(query): web::Query<SetGidQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
@@ -261,7 +257,7 @@ pub async fn route_gid_put(
     let network = networks.get_mut(&network_uuid).unwrap();
     debug!("Let gd: {}: {:#?} {:#?}", network_uuid, _req, query);
 
-    if let Some(device) = network.devices.by_device(query.device) {
+    if let Some(device) = network.devices.by_device(device_uuid) {
         // Find the next available index
         // TODO: Need to check that the virtual and real addresses are unique
         device.set_gid(Virt{
@@ -279,7 +275,6 @@ pub async fn route_gid_put(
             }});
 
         let output = SetGidResp{
-            device: device.device,
             real_port: query.virt_port,
             real_idx: query.virt_idx,
             real_subnet_prefix: query.virt_subnet_prefix,
@@ -295,18 +290,12 @@ pub async fn route_gid_put(
     }
 }
 
-pub async fn route_delete_device(web::Path((network_uuid, virt_dev_id)): web::Path<(Uuid, GuidString)>)
-    -> Result<actix_web::HttpResponse, CoordinatorRestError> {
-    Ok(HttpResponse::Gone().finish())
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use actix_web::{test, App};
     use actix_web::test::TestRequest;
-    use actix_web::http::{Method, StatusCode};
+    use actix_web::http::StatusCode;
 
     const GUID: u64 = 444;
 
@@ -316,16 +305,16 @@ mod tests {
         let mut app = test::init_service(
             App::new()
                 .app_data(state.clone())
-                .service(route_guid_post)).await;
+                .configure(config)).await;
         let network = Uuid::new_v4();
 
-        let query_struct = LeaseDeviceQuery{
+        let device = Uuid::new_v4();
+        let query = LeaseDeviceQuery{
             guid: GUID,
-            device: Uuid::new_v4(),
         };
-        let uri = query_struct.query(network);
+        let uri = query.compile(None, network, Some(device));
         let req = TestRequest::with_uri(&uri)
-            .method(Method::POST)
+            .method(query.method())
             .to_request();
         println!("{:#?}", req);
         let resp = test::call_service(&mut app, req).await;
@@ -335,7 +324,7 @@ mod tests {
         assert_ne!(GUID, resp1_struct.guid);
 
         let req = TestRequest::with_uri(&uri)
-            .method(Method::POST)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
@@ -351,23 +340,19 @@ mod tests {
         let mut app = test::init_service(
             App::new()
                 .app_data(state.clone())
-                .service(route_guid_post)
-                .service(route_gid_post)
-                .service(route_resolve_gid)
-        ).await;
+                .configure(config)).await;
         let network_uuid = Uuid::new_v4();
         let device_uuid = Uuid::new_v4();
         let real_subnet_prefix: u64 = 4;
         let real_interface_id: u64 = 5;
 
-        let query_struct = LeaseDeviceQuery{
+        let query = LeaseDeviceQuery{
             guid: GUID,
-            device: device_uuid,
         };
-        let uri = query_struct.query(network_uuid);
+        let uri = query.compile(None, network_uuid, Some(device_uuid));
         println!("{}", uri);
         let req = TestRequest::with_uri(&uri)
-            .method(Method::POST)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::CREATED);
@@ -375,35 +360,34 @@ mod tests {
         let guid_struct: LeaseDeviceResp = serde_json::from_slice(&body).unwrap();
         assert_ne!(GUID, guid_struct.guid);
 
-        let query_struct = LeaseGidQuery{
-            device: device_uuid,
+        let query = LeaseGidQuery{
             port: 1,
             idx: 0,
             subnet_prefix: real_subnet_prefix,
             interface_id: real_interface_id,
         };
-        let uri = query_struct.query(network_uuid);
+        let uri = query.compile(None, network_uuid, Some(device_uuid));
         let req = TestRequest::with_uri(&uri)
-            .method(Method::POST)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let body = test::read_body(resp).await;
         let gid_struct: LeaseGidResp = serde_json::from_slice(&body).unwrap();
         println!("{:#?}", gid_struct);
-        assert_eq!(gid_struct.port, query_struct.port);
-        assert_eq!(gid_struct.idx, query_struct.idx);
-        assert_ne!(gid_struct.subnet_prefix, query_struct.subnet_prefix);
-        assert_ne!(gid_struct.interface_id, query_struct.interface_id);
+        assert_eq!(gid_struct.port, query.port);
+        assert_eq!(gid_struct.idx, query.idx);
+        assert_ne!(gid_struct.subnet_prefix, query.subnet_prefix);
+        assert_ne!(gid_struct.interface_id, query.interface_id);
 
-        let query_struct = ResolveGidQuery{
+        let query = ResolveGidQuery{
             subnet_prefix: gid_struct.subnet_prefix,
             interface_id: gid_struct.interface_id,
         };
-        let uri = query_struct.query(network_uuid);
+        let uri = query.compile(None, network_uuid, None);
         println!("{}", uri);
         let req = TestRequest::with_uri(&uri)
-            .method(Method::GET)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
@@ -441,22 +425,17 @@ mod tests {
         let mut app = test::init_service(
             App::new()
                 .app_data(state.clone())
-                .service(route_guid_post)
-                .service(route_gid_post)
-                .service(route_resolve_gid)
-                .service(route_gid_put)
-        ).await;
+                .configure(config)).await;
         let network_uuid = Uuid::new_v4();
         let device_uuid = Uuid::new_v4();
 
-        let query_struct = LeaseDeviceQuery{
+        let query = LeaseDeviceQuery{
             guid: GUID,
-            device: device_uuid,
         };
-        let uri = query_struct.query(network_uuid);
+        let uri = query.compile(None, network_uuid, Some(device_uuid));
         println!("{}", uri);
         let req = TestRequest::with_uri(&uri)
-            .method(Method::POST)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::CREATED);
@@ -464,8 +443,7 @@ mod tests {
         let guid_struct: LeaseDeviceResp = serde_json::from_slice(&body).unwrap();
         assert_ne!(GUID, guid_struct.guid);
 
-        let query_struct = SetGidQuery{
-            device: device_uuid,
+        let query = SetGidQuery{
             virt_port: 1,
             virt_idx: 0,
             virt_subnet_prefix: 10,
@@ -475,9 +453,9 @@ mod tests {
             real_subnet_prefix: 12,
             real_interface_id: 13,
         };
-        let uri = query_struct.query(network_uuid);
+        let uri = query.compile(None, network_uuid, Some(device_uuid));
         let req = TestRequest::with_uri(&uri)
-            .method(Method::PUT)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
@@ -485,8 +463,7 @@ mod tests {
         let resp: SetGidResp = serde_json::from_slice(&body).unwrap();
         println!("{:#?}", resp);
 
-        let query_struct = SetGidQuery{
-            device: device_uuid,
+        let query = SetGidQuery{
             virt_port: 1,
             virt_idx: 1,
             virt_subnet_prefix: 0,
@@ -496,9 +473,9 @@ mod tests {
             real_subnet_prefix: 0,
             real_interface_id: 15,
         };
-        let uri = query_struct.query(network_uuid);
+        let uri = query.compile(None, network_uuid, Some(device_uuid));
         let req = TestRequest::with_uri(&uri)
-            .method(Method::PUT)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
@@ -506,14 +483,14 @@ mod tests {
         let resp: SetGidResp = serde_json::from_slice(&body).unwrap();
         println!("{:#?}", resp);
 
-        let query_struct = ResolveGidQuery{
+        let query = ResolveGidQuery{
             subnet_prefix: 0,
             interface_id: 14,
         };
-        let uri = query_struct.query(network_uuid);
+        let uri = query.compile(None, network_uuid, None);
         println!("{}", uri);
         let req = TestRequest::with_uri(&uri)
-            .method(Method::GET)
+            .method(query.method())
             .to_request();
         let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);

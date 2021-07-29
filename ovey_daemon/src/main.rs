@@ -13,7 +13,8 @@ use std::convert::TryFrom;
 use std::slice;
 use std::mem;
 use liboveyutil::types::*;
-use reqwest::{Client, StatusCode, RequestBuilder};
+use reqwest::{Client, StatusCode};
+use liboveyutil::urls::{build_network_url, build_device_url};
 
 mod config;
 use uuid::Uuid;
@@ -122,8 +123,8 @@ fn parse_request_lease_device(req: oveyd_req_pkt) -> Result<OveydReq, io::Error>
     Ok(OveydReq{
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
+        device: Some(Uuid::from_bytes(req.device)),
         query: Box::new(LeaseDeviceQuery{
-            device: Uuid::from_bytes(req.device),
             guid: u64::from_be(cmd.guid.0),
         }),
     })
@@ -137,8 +138,8 @@ fn parse_request_lease_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     Ok(OveydReq{
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
+        device: Some(Uuid::from_bytes(req.device)),
         query: Box::new(LeaseGidQuery{
-            device: Uuid::from_bytes(req.device),
             port: cmd.port,
             idx: cmd.idx,
             subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
@@ -155,6 +156,7 @@ fn parse_request_resolve_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> 
     Ok(OveydReq{
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
+        device: None,
         query: Box::new(ResolveGidQuery{
             subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
             interface_id: u64::from_be(cmd.interface_id.0),
@@ -172,8 +174,8 @@ fn parse_request_set_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     Ok(OveydReq{
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
+        device: Some(Uuid::from_bytes(req.device)),
         query: Box::new(SetGidQuery{
-            device: Uuid::from_bytes(req.device),
             real_port: cmd.real_port,
             virt_port: cmd.virt_port,
             real_idx: cmd.real_idx,
@@ -288,7 +290,7 @@ pub async fn process_request(req: OveydReq, host: String) -> Result<OveydResp, i
     let client = Client::new();
     let res = client
         .request(req.query.method(),
-                 format!("{}{}", host, req.query.query(req.network)))
+                 req.query.compile(Some(&host), req.network, req.device))
         .send()
         .await
         .unwrap();
