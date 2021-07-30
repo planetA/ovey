@@ -14,7 +14,6 @@ use std::slice;
 use std::mem;
 use liboveyutil::types::*;
 use reqwest::{Client, StatusCode};
-use liboveyutil::urls::{build_network_url, build_device_url};
 
 mod config;
 use uuid::Uuid;
