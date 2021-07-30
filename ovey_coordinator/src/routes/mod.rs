@@ -262,7 +262,7 @@ mod tests {
 
         let networks = state.networks.lock().unwrap();
         let network = networks.get(&network_uuid).unwrap();
-        let dev = &network.devices.vec()[0];
+        let dev = &network.devices.iter().next().unwrap();
         println!("{:#?}", dev);
 
         let gid = &dev.gid[0];
@@ -364,7 +364,7 @@ mod tests {
 
         let networks = state.networks.lock().unwrap();
         let network = networks.get(&network_uuid).unwrap();
-        let dev = &network.devices.vec()[0];
+        let dev = &network.devices.iter().next().unwrap();
         println!("{:#?}", dev);
 
         assert_eq!(dev.guid, Some(Virt::<u64>{real: GUID, virt: guid_struct.guid}));

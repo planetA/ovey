@@ -89,10 +89,6 @@ impl DeviceTable {
         self.0.push(entry);
     }
 
-    pub(crate) fn vec(&self) -> &Vec<DeviceEntry> {
-        &self.0
-    }
-
     pub(crate) fn iter(&self) -> std::slice::Iter<'_, DeviceEntry>
     {
         self.0.iter()
