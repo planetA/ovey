@@ -1,18 +1,15 @@
 //! Handles all routes/controllers. Functions that get invoked on a specific route from
 //! Ovey daemon requests.
 
-use actix_web::{HttpResponse, HttpRequest, web};
+use actix_web::web;
 
-use crate::rest::errors::CoordinatorRestError;
-use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use rand::prelude::*;
-use liboveyutil::urls::*;
-use liboveyutil::types::*;
 
 mod types;
 mod guids;
+mod gids;
+mod network;
 
 use types::*;
 
@@ -22,143 +19,20 @@ pub(crate) fn new_app_state() -> web::Data<CoordState> {
     })
 }
 
-pub fn config(cfg: &mut web::ServiceConfig) {
+pub(crate) fn config(cfg: &mut web::ServiceConfig) {
     guids::config(cfg);
-    cfg.service(
-        web::resource(ROUTE_GIDS_ALL)
-            .route(web::get().to(route_resolve_gid))
-    ).service(
-        web::resource(ROUTE_GIDS_DEVICE)
-            .route(web::post().to(route_gid_post))
-            .route(web::put().to(route_gid_put))
-    );
-}
-
-pub(crate) async fn route_gid_post(
-    state: web::Data<CoordState>,
-    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
-    web::Query(query): web::Query<LeaseGidQuery>,
-    _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
-{
-    let mut networks = state.networks.lock().unwrap();
-    let network = networks.get_mut(&network_uuid).unwrap();
-    debug!("Lease gd: {}: {:#?} {:#?}", network_uuid, _req, query);
-
-    if let Some(device) = network.devices.by_device(device_uuid) {
-        // Find the next available index
-        let idx = device.gid.iter()
-            .map(|e| e.virt.idx)
-            .max()
-            .and_then(|idx| Some(idx + 1)).or(Some(0)).unwrap();
-        let gid = GidEntry{
-            port: 1,
-            idx: idx,
-            subnet_prefix: random(),
-            interface_id: random(),
-        };
-        device.set_gid(Virt{
-            virt: gid,
-            real: GidEntry{
-                port: query.port,
-                idx: query.idx,
-                subnet_prefix: query.subnet_prefix,
-                interface_id: query.interface_id,
-            }});
-
-        assert_eq!(gid.port, query.port);
-        assert_eq!(gid.idx, query.idx);
-
-        let output = LeaseGidResp{
-            port: gid.port,
-            idx: gid.idx,
-            subnet_prefix: gid.subnet_prefix,
-            interface_id: gid.interface_id,
-        };
-        Ok(HttpResponse::Ok().json(output))
-    } else {
-        Ok(HttpResponse::NotFound().finish())
-    }
-}
-
-pub(crate) async fn route_resolve_gid(
-    state: web::Data<CoordState>,
-    web::Path(network_uuid): web::Path<Uuid>,
-    web::Query(query): web::Query<ResolveGidQuery>,
-    _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
-{
-    let mut networks = state.networks.lock().unwrap();
-    let network = networks.get_mut(&network_uuid).unwrap();
-
-    let search_pattern = GidEntry::new(0, query.subnet_prefix, query.interface_id);
-    println!("{:#?}", search_pattern);
-    println!("{:#?}", network.devices);
-    let gid = network.devices.iter()
-        .filter_map(|device| {
-            device.gid.iter().find(|e| e.virt.is_same_addr(&search_pattern))
-        })
-        .collect::<Vec<_>>();
-    if gid.len() == 0 {
-        return Ok(HttpResponse::NotFound().finish());
-    }
-
-    let output = ResolveGidResp{
-        subnet_prefix: gid[0].real.subnet_prefix,
-        interface_id: gid[0].real.interface_id,
-    };
-    debug!("Resolve gid: {}: {:#?} {:#?} -> {:#?}", network_uuid, _req,
-           query, output);
-    Ok(HttpResponse::Ok().json(output))
-}
-
-pub(crate) async fn route_gid_put(
-    state: web::Data<CoordState>,
-    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
-    web::Query(query): web::Query<SetGidQuery>,
-    _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
-{
-    let mut networks = state.networks.lock().unwrap();
-    let network = networks.get_mut(&network_uuid).unwrap();
-    debug!("Let gd: {}: {:#?} {:#?}", network_uuid, _req, query);
-
-    if let Some(device) = network.devices.by_device(device_uuid) {
-        // Find the next available index
-        // TODO: Need to check that the virtual and real addresses are unique
-        device.set_gid(Virt{
-            virt: GidEntry{
-                port: query.virt_port,
-                idx: query.virt_idx,
-                subnet_prefix: query.virt_subnet_prefix,
-                interface_id: query.virt_interface_id,
-            },
-            real: GidEntry{
-                port: query.real_port,
-                idx: query.real_idx,
-                subnet_prefix: query.real_subnet_prefix,
-                interface_id: query.real_interface_id,
-            }});
-
-        let output = SetGidResp{
-            real_port: query.virt_port,
-            real_idx: query.virt_idx,
-            real_subnet_prefix: query.virt_subnet_prefix,
-            real_interface_id: query.virt_interface_id,
-            virt_port: query.real_port,
-            virt_idx: query.real_idx,
-            virt_subnet_prefix: query.real_subnet_prefix,
-            virt_interface_id: query.real_interface_id,
-        };
-        Ok(HttpResponse::Ok().json(output))
-    } else {
-        Ok(HttpResponse::NotFound().finish())
-    }
+    gids::config(cfg);
+    network::config(cfg);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
     use actix_web::{test, App};
     use actix_web::test::TestRequest;
     use actix_web::http::StatusCode;
+    use liboveyutil::types::*;
 
     const GUID: u64 = 444;
 
