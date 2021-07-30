@@ -13,113 +13,10 @@ use std::time::Instant;
 use rand::prelude::*;
 use liboveyutil::urls::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Virt<T> {
-    real: T,
-    virt: T,
-}
+mod types;
+use types::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct GidEntry {
-    port: u16,
-    idx: u32,
-    subnet_prefix: u64,
-    interface_id: u64,
-}
-
-impl GidEntry {
-    fn new(idx: u32, subnet_prefix: u64, interface_id: u64) -> Self {
-        GidEntry{
-            port: 1,
-            idx: idx,
-            subnet_prefix,
-            interface_id,
-        }
-    }
-
-    fn is_same_addr(&self, other: &Self) -> bool {
-        self.subnet_prefix == other.subnet_prefix &&
-            self.interface_id == other.interface_id
-    }
-}
-
-#[derive(Clone, Debug)]
-struct DeviceEntry {
-    device: Uuid,
-    guid: Option<Virt<u64>>,
-    gid: Vec<Virt<GidEntry>>,
-    lease: Instant,
-}
-
-impl DeviceEntry {
-    fn new(device: Uuid) -> Self {
-        Self{
-            device: device,
-            lease: Instant::now(),
-            guid: None,
-            gid: Vec::new(),
-        }
-    }
-
-    fn is_gid_unique(&mut self, gid: Virt<GidEntry>) -> bool {
-        self.gid.iter()
-            .find(|e| e.virt.is_same_addr(&gid.virt) || e.real.is_same_addr(&gid.real))
-            .is_none()
-    }
-
-    fn set_guid(&mut self, guid: Virt<u64>) -> &mut Self {
-        self.guid = Some(guid);
-        self
-    }
-
-    fn set_gid(&mut self, gid: Virt<GidEntry>) -> &mut Self {
-        if !self.is_gid_unique(gid) {
-            panic!("Duplicate gid");
-        }
-
-        self.gid.push(gid);
-        self
-    }
-}
-
-#[derive(Debug)]
-struct DeviceTable(Vec<DeviceEntry>);
-
-impl DeviceTable {
-    fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    fn by_device(&mut self, dev: Uuid) -> Option<&mut DeviceEntry> {
-        self.0.iter_mut().find(|e| e.device == dev)
-    }
-
-    fn insert(&mut self, entry: DeviceEntry) {
-        self.0.push(entry);
-    }
-
-    fn vec(&self) -> &Vec<DeviceEntry> {
-        &self.0
-    }
-}
-
-struct NetworkState {
-    devices: DeviceTable,
-}
-
-impl NetworkState {
-    fn new() -> Self {
-        NetworkState{
-            devices: DeviceTable::new(),
-        }
-    }
-}
-
-pub struct CoordState {
-    networks: Mutex<HashMap<Uuid, NetworkState>>,
-}
-
-pub fn new_app_state() -> web::Data<CoordState> {
+pub(crate) fn new_app_state() -> web::Data<CoordState> {
     web::Data::new(CoordState{
         networks: Mutex::new(HashMap::new())
     })
@@ -139,7 +36,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     );
 }
 
-pub async fn route_guid_post(
+pub(crate) async fn route_guid_post(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
     web::Query(query): web::Query<LeaseDeviceQuery>,
@@ -170,7 +67,7 @@ pub async fn route_guid_post(
     Ok(HttpResponse::build(status).json(output))
 }
 
-pub async fn route_gid_post(
+pub(crate) async fn route_gid_post(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
     web::Query(query): web::Query<LeaseGidQuery>,
@@ -216,7 +113,7 @@ pub async fn route_gid_post(
     }
 }
 
-pub async fn route_resolve_gid(
+pub(crate) async fn route_resolve_gid(
     state: web::Data<CoordState>,
     web::Path(network_uuid): web::Path<Uuid>,
     web::Query(query): web::Query<ResolveGidQuery>,
@@ -228,7 +125,7 @@ pub async fn route_resolve_gid(
     let search_pattern = GidEntry::new(0, query.subnet_prefix, query.interface_id);
     println!("{:#?}", search_pattern);
     println!("{:#?}", network.devices);
-    let gid = network.devices.0.iter()
+    let gid = network.devices.iter()
         .filter_map(|device| {
             device.gid.iter().find(|e| e.virt.is_same_addr(&search_pattern))
         })
@@ -246,7 +143,7 @@ pub async fn route_resolve_gid(
     Ok(HttpResponse::Ok().json(output))
 }
 
-pub async fn route_gid_put(
+pub(crate) async fn route_gid_put(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
     web::Query(query): web::Query<SetGidQuery>,
