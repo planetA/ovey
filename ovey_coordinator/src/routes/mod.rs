@@ -4,7 +4,6 @@
 use actix_web::{HttpResponse, HttpRequest, web};
 use actix_web::http::StatusCode;
 
-use crate::config::CONFIG;
 use crate::rest::errors::CoordinatorRestError;
 use uuid::Uuid;
 use liboveyutil::types::*;

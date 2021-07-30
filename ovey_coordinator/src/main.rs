@@ -8,17 +8,14 @@ use actix_web::{
     middleware, App, HttpServer,
 };
 use ovey_coordinator::OVEY_COORDINATOR_PORT;
-use config::CONFIG;
 use crate::routes::*;
 
-mod config;
 mod rest;
 mod routes;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     println!("Ovey coordinator started with the following initial configuration:");
-    println!("{:#?}", *CONFIG);
 
     std::env::set_var("RUST_LOG", "actix_web=info,debug");
     env_logger::init();
