@@ -2,18 +2,18 @@
 //! Ovey daemon requests.
 
 use actix_web::{HttpResponse, HttpRequest, web};
-use actix_web::http::StatusCode;
 
 use crate::rest::errors::CoordinatorRestError;
 use uuid::Uuid;
-use liboveyutil::types::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::Instant;
 use rand::prelude::*;
 use liboveyutil::urls::*;
+use liboveyutil::types::*;
 
 mod types;
+mod guids;
+
 use types::*;
 
 pub(crate) fn new_app_state() -> web::Data<CoordState> {
@@ -23,10 +23,8 @@ pub(crate) fn new_app_state() -> web::Data<CoordState> {
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
+    guids::config(cfg);
     cfg.service(
-        web::resource(ROUTE_GUIDS_DEVICE)
-            .route(web::post().to(route_guid_post))
-    ).service(
         web::resource(ROUTE_GIDS_ALL)
             .route(web::get().to(route_resolve_gid))
     ).service(
@@ -34,37 +32,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route(web::post().to(route_gid_post))
             .route(web::put().to(route_gid_put))
     );
-}
-
-pub(crate) async fn route_guid_post(
-    state: web::Data<CoordState>,
-    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
-    web::Query(query): web::Query<LeaseDeviceQuery>,
-    _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
-{
-    let mut networks = state.networks.lock().unwrap();
-    let network = networks.entry(network_uuid).or_insert(NetworkState::new());
-
-    let (status, virt) = if let Some(mut device) = network.devices.by_device(device_uuid) {
-        device.lease = Instant::now();
-        (StatusCode::OK, device.guid.unwrap().virt)
-    } else {
-        let device = DeviceEntry::new(device_uuid)
-            .set_guid(Virt{
-                real: query.guid,
-                virt: random::<u64>(),
-            }).to_owned();
-        let virt = device.guid.unwrap().virt;
-        network.devices.insert(device);
-        (StatusCode::CREATED, virt)
-    };
-
-    debug!("Creating device: {}: {:#?} {:#?}", network_uuid, query, _req);
-
-    let output = LeaseDeviceResp{
-        guid: virt,
-    };
-    Ok(HttpResponse::build(status).json(output))
 }
 
 pub(crate) async fn route_gid_post(
