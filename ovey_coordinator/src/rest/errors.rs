@@ -10,19 +10,16 @@ pub enum CoordinatorRestError {
 
 
     // 4XX Errors
-
-    /// Means that the allow-list from the init configuration doesn't cover the given network id.
-    #[display(fmt = "The given virtual network '{}' is not supported.", _0)]
-    VirtNetworkNotSupported(Uuid),
-    /// Means that the allow-list from the init configuration doesn't cover the given virtual device guid.
-    #[display(fmt = "The given virtual guid '{}' is not supported for the given virtual network '{}'.", _1, _0)]
-    VirtDeviceGuidNotSupported(Uuid, String),
-    /// Means that a virtual device is already registered for the given virtual network id.
-    #[display(fmt = "The given virtual guid '{}' is already registered in the virtual network '{}'.", _1, _0)]
-    VirtDeviceAlreadyRegistered(Uuid, String),
-    /// Means that the virtual device is supported by the coordinator but not yet registered/activated.
-    #[display(fmt = "The virtual device with guid '{}' is not registered in the virtual network '{}'.", _1, _0)]
-    VirtDeviceNotYetRegistered(Uuid, String),
+    #[display(fmt = "Network '{}' not found.", _0)]
+    NetworkUuidNotFound(Uuid),
+    #[display(fmt = "Device '{}' not found in the network '{}'.", _1, _0)]
+    DeviceUuidNotFound(Uuid, Uuid),
+    #[display(fmt = "Port '{}' not found inside device '{}'.", _1, _0)]
+    PortNotFound(Uuid, u16),
+    #[display(fmt = "Gid '{:08x}:{:08x}' not found.", _0, _1)]
+    GidNotFound(u64, u64),
+    #[display(fmt = "Real or virtual gid is not unique.")]
+    GidConflict,
 }
 
 // IDE tells that Display is not implemented for CoordinatorRestError, but it gets implemented
@@ -33,10 +30,11 @@ impl error::ResponseError for CoordinatorRestError {
             // 5XX Errors
 
             // 4XX errors
-            CoordinatorRestError::VirtNetworkNotSupported(_) => StatusCode::NOT_FOUND,
-            CoordinatorRestError::VirtDeviceGuidNotSupported(_, _) => StatusCode::NOT_FOUND,
-            CoordinatorRestError::VirtDeviceAlreadyRegistered(_, _) => StatusCode::CONFLICT,
-            CoordinatorRestError::VirtDeviceNotYetRegistered(_, _) => StatusCode::NOT_FOUND,
+            CoordinatorRestError::NetworkUuidNotFound(..) => StatusCode::NOT_FOUND,
+            CoordinatorRestError::DeviceUuidNotFound(..) => StatusCode::NOT_FOUND,
+            CoordinatorRestError::PortNotFound(..) => StatusCode::NOT_FOUND,
+            CoordinatorRestError::GidNotFound(..) => StatusCode::NOT_FOUND,
+            CoordinatorRestError::GidConflict => StatusCode::CONFLICT,
         }
     }
 

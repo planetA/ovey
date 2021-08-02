@@ -25,3 +25,5 @@ log = "0.4.11"# info!, debug! etc. macros; works with Actix Logging Environment
 
 [dev-dependencies]
 actix-rt = "1.1.1" # for tests
+actix-http = "2.2" # for tests
+bytes = "0.5"

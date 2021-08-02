@@ -15,8 +15,12 @@ pub const ROUTE_DEVICES_ONE: &str = "/networks/{network}/devices/{device}";
 pub const ROUTE_GUIDS_DEVICE: &str = "/networks/{network}/devices/{device}/guids";
 /// Endpoint to all GIDs of a device. A device may have multiple GIDs.
 pub const ROUTE_GIDS_DEVICE: &str = "/networks/{network}/devices/{device}/gids";
+/// Endpoint to all ports of a device.
+pub const ROUTE_PORTS_DEVICE: &str = "/networks/{network}/devices/{device}/ports";
 /// Endpoint to all GIDs in a network. A device may have multiple GIDs.
 pub const ROUTE_GIDS_ALL: &str = "/networks/{network}/gids";
+/// Endpoint to all LIDs in a network.
+pub const ROUTE_LIDS_ALL: &str = "/networks/{network}/lids";
 
 /// Builds the endpoint starting with / inside Ovey coordinator REST Service,
 /// where a network can be queried with all its devices.

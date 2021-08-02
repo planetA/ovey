@@ -29,6 +29,7 @@ pub enum OveydCmdResp {
     LeaseGid(LeaseGidResp),
     ResolveGid(ResolveGidResp),
     SetGid(SetGidResp),
+    CreatePort(CreatePortResp),
 }
 
 pub struct OveydResp {
@@ -199,4 +200,43 @@ pub struct SetGidResp {
     pub real_interface_id: u64,
     pub virt_subnet_prefix: u64,
     pub virt_interface_id: u64,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreatePortQuery {
+    pub port: u16,
+	  pub pkey_tbl_len: u32,
+	  pub gid_tbl_len: u32,
+	  pub core_cap_flags: u32,
+	  pub max_mad_size: u32,
+
+}
+
+impl OveydQuery for CreatePortQuery {
+    fn method(&self) -> http::Method {
+        http::Method::POST
+    }
+
+    fn endpoint(&self) -> &str {
+        ROUTE_PORTS_DEVICE
+    }
+
+    fn query(&self) -> String {
+        serde_urlencoded::to_string(&self).unwrap()
+    }
+
+    fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
+        Ok(OveydCmdResp::CreatePort(
+            serde_json::from_str::<CreatePortResp>(&res)?))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreatePortResp {
+    pub port: u16,
+	  pub pkey_tbl_len: u32,
+	  pub gid_tbl_len: u32,
+	  pub core_cap_flags: u32,
+	  pub max_mad_size: u32,
 }

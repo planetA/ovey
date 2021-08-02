@@ -1350,8 +1350,10 @@ dependencies = [
 name = "ovey_coordinator"
 version = "0.1.0"
 dependencies = [
+ "actix-http",
  "actix-rt",
  "actix-web",
+ "bytes 0.5.6",
  "derive_builder",
  "derive_more",
  "env_logger",

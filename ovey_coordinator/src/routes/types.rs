@@ -1,18 +1,29 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
+use std::convert::TryInto;
 
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+use crate::rest::errors::CoordinatorRestError;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub(crate) struct Virt<T> {
     pub(crate) real: T,
     pub(crate) virt: T,
 }
 
+impl<T> Virt<T> {
+    pub(crate) fn new(real: T, virt: T) -> Self {
+        Virt{
+            real: real,
+            virt: virt,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct GidEntry {
-    pub(crate) port: u16,
     pub(crate) idx: u32,
     pub(crate) subnet_prefix: u64,
     pub(crate) interface_id: u64,
@@ -21,7 +32,6 @@ pub(crate) struct GidEntry {
 impl GidEntry {
     pub(crate) fn new(idx: u32, subnet_prefix: u64, interface_id: u64) -> Self {
         GidEntry{
-            port: 1,
             idx: idx,
             subnet_prefix,
             interface_id,
@@ -34,11 +44,77 @@ impl GidEntry {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub(crate) struct PortEntry {
+    pub(crate) id: Virt<u16>,
+    pub(crate) lid: Option<Virt<u32>>,
+	  pub(crate) pkey_tbl_len: u32,
+	  pub(crate) gid_tbl_len: u32,
+	  pub(crate) core_cap_flags: u32,
+	  pub(crate) max_mad_size: u32,
+    gid: Vec<Virt<GidEntry>>,
+}
+
+impl PortEntry {
+    pub(crate) fn new(id: Virt<u16>) -> Self {
+        PortEntry{
+            id: id,
+            lid: None,
+            gid: Vec::new(),
+            ..Default::default()
+        }
+    }
+
+    pub(crate) fn set_pkey_tbl_len(&mut self, pkey_tbl_len: u32) -> &mut Self {
+        self.pkey_tbl_len = pkey_tbl_len;
+        self
+    }
+
+    pub(crate) fn set_gid_tbl_len(&mut self, gid_tbl_len: u32) -> &mut Self {
+        self.gid_tbl_len = gid_tbl_len;
+        self
+    }
+
+    pub(crate) fn set_core_cap_flags(&mut self, core_cap_flags: u32) -> &mut Self {
+        self.core_cap_flags = core_cap_flags;
+        self
+    }
+
+    pub(crate) fn set_max_mad_size(&mut self, max_mad_size: u32) -> &mut Self {
+        self.max_mad_size = max_mad_size;
+        self
+    }
+
+    pub(crate) fn add_gid(&mut self, gid: Virt<GidEntry>) -> &mut Self {
+        if !self.is_gid_unique(gid) {
+            panic!("Duplicate gid");
+        }
+
+        if self.gid.len() >= self.gid_tbl_len.try_into().unwrap() {
+            panic!("GID table is too long")
+        }
+
+        self.gid.push(gid);
+        self
+    }
+
+    pub(crate) fn is_gid_unique(&self, gid: Virt<GidEntry>) -> bool {
+        self.gid.iter()
+            .find(|e| e.virt.is_same_addr(&gid.virt) || e.real.is_same_addr(&gid.real))
+            .is_none()
+    }
+
+    pub(crate) fn iter_gid(&self) -> std::slice::Iter<'_, Virt<GidEntry>>
+    {
+        self.gid.iter()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct DeviceEntry {
     pub(crate) device: Uuid,
     pub(crate) guid: Option<Virt<u64>>,
-    pub(crate) gid: Vec<Virt<GidEntry>>,
+    pub(crate) ports: Vec<PortEntry>,
     pub(crate) lease: Instant,
 }
 
@@ -48,27 +124,18 @@ impl DeviceEntry {
             device: device,
             lease: Instant::now(),
             guid: None,
-            gid: Vec::new(),
+            ports: Vec::new(),
         }
     }
 
-    pub(crate) fn is_gid_unique(&mut self, gid: Virt<GidEntry>) -> bool {
-        self.gid.iter()
-            .find(|e| e.virt.is_same_addr(&gid.virt) || e.real.is_same_addr(&gid.real))
+    pub(crate) fn is_gid_unique(&self, gid: Virt<GidEntry>) -> bool {
+        self.ports.iter()
+            .find(|p| p.is_gid_unique(gid))
             .is_none()
     }
 
     pub(crate) fn set_guid(&mut self, guid: Virt<u64>) -> &mut Self {
         self.guid = Some(guid);
-        self
-    }
-
-    pub(crate) fn set_gid(&mut self, gid: Virt<GidEntry>) -> &mut Self {
-        if !self.is_gid_unique(gid) {
-            panic!("Duplicate gid");
-        }
-
-        self.gid.push(gid);
         self
     }
 }
@@ -105,8 +172,45 @@ impl NetworkState {
             devices: DeviceTable::new(),
         }
     }
+
+    pub(crate) fn is_gid_unique(&self, gid: Virt<GidEntry>) -> bool {
+        self.devices.iter()
+            .find(|device| device.is_gid_unique(gid))
+            .is_none()
+    }
 }
 
 pub(crate) struct CoordState {
-    pub(crate) networks: Mutex<HashMap<Uuid, NetworkState>>,
+    networks: Mutex<HashMap<Uuid, NetworkState>>,
+}
+
+impl CoordState {
+    pub(crate) fn new() -> Self {
+        CoordState{
+            networks: Mutex::new(HashMap::new())
+        }
+    }
+
+    pub(crate) fn with_network<R, F>(&self, network_uuid: Uuid, mut f: F) -> Result<R, CoordinatorRestError>
+    where
+        F: FnMut(&mut NetworkState) -> Result<R, CoordinatorRestError>
+    {
+        let mut networks = self.networks.lock().unwrap();
+        let network: &mut NetworkState = networks
+            .get_mut(&network_uuid)
+            .ok_or(CoordinatorRestError::NetworkUuidNotFound(network_uuid))?;
+
+        f(network)
+    }
+
+    pub(crate) fn with_network_insert<R, F>(&self, network_uuid: Uuid, mut f: F)
+                                            -> Result<R, CoordinatorRestError>
+    where
+        F: FnMut(&mut NetworkState) -> Result<R, CoordinatorRestError>
+    {
+        let mut networks = self.networks.lock().unwrap();
+        let network = networks.entry(network_uuid).or_insert(NetworkState::new());
+
+        f(network)
+    }
 }

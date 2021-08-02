@@ -26,6 +26,7 @@ enum OveydRequestType {
     LeaseGid = 1,
     ResolveGid = 2,
     SetGid = 3,
+    CreatePort = 4,
 }
 
 // Big endian u64 type
@@ -75,11 +76,22 @@ struct oveyd_resolve_gid {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct oveyd_create_port {
+    port: u16,
+	  pkey_tbl_len: u32,
+	  gid_tbl_len: u32,
+	  core_cap_flags: u32,
+	  max_mad_size: u32,
+}
+
+#[repr(C)]
 union cmd_union {
     pub lease_device: oveyd_lease_device,
     pub lease_gid: oveyd_lease_gid,
     pub resolve_gid: oveyd_resolve_gid,
     pub set_gid: oveyd_set_gid,
+    pub create_port: oveyd_create_port,
 }
 
 #[repr(C)]
@@ -109,6 +121,7 @@ impl TryFrom<u16> for OveydRequestType {
             x if x == OveydRequestType::LeaseGid as u16 => Ok(OveydRequestType::LeaseGid),
             x if x == OveydRequestType::ResolveGid as u16 => Ok(OveydRequestType::ResolveGid),
             x if x == OveydRequestType::SetGid as u16 => Ok(OveydRequestType::SetGid),
+            x if x == OveydRequestType::CreatePort as u16 => Ok(OveydRequestType::CreatePort),
             _ => Err(()),
         }
     }
@@ -187,6 +200,25 @@ fn parse_request_set_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     })
 }
 
+fn parse_request_create_port(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_create_port = unsafe {
+        req.cmd.create_port
+    };
+
+    Ok(OveydReq{
+        seq: req.seq,
+        network: Uuid::from_bytes(req.network),
+        device: Some(Uuid::from_bytes(req.device)),
+        query: Box::new(CreatePortQuery{
+            port: cmd.port,
+	          pkey_tbl_len: cmd.pkey_tbl_len,
+	          gid_tbl_len: cmd.gid_tbl_len,
+	          core_cap_flags: cmd.core_cap_flags,
+	          max_mad_size: cmd.max_mad_size,
+        }),
+    })
+}
+
 fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     if buffer.len() < size_of::<oveyd_req_pkt>() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
@@ -204,6 +236,7 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
         Ok(OveydRequestType::LeaseGid) => parse_request_lease_gid(pkt),
         Ok(OveydRequestType::ResolveGid) => parse_request_resolve_gid(pkt),
         Ok(OveydRequestType::SetGid) => parse_request_set_gid(pkt),
+        Ok(OveydRequestType::CreatePort) => parse_request_create_port(pkt),
         Err(_) => Err(io::Error::new(io::ErrorKind::InvalidInput, "UnknownType")),
     }
 }
@@ -276,6 +309,22 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                         virt_interface_id: cmd.virt_interface_id.into(),
                         real_subnet_prefix: cmd.real_subnet_prefix.into(),
                         real_interface_id: cmd.real_interface_id.into(),
+                    },
+                },
+            }
+        },
+        OveydCmdResp::CreatePort(cmd) => {
+            oveyd_resp_pkt{
+                cmd_type: OveydRequestType::CreatePort as u16,
+                len: size_of::<oveyd_resp_pkt>() as u16,
+                seq: resp.seq,
+                cmd: cmd_union{
+                    create_port: oveyd_create_port{
+                        port: cmd.port,
+	                      pkey_tbl_len: cmd.pkey_tbl_len,
+	                      gid_tbl_len: cmd.gid_tbl_len,
+	                      core_cap_flags: cmd.core_cap_flags,
+	                      max_mad_size: cmd.max_mad_size,
                     },
                 },
             }

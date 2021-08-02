@@ -3,38 +3,57 @@
 
 use actix_web::web;
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-
 mod types;
 mod guids;
 mod gids;
 mod network;
+mod ports;
 
 use types::*;
 
 pub(crate) fn new_app_state() -> web::Data<CoordState> {
-    web::Data::new(CoordState{
-        networks: Mutex::new(HashMap::new())
-    })
+    web::Data::new(CoordState::new())
 }
 
 pub(crate) fn config(cfg: &mut web::ServiceConfig) {
     guids::config(cfg);
     gids::config(cfg);
     network::config(cfg);
+    ports::config(cfg);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use uuid::Uuid;
+    use serde::de::DeserializeOwned;
     use actix_web::{test, App};
+    use actix_http::Request;
     use actix_web::test::TestRequest;
     use actix_web::http::StatusCode;
+    use actix_web::dev::{Service, MessageBody};
+    use actix_web::dev::ServiceResponse;
     use liboveyutil::types::*;
 
     const GUID: u64 = 444;
+
+    async fn do_request_device<'a, Q, S, B, E, R>(app: &mut S, network_uuid: Uuid, device_uuid: Uuid, query: &Q, status: StatusCode) -> R
+    where
+        Q: OveydQuery,
+        S: Service<Request = Request, Response = ServiceResponse<B>, Error = E>,
+        E: std::fmt::Debug,
+        B: MessageBody + Unpin,
+        R: DeserializeOwned
+    {
+        let uri = query.compile(None, network_uuid, Some(device_uuid));
+        let req : Request = TestRequest::with_uri(&uri)
+            .method(query.method())
+            .to_request();
+        let resp = test::call_service(app, req).await;
+        assert_eq!(resp.status(), status);
+        let body = test::read_body(resp).await;
+        serde_json::from_slice(&body).unwrap()
+    }
 
     #[actix_rt::test]
     async fn build_lease_device_request() {
@@ -86,16 +105,22 @@ mod tests {
         let query = LeaseDeviceQuery{
             guid: GUID,
         };
-        let uri = query.compile(None, network_uuid, Some(device_uuid));
-        println!("{}", uri);
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::CREATED);
-        let body = test::read_body(resp).await;
-        let guid_struct: LeaseDeviceResp = serde_json::from_slice(&body).unwrap();
+        let guid_struct: LeaseDeviceResp =
+            do_request_device(&mut app,
+                              network_uuid, device_uuid,
+                              &query, StatusCode::CREATED).await;
         assert_ne!(GUID, guid_struct.guid);
+
+        let query = CreatePortQuery{
+            port: 1,
+	          pkey_tbl_len: 16,
+	          gid_tbl_len: 16,
+	          core_cap_flags: 0,
+	          max_mad_size: 16,
+        };
+        let created: CreatePortResp = do_request_device(&mut app,
+                                                        network_uuid, device_uuid,
+                                                        &query, StatusCode::CREATED).await;
 
         let query = LeaseGidQuery{
             port: 1,
@@ -103,14 +128,10 @@ mod tests {
             subnet_prefix: real_subnet_prefix,
             interface_id: real_interface_id,
         };
-        let uri = query.compile(None, network_uuid, Some(device_uuid));
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = test::read_body(resp).await;
-        let gid_struct: LeaseGidResp = serde_json::from_slice(&body).unwrap();
+        let gid_struct: LeaseGidResp =
+            do_request_device(&mut app,
+                              network_uuid, device_uuid,
+                              &query, StatusCode::OK).await;
         println!("{:#?}", gid_struct);
         assert_eq!(gid_struct.port, query.port);
         assert_eq!(gid_struct.idx, query.idx);
@@ -134,26 +155,25 @@ mod tests {
         assert_eq!(resolve_struct.subnet_prefix, real_subnet_prefix);
         assert_eq!(resolve_struct.interface_id, real_interface_id);
 
-        let networks = state.networks.lock().unwrap();
-        let network = networks.get(&network_uuid).unwrap();
-        let dev = &network.devices.iter().next().unwrap();
-        println!("{:#?}", dev);
+        state.with_network(network_uuid, |network| {
+            let dev = &network.devices.iter().next().unwrap();
+            println!("{:#?}", dev);
 
-        let gid = &dev.gid[0];
-        assert_eq!(dev.guid, Some(Virt::<u64>{real: GUID, virt: guid_struct.guid}));
-        assert_eq!(gid, &Virt{
-            virt: GidEntry{
-                port: 1,
-                idx: 0,
-                subnet_prefix: gid_struct.subnet_prefix,
-                interface_id: gid_struct.interface_id,
-            },
-            real: GidEntry{
-                port: 1,
-                idx: 0,
-                subnet_prefix: real_subnet_prefix,
-                interface_id: real_interface_id,
-            }});
+            let gid = dev.ports[0].iter_gid().next().unwrap();
+            assert_eq!(dev.guid, Some(Virt::<u64>{real: GUID, virt: guid_struct.guid}));
+            assert_eq!(gid, &Virt{
+                virt: GidEntry{
+                    idx: 0,
+                    subnet_prefix: gid_struct.subnet_prefix,
+                    interface_id: gid_struct.interface_id,
+                },
+                real: GidEntry{
+                    idx: 0,
+                    subnet_prefix: real_subnet_prefix,
+                    interface_id: real_interface_id,
+                }});
+            Ok(())
+        }).unwrap();
     }
 
     #[actix_rt::test]
@@ -180,6 +200,17 @@ mod tests {
         let guid_struct: LeaseDeviceResp = serde_json::from_slice(&body).unwrap();
         assert_ne!(GUID, guid_struct.guid);
 
+        let query = CreatePortQuery{
+            port: 1,
+	          pkey_tbl_len: 16,
+	          gid_tbl_len: 16,
+	          core_cap_flags: 0,
+	          max_mad_size: 16,
+        };
+        let created: CreatePortResp = do_request_device(&mut app,
+                                                        network_uuid, device_uuid,
+                                                        &query, StatusCode::CREATED).await;
+
         let query = SetGidQuery{
             virt_port: 1,
             virt_idx: 0,
@@ -190,15 +221,9 @@ mod tests {
             real_subnet_prefix: 12,
             real_interface_id: 13,
         };
-        let uri = query.compile(None, network_uuid, Some(device_uuid));
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = test::read_body(resp).await;
-        let resp: SetGidResp = serde_json::from_slice(&body).unwrap();
-        println!("{:#?}", resp);
+        let _resp: SetGidResp = do_request_device(&mut app,
+                              network_uuid, device_uuid,
+                              &query, StatusCode::OK).await;
 
         let query = SetGidQuery{
             virt_port: 1,
@@ -236,24 +261,27 @@ mod tests {
         assert_eq!(resolve_struct.subnet_prefix, 0);
         assert_eq!(resolve_struct.interface_id, 15);
 
-        let networks = state.networks.lock().unwrap();
-        let network = networks.get(&network_uuid).unwrap();
-        let dev = &network.devices.iter().next().unwrap();
-        println!("{:#?}", dev);
+        state.with_network(network_uuid, |network| {
+            let dev = &network.devices.iter().next().unwrap();
+            println!("{:#?}", dev);
 
-        assert_eq!(dev.guid, Some(Virt::<u64>{real: GUID, virt: guid_struct.guid}));
-        assert_eq!(dev.gid[1].virt.is_same_addr(&GidEntry{
-            port: 144,
-            idx: 44,
-            subnet_prefix: 0,
-            interface_id: 14,
-        }), true);
-        assert_eq!(dev.gid[1].real,
-                   GidEntry{
-                       port: 1,
-                       idx: 1,
-                       subnet_prefix: 0,
-                       interface_id: 15,
-                   })
+            assert_eq!(dev.guid, Some(Virt::<u64>{real: GUID, virt: guid_struct.guid}));
+            assert_eq!(dev.ports[0]
+                       .iter_gid().take(2).last().unwrap()
+                       .virt.is_same_addr(&GidEntry{
+                idx: 44,
+                subnet_prefix: 0,
+                interface_id: 14,
+            }), true);
+            assert_eq!(dev.ports[0]
+                       .iter_gid().take(2).last().unwrap()
+                       .real,
+                       GidEntry{
+                           idx: 1,
+                           subnet_prefix: 0,
+                           interface_id: 15,
+                       });
+            Ok(())
+        }).unwrap();
     }
 }
