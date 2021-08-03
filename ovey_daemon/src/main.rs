@@ -50,7 +50,6 @@ struct oveyd_lease_device {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct oveyd_lease_gid {
-    port: u16,
     idx: u32,
     subnet_prefix: U64Be,
     interface_id: U64Be,
@@ -59,8 +58,6 @@ struct oveyd_lease_gid {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct oveyd_set_gid {
-    real_port: u16,
-    virt_port: u16,
     real_idx: u32,
     virt_idx: u32,
     real_subnet_prefix: U64Be,
@@ -109,6 +106,7 @@ struct oveyd_req_pkt {
     pub seq: u32,
     pub network: [u8; 16],
     pub device: [u8; 16],
+    pub port: u16,
     pub cmd: cmd_union,
 }
 
@@ -161,9 +159,8 @@ fn parse_request_lease_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
         device: Some(Uuid::from_bytes(req.device)),
-        port: None,
+        port: Some(req.port),
         query: Box::new(LeaseGidQuery{
-            port: cmd.port,
             idx: cmd.idx,
             subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
             interface_id: u64::from_be(cmd.interface_id.0),
@@ -199,10 +196,8 @@ fn parse_request_set_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
         device: Some(Uuid::from_bytes(req.device)),
-        port: None,
+        port: Some(req.port),
         query: Box::new(SetGidQuery{
-            real_port: cmd.real_port,
-            virt_port: cmd.virt_port,
             real_idx: cmd.real_idx,
             virt_idx: cmd.virt_idx,
             virt_subnet_prefix: u64::from_be(cmd.virt_subnet_prefix.0),
@@ -304,7 +299,6 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                 seq: resp.seq,
                 cmd: cmd_union{
                     lease_gid: oveyd_lease_gid{
-                        port: cmd.port,
                         idx: cmd.idx,
                         subnet_prefix: cmd.subnet_prefix.into(),
                         interface_id: cmd.interface_id.into(),
@@ -332,8 +326,6 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                 seq: resp.seq,
                 cmd: cmd_union{
                     set_gid: oveyd_set_gid{
-                        real_port: cmd.real_port,
-                        virt_port: cmd.virt_port,
                         real_idx: cmd.real_idx,
                         virt_idx: cmd.virt_idx,
                         virt_subnet_prefix: cmd.virt_subnet_prefix.into(),

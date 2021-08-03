@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, HttpRequest, web};
 use rand::prelude::*;
 use uuid::Uuid;
 
-use liboveyutil::urls::ROUTE_GIDS_DEVICE;
+use liboveyutil::urls::ROUTE_GIDS_PORT;
 use liboveyutil::types::*;
 
 use crate::rest::errors::CoordinatorRestError;
@@ -10,7 +10,7 @@ use crate::routes::types::*;
 
 pub(crate) fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::resource(ROUTE_GIDS_DEVICE)
+        web::resource(ROUTE_GIDS_PORT)
             .route(web::post().to(route_gid_post))
             .route(web::put().to(route_gid_put))
     );
@@ -19,7 +19,7 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
 /// The coordinator assign new translation address
 async fn route_gid_post(
     state: web::Data<CoordState>,
-    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
+    web::Path((network_uuid, device_uuid, port_id)): web::Path<(Uuid, Uuid, u16)>,
     web::Query(query): web::Query<LeaseGidQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
@@ -27,8 +27,8 @@ async fn route_gid_post(
         let port : &mut PortEntry = network
             .devices.by_device(device_uuid)
             .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?
-            .ports.iter_mut().find(|p| p.id.real == query.port)
-            .ok_or(CoordinatorRestError::PortNotFound(device_uuid, query.port))?;
+            .get_port_mut(port_id)
+            .ok_or(CoordinatorRestError::PortNotFound(device_uuid, port_id))?;
         debug!("Lease gd: {}: {:#?} {:#?}", network_uuid, _req, query);
 
         let idx = port.iter_gid()
@@ -51,7 +51,6 @@ async fn route_gid_post(
         assert_eq!(gid.idx, query.idx);
 
         let output = LeaseGidResp{
-            port: port.id.virt,
             idx: gid.idx,
             subnet_prefix: gid.subnet_prefix,
             interface_id: gid.interface_id,
@@ -63,7 +62,7 @@ async fn route_gid_post(
 /// The coordinator just remembers the translation, if it is already known
 async fn route_gid_put(
     state: web::Data<CoordState>,
-    web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
+    web::Path((network_uuid, device_uuid, port_id)): web::Path<(Uuid, Uuid, u16)>,
     web::Query(query): web::Query<SetGidQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
@@ -87,18 +86,16 @@ async fn route_gid_put(
         // Find the next available index
         let port = network.devices.by_device(device_uuid)
             .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?
-            .ports.iter_mut().find(|p| ((p.id.real == query.real_port) && (p.id.virt == query.virt_port)))
-            .ok_or(CoordinatorRestError::PortNotFound(device_uuid, query.real_port))?;
+            .get_port_mut(port_id)
+            .ok_or(CoordinatorRestError::PortNotFound(device_uuid, port_id))?;
         debug!("Let gd: {}: {:#?} {:#?}", network_uuid, _req, query);
 
         port.add_gid(new_addr);
 
         let output = SetGidResp{
-            real_port: query.virt_port,
             real_idx: query.virt_idx,
             real_subnet_prefix: query.virt_subnet_prefix,
             real_interface_id: query.virt_interface_id,
-            virt_port: query.real_port,
             virt_idx: query.real_idx,
             virt_subnet_prefix: query.real_subnet_prefix,
             virt_interface_id: query.real_interface_id,

@@ -1,7 +1,6 @@
 use actix_web::{HttpResponse, HttpRequest, web};
 use rand::prelude::*;
 use uuid::Uuid;
-use std::convert::TryFrom;
 
 use liboveyutil::urls::{ROUTE_PORTS_DEVICE, ROUTE_PORTS_ONE};
 use liboveyutil::types::*;
@@ -32,19 +31,14 @@ async fn route_port_post(
 
         let device = network.devices.by_device(device_uuid)
             .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?;
-        // Find the next available index
-        // We count port IDs from 1
-        let virt_id = u16::try_from(device.ports.len() + 1).unwrap();
-        let port = PortEntry::new(Virt::new(query.port, virt_id))
+        let port = device.add_port(query.port)
             .set_pkey_tbl_len(query.pkey_tbl_len)
             .set_gid_tbl_len(query.gid_tbl_len)
             .set_core_cap_flags(query.core_cap_flags)
-            .set_max_mad_size(query.max_mad_size)
-            .to_owned();
-        device.ports.push(port);
+            .set_max_mad_size(query.max_mad_size);
 
         let output = CreatePortResp{
-            port: virt_id,
+            port: port.id.virt,
 	          pkey_tbl_len: query.pkey_tbl_len,
 	          gid_tbl_len: query.gid_tbl_len,
 	          core_cap_flags: query.core_cap_flags,
@@ -66,7 +60,7 @@ async fn route_port_attr_post(
 
         let port = network.devices.by_device(device_uuid)
             .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?
-            .ports.get_mut(port_id as usize)
+            .get_port_mut(port_id)
             .ok_or(CoordinatorRestError::PortNotFound(device_uuid, port_id))?;
         // Find the next available index
         // We count port IDs from 1

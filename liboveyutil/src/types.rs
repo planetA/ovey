@@ -20,7 +20,7 @@ pub struct OveydReq {
     pub seq: u32,
     pub network: Uuid,
     pub device: Option<Uuid>,
-    pub port: Option<u32>,
+    pub port: Option<u16>,
     pub query: Box<dyn OveydQuery>,
 }
 
@@ -49,7 +49,7 @@ pub trait OveydQuery: fmt::Debug {
     /// Convert the query to urlencoded string
     fn query(&self) -> String;
 
-    fn compile(&self, host: Option<&str>, network: Uuid, device: Option<Uuid>, port: Option<u32>) -> String {
+    fn compile(&self, host: Option<&str>, network: Uuid, device: Option<Uuid>, port: Option<u16>) -> String {
         let url = if let Some(port) = port {
             build_port_url(self.endpoint(), network, device.unwrap(), port)
         } else if let Some(device_uuid) = device {
@@ -98,7 +98,6 @@ impl OveydQuery for LeaseDeviceQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeaseGidQuery {
-    pub port: u16,
     pub idx: u32,
     pub subnet_prefix: u64,
     pub interface_id: u64,
@@ -110,7 +109,7 @@ impl OveydQuery for LeaseGidQuery {
     }
 
     fn endpoint(&self) -> &str {
-        ROUTE_GIDS_DEVICE
+        ROUTE_GIDS_PORT
     }
 
     fn query(&self) -> String {
@@ -125,7 +124,6 @@ impl OveydQuery for LeaseGidQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeaseGidResp {
-    pub port: u16,
     pub idx: u32,
     pub subnet_prefix: u64,
     pub interface_id: u64,
@@ -165,8 +163,6 @@ pub struct ResolveGidResp {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetGidQuery {
-    pub real_port: u16,
-    pub virt_port: u16,
     pub real_idx: u32,
     pub virt_idx: u32,
     pub virt_subnet_prefix: u64,
@@ -181,7 +177,7 @@ impl OveydQuery for SetGidQuery {
     }
 
     fn endpoint(&self) -> &str {
-        ROUTE_GIDS_DEVICE
+        ROUTE_GIDS_PORT
     }
 
     fn query(&self) -> String {
@@ -196,8 +192,6 @@ impl OveydQuery for SetGidQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetGidResp {
-    pub real_port: u16,
-    pub virt_port: u16,
     pub real_idx: u32,
     pub virt_idx: u32,
     pub real_subnet_prefix: u64,

@@ -13,12 +13,12 @@ pub const ROUTE_DEVICES_ONE: &str = "/networks/{network}/devices/{device}";
 /// Endpoint to all GUIDs of a device. A device may have multiple GUIDs, if it
 /// has multiple ports, for example.
 pub const ROUTE_GUIDS_DEVICE: &str = "/networks/{network}/devices/{device}/guids";
-/// Endpoint to all GIDs of a device. A device may have multiple GIDs.
-pub const ROUTE_GIDS_DEVICE: &str = "/networks/{network}/devices/{device}/gids";
 /// Endpoint to all ports of a device.
 pub const ROUTE_PORTS_DEVICE: &str = "/networks/{network}/devices/{device}/ports";
 /// Endpoint to a port of a device. Identifiend by 1-based inedx.
 pub const ROUTE_PORTS_ONE: &str = "/networks/{network}/devices/{device}/ports/{port}";
+/// Endpoint to all GIDs of a device. A device may have multiple GIDs.
+pub const ROUTE_GIDS_PORT: &str = "/networks/{network}/devices/{device}/ports/{port}/gids";
 /// Endpoint to all GIDs in a network. A device may have multiple GIDs.
 pub const ROUTE_GIDS_ALL: &str = "/networks/{network}/gids";
 /// Endpoint to all LIDs in a network.
@@ -38,7 +38,7 @@ pub fn build_device_url(endpoint: &str, network: Uuid, device: Uuid) -> String {
 }
 
 /// Builds the endpoint url do modify a device.
-pub fn build_port_url(endpoint: &str, network: Uuid, device: Uuid, port: u32) -> String {
+pub fn build_port_url(endpoint: &str, network: Uuid, device: Uuid, port: u16) -> String {
     endpoint
         .replace("{network}", &network.to_string())
         .replace("{device}", &device.to_string())

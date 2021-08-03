@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
 use std::convert::TryInto;
+use std::convert::TryFrom;
 
 use uuid::Uuid;
 
@@ -114,7 +115,7 @@ impl PortEntry {
 pub(crate) struct DeviceEntry {
     pub(crate) device: Uuid,
     pub(crate) guid: Option<Virt<u64>>,
-    pub(crate) ports: Vec<PortEntry>,
+    ports: Vec<PortEntry>,
     pub(crate) lease: Instant,
 }
 
@@ -137,6 +138,26 @@ impl DeviceEntry {
     pub(crate) fn set_guid(&mut self, guid: Virt<u64>) -> &mut Self {
         self.guid = Some(guid);
         self
+    }
+
+    /// Return mutable reference to a port.
+    pub(crate) fn get_port_mut(&mut self, port_id: u16) -> Option<&mut PortEntry> {
+        // Remember, the port indicies start from 1
+        self.ports.get_mut((port_id - 1) as usize)
+    }
+
+    pub(crate) fn add_port(&mut self, real_port: u16) -> &mut PortEntry {
+        // Find the next available index
+        // We count port IDs from 1
+        let virt_id = u16::try_from(self.ports.len() + 1).unwrap();
+        let port = PortEntry::new(Virt::new(real_port, virt_id));
+        self.ports.push(port);
+        self.ports.last_mut().unwrap()
+    }
+
+    pub(crate) fn iter_port(&self) -> std::slice::Iter<'_, PortEntry>
+    {
+        self.ports.iter()
     }
 }
 

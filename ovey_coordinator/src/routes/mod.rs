@@ -39,7 +39,7 @@ mod tests {
 
     async fn do_request<'a, Q, S, B, E, R>(
         app: &mut S, network_uuid: Uuid, device_uuid: Option<Uuid>,
-        port: Option<u32>, query: &Q, status: StatusCode) -> R
+        port: Option<u16>, query: &Q, status: StatusCode) -> R
     where
         Q: OveydQuery,
         S: Service<Request = Request, Response = ServiceResponse<B>, Error = E>,
@@ -51,15 +51,19 @@ mod tests {
         let req : Request = TestRequest::with_uri(&uri)
             .method(query.method())
             .to_request();
+        println!("{}", uri);
         let resp = test::call_service(app, req).await;
-        assert_eq!(resp.status(), status);
+        let resp_status = resp.status();
+        println!("{:#?}", resp);
         let body = test::read_body(resp).await;
+        println!("{:?}", String::from_utf8((&body).to_vec()));
+        assert_eq!(resp_status, status);
         serde_json::from_slice(&body).unwrap()
     }
 
     async fn do_request_port<'a, Q, S, B, E, R>(
         app: &mut S,
-        network_uuid: Uuid, device_uuid: Uuid, port: u32,
+        network_uuid: Uuid, device_uuid: Uuid, port: u16,
         query: &Q, status: StatusCode) -> R
     where
         Q: OveydQuery,
@@ -148,22 +152,20 @@ mod tests {
 	          core_cap_flags: 0,
 	          max_mad_size: 16,
         };
-        let _created: CreatePortResp = do_request_device(&mut app,
-                                                        network_uuid, device_uuid,
-                                                        &query, StatusCode::CREATED).await;
+        let port: CreatePortResp = do_request_device(&mut app,
+                                                     network_uuid, device_uuid,
+                                                     &query, StatusCode::CREATED).await;
 
         let query = LeaseGidQuery{
-            port: 1,
             idx: 0,
             subnet_prefix: real_subnet_prefix,
             interface_id: real_interface_id,
         };
         let gid_struct: LeaseGidResp =
-            do_request_device(&mut app,
-                              network_uuid, device_uuid,
-                              &query, StatusCode::OK).await;
+            do_request_port(&mut app,
+                            network_uuid, device_uuid, port.port,
+                            &query, StatusCode::OK).await;
         println!("{:#?}", gid_struct);
-        assert_eq!(gid_struct.port, query.port);
         assert_eq!(gid_struct.idx, query.idx);
         assert_ne!(gid_struct.subnet_prefix, query.subnet_prefix);
         assert_ne!(gid_struct.interface_id, query.interface_id);
@@ -184,7 +186,7 @@ mod tests {
             let dev = &network.devices.iter().next().unwrap();
             println!("{:#?}", dev);
 
-            let gid = dev.ports[0].iter_gid().next().unwrap();
+            let gid = dev.iter_port().next().unwrap().iter_gid().next().unwrap();
             assert_eq!(dev.guid, Some(Virt::<u64>{real: GUID, virt: guid_struct.guid}));
             assert_eq!(gid, &Virt{
                 virt: GidEntry{
@@ -226,23 +228,21 @@ mod tests {
 	          core_cap_flags: 0,
 	          max_mad_size: 16,
         };
-        let _created: CreatePortResp = do_request_device(&mut app,
-                                                        network_uuid, device_uuid,
-                                                        &query, StatusCode::CREATED).await;
+        let port: CreatePortResp = do_request_device(&mut app,
+                                                     network_uuid, device_uuid,
+                                                     &query, StatusCode::CREATED).await;
 
         let query = SetGidQuery{
-            virt_port: 1,
             virt_idx: 0,
             virt_subnet_prefix: 10,
             virt_interface_id: 11,
-            real_port: 1,
             real_idx: 0,
             real_subnet_prefix: 12,
             real_interface_id: 13,
         };
-        let _resp: SetGidResp = do_request_device(&mut app,
-                                                  network_uuid, device_uuid,
-                                                  &query, StatusCode::OK).await;
+        let _resp: SetGidResp = do_request_port(&mut app,
+                                                network_uuid, device_uuid, port.port,
+                                                &query, StatusCode::OK).await;
 
         let query = SetGidQuery{
             virt_idx: 1,
@@ -252,9 +252,9 @@ mod tests {
             real_subnet_prefix: 0,
             real_interface_id: 15,
         };
-        let resp: SetGidResp = do_request_device(&mut app,
-                                                 network_uuid, device_uuid,
-                                                 &query, StatusCode::OK).await;
+        let resp: SetGidResp = do_request_port(&mut app,
+                                               network_uuid, device_uuid, port.port,
+                                               &query, StatusCode::OK).await;
         println!("{:#?}", resp);
 
         let query = ResolveGidQuery{
@@ -273,14 +273,14 @@ mod tests {
             println!("{:#?}", dev);
 
             assert_eq!(dev.guid, Some(Virt::<u64>{real: GUID, virt: guid_struct.guid}));
-            assert_eq!(dev.ports[0]
+            assert_eq!(dev.iter_port().next().unwrap()
                        .iter_gid().take(2).last().unwrap()
                        .virt.is_same_addr(&GidEntry{
                 idx: 44,
                 subnet_prefix: 0,
                 interface_id: 14,
             }), true);
-            assert_eq!(dev.ports[0]
+            assert_eq!(dev.iter_port().next().unwrap()
                        .iter_gid().take(2).last().unwrap()
                        .real,
                        GidEntry{

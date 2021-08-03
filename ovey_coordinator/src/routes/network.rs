@@ -27,7 +27,7 @@ async fn route_resolve_gid(
         println!("{:#?}", search_pattern);
         println!("{:#?}", network.devices);
         let gid = network.devices.iter()
-            .map(|device| device.ports.iter())
+            .map(|device| device.iter_port())
             .flatten()
             .map(|port| port.iter_gid())
             .flatten()
