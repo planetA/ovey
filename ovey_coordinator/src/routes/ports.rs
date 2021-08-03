@@ -3,7 +3,7 @@ use rand::prelude::*;
 use uuid::Uuid;
 use std::convert::TryFrom;
 
-use liboveyutil::urls::ROUTE_PORTS_DEVICE;
+use liboveyutil::urls::{ROUTE_PORTS_DEVICE, ROUTE_PORTS_ONE};
 use liboveyutil::types::*;
 
 use crate::rest::errors::CoordinatorRestError;
@@ -13,6 +13,10 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource(ROUTE_PORTS_DEVICE)
             .route(web::post().to(route_port_post))
+    );
+    cfg.service(
+        web::resource(ROUTE_PORTS_ONE)
+            .route(web::post().to(route_port_attr_post))
     );
 }
 
@@ -45,6 +49,32 @@ async fn route_port_post(
 	          gid_tbl_len: query.gid_tbl_len,
 	          core_cap_flags: query.core_cap_flags,
 	          max_mad_size: query.max_mad_size,
+        };
+        Ok(HttpResponse::Created().json(output))
+    })
+}
+
+/// The coordinator assign new translation address
+async fn route_port_attr_post(
+    state: web::Data<CoordState>,
+    web::Path((network_uuid, device_uuid, port_id)): web::Path<(Uuid, Uuid, u16)>,
+    web::Query(query): web::Query<SetPortAttrQuery>,
+    _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
+{
+    state.with_network(network_uuid, |network| {
+        debug!("Create gd: {}: {:#?} {:#?}", network_uuid, _req, query);
+
+        let port = network.devices.by_device(device_uuid)
+            .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?
+            .ports.get_mut(port_id as usize)
+            .ok_or(CoordinatorRestError::PortNotFound(device_uuid, port_id))?;
+        // Find the next available index
+        // We count port IDs from 1
+
+        port.lid = Some(Virt::new(query.lid, random()));
+
+        let output = SetPortAttrResp{
+            lid: port.lid.unwrap().virt,
         };
         Ok(HttpResponse::Created().json(output))
     })

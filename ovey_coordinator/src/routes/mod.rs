@@ -37,7 +37,9 @@ mod tests {
 
     const GUID: u64 = 444;
 
-    async fn do_request_device<'a, Q, S, B, E, R>(app: &mut S, network_uuid: Uuid, device_uuid: Uuid, query: &Q, status: StatusCode) -> R
+    async fn do_request<'a, Q, S, B, E, R>(
+        app: &mut S, network_uuid: Uuid, device_uuid: Option<Uuid>,
+        port: Option<u32>, query: &Q, status: StatusCode) -> R
     where
         Q: OveydQuery,
         S: Service<Request = Request, Response = ServiceResponse<B>, Error = E>,
@@ -45,7 +47,7 @@ mod tests {
         B: MessageBody + Unpin,
         R: DeserializeOwned
     {
-        let uri = query.compile(None, network_uuid, Some(device_uuid));
+        let uri = query.compile(None, network_uuid, device_uuid, port);
         let req : Request = TestRequest::with_uri(&uri)
             .method(query.method())
             .to_request();
@@ -53,6 +55,44 @@ mod tests {
         assert_eq!(resp.status(), status);
         let body = test::read_body(resp).await;
         serde_json::from_slice(&body).unwrap()
+    }
+
+    async fn do_request_port<'a, Q, S, B, E, R>(
+        app: &mut S,
+        network_uuid: Uuid, device_uuid: Uuid, port: u32,
+        query: &Q, status: StatusCode) -> R
+    where
+        Q: OveydQuery,
+        S: Service<Request = Request, Response = ServiceResponse<B>, Error = E>,
+        E: std::fmt::Debug,
+        B: MessageBody + Unpin,
+        R: DeserializeOwned
+    {
+        do_request(app, network_uuid, Some(device_uuid), Some(port), query, status).await
+    }
+
+    async fn do_request_device<'a, Q, S, B, E, R>(
+        app: &mut S, network_uuid: Uuid, device_uuid: Uuid, query: &Q, status: StatusCode) -> R
+    where
+        Q: OveydQuery,
+        S: Service<Request = Request, Response = ServiceResponse<B>, Error = E>,
+        E: std::fmt::Debug,
+        B: MessageBody + Unpin,
+        R: DeserializeOwned
+    {
+        do_request(app, network_uuid, Some(device_uuid), None, query, status).await
+    }
+
+    async fn do_request_network<'a, Q, S, B, E, R>(
+        app: &mut S, network_uuid: Uuid, query: &Q, status: StatusCode) -> R
+    where
+        Q: OveydQuery,
+        S: Service<Request = Request, Response = ServiceResponse<B>, Error = E>,
+        E: std::fmt::Debug,
+        B: MessageBody + Unpin,
+        R: DeserializeOwned
+    {
+        do_request(app, network_uuid, None, None, query, status).await
     }
 
     #[actix_rt::test]
@@ -68,24 +108,14 @@ mod tests {
         let query = LeaseDeviceQuery{
             guid: GUID,
         };
-        let uri = query.compile(None, network, Some(device));
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        println!("{:#?}", req);
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::CREATED);
-        let body = test::read_body(resp).await;
-        let resp1_struct: LeaseDeviceResp = serde_json::from_slice(&body).unwrap();
+        let resp1_struct: LeaseDeviceResp =
+            do_request_device(&mut app, network, device,
+                              &query, StatusCode::CREATED).await;
         assert_ne!(GUID, resp1_struct.guid);
 
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = test::read_body(resp).await;
-        let resp2_struct: LeaseDeviceResp = serde_json::from_slice(&body).unwrap();
+        let resp2_struct: LeaseDeviceResp =
+            do_request_device(&mut app, network, device,
+                              &query, StatusCode::OK).await;
         println!("{:#?}", resp2_struct);
         assert_eq!(resp2_struct.guid, resp1_struct.guid);
     }
@@ -118,7 +148,7 @@ mod tests {
 	          core_cap_flags: 0,
 	          max_mad_size: 16,
         };
-        let created: CreatePortResp = do_request_device(&mut app,
+        let _created: CreatePortResp = do_request_device(&mut app,
                                                         network_uuid, device_uuid,
                                                         &query, StatusCode::CREATED).await;
 
@@ -142,16 +172,11 @@ mod tests {
             subnet_prefix: gid_struct.subnet_prefix,
             interface_id: gid_struct.interface_id,
         };
-        let uri = query.compile(None, network_uuid, None);
-        println!("{}", uri);
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = test::read_body(resp).await;
-        let resolve_struct: ResolveGidResp = serde_json::from_slice(&body).unwrap();
-        println!("{:#?}", gid_struct);
+        let resolve_struct: ResolveGidResp =
+            do_request_network(&mut app,
+                               network_uuid,
+                               &query, StatusCode::OK).await;
+        println!("{:#?}", resolve_struct);
         assert_eq!(resolve_struct.subnet_prefix, real_subnet_prefix);
         assert_eq!(resolve_struct.interface_id, real_interface_id);
 
@@ -189,15 +214,9 @@ mod tests {
         let query = LeaseDeviceQuery{
             guid: GUID,
         };
-        let uri = query.compile(None, network_uuid, Some(device_uuid));
-        println!("{}", uri);
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::CREATED);
-        let body = test::read_body(resp).await;
-        let guid_struct: LeaseDeviceResp = serde_json::from_slice(&body).unwrap();
+        let guid_struct: LeaseDeviceResp =
+            do_request_device(&mut app, network_uuid, device_uuid,
+                              &query, StatusCode::CREATED).await;
         assert_ne!(GUID, guid_struct.guid);
 
         let query = CreatePortQuery{
@@ -207,7 +226,7 @@ mod tests {
 	          core_cap_flags: 0,
 	          max_mad_size: 16,
         };
-        let created: CreatePortResp = do_request_device(&mut app,
+        let _created: CreatePortResp = do_request_device(&mut app,
                                                         network_uuid, device_uuid,
                                                         &query, StatusCode::CREATED).await;
 
@@ -222,42 +241,30 @@ mod tests {
             real_interface_id: 13,
         };
         let _resp: SetGidResp = do_request_device(&mut app,
-                              network_uuid, device_uuid,
-                              &query, StatusCode::OK).await;
+                                                  network_uuid, device_uuid,
+                                                  &query, StatusCode::OK).await;
 
         let query = SetGidQuery{
-            virt_port: 1,
             virt_idx: 1,
             virt_subnet_prefix: 0,
             virt_interface_id: 14,
-            real_port: 1,
             real_idx: 1,
             real_subnet_prefix: 0,
             real_interface_id: 15,
         };
-        let uri = query.compile(None, network_uuid, Some(device_uuid));
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = test::read_body(resp).await;
-        let resp: SetGidResp = serde_json::from_slice(&body).unwrap();
+        let resp: SetGidResp = do_request_device(&mut app,
+                                                 network_uuid, device_uuid,
+                                                 &query, StatusCode::OK).await;
         println!("{:#?}", resp);
 
         let query = ResolveGidQuery{
             subnet_prefix: 0,
             interface_id: 14,
         };
-        let uri = query.compile(None, network_uuid, None);
-        println!("{}", uri);
-        let req = TestRequest::with_uri(&uri)
-            .method(query.method())
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = test::read_body(resp).await;
-        let resolve_struct: ResolveGidResp = serde_json::from_slice(&body).unwrap();
+        let resolve_struct: ResolveGidResp =
+            do_request_network(&mut app,
+                               network_uuid,
+                               &query, StatusCode::OK).await;
         assert_eq!(resolve_struct.subnet_prefix, 0);
         assert_eq!(resolve_struct.interface_id, 15);
 

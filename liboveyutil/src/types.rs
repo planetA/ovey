@@ -20,6 +20,7 @@ pub struct OveydReq {
     pub seq: u32,
     pub network: Uuid,
     pub device: Option<Uuid>,
+    pub port: Option<u32>,
     pub query: Box<dyn OveydQuery>,
 }
 
@@ -30,6 +31,7 @@ pub enum OveydCmdResp {
     ResolveGid(ResolveGidResp),
     SetGid(SetGidResp),
     CreatePort(CreatePortResp),
+    SetPortAttr(SetPortAttrResp),
 }
 
 pub struct OveydResp {
@@ -47,8 +49,10 @@ pub trait OveydQuery: fmt::Debug {
     /// Convert the query to urlencoded string
     fn query(&self) -> String;
 
-    fn compile(&self, host: Option<&str>, network: Uuid, device: Option<Uuid>) -> String {
-        let url = if let Some(device_uuid) = device {
+    fn compile(&self, host: Option<&str>, network: Uuid, device: Option<Uuid>, port: Option<u32>) -> String {
+        let url = if let Some(port) = port {
+            build_port_url(self.endpoint(), network, device.unwrap(), port)
+        } else if let Some(device_uuid) = device {
             build_device_url(self.endpoint(), network, device_uuid)
         } else {
             build_network_url(self.endpoint(), network)
@@ -239,4 +243,33 @@ pub struct CreatePortResp {
 	  pub gid_tbl_len: u32,
 	  pub core_cap_flags: u32,
 	  pub max_mad_size: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SetPortAttrQuery {
+    pub lid: u32,
+}
+
+impl OveydQuery for SetPortAttrQuery {
+    fn method(&self) -> http::Method {
+        http::Method::POST
+    }
+
+    fn endpoint(&self) -> &str {
+        ROUTE_PORTS_ONE
+    }
+
+    fn query(&self) -> String {
+        serde_urlencoded::to_string(&self).unwrap()
+    }
+
+    fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
+        Ok(OveydCmdResp::SetPortAttr(
+            serde_json::from_str::<SetPortAttrResp>(&res)?))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SetPortAttrResp {
+    pub lid: u32,
 }
