@@ -159,15 +159,26 @@ mod tests {
         let query = SetPortAttrQuery{
             lid: 0,
         };
-        let attr: SetPortAttrResp =
+        let attr1: SetPortAttrResp =
             do_request_port(&mut app,
                             network_uuid, device_uuid, port.port,
                             &query, StatusCode::OK).await;
-        println!("{:#?}", attr);
-        assert_ne!(attr.lid, 0);
+        println!("{:#?}", attr1);
+        assert_ne!(attr1.lid, 0);
 
         let query = SetPortAttrQuery{
             lid: 0,
+        };
+        let attr2: SetPortAttrResp =
+            do_request_port(&mut app,
+                            network_uuid, device_uuid, port.port,
+                            &query, StatusCode::OK).await;
+        println!("{:#?}", attr2);
+        assert_ne!(attr2.lid, 0);
+        assert_eq!(attr2.lid, attr1.lid);
+
+        let query = SetPortAttrQuery{
+            lid: 1,
         };
         let attr: SetPortAttrResp =
             do_request_port(&mut app,
@@ -175,6 +186,7 @@ mod tests {
                             &query, StatusCode::OK).await;
         println!("{:#?}", attr);
         assert_ne!(attr.lid, 0);
+        assert_ne!(attr2.lid, attr.lid);
 
         let query = LeaseGidQuery{
             idx: 0,

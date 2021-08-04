@@ -65,10 +65,21 @@ async fn route_port_attr_post(
         // Find the next available index
         // We count port IDs from 1
 
-        port.lid = Some(Virt::new(query.lid, random()));
+        let lid = port.lid
+            .and_then(|lid| {
+                if lid.real == query.lid {
+                    Some(lid.virt)
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                port.lid = Some(Virt::new(query.lid, random()));
+                Some(port.lid.unwrap().virt)
+            }).unwrap();
 
         let output = SetPortAttrResp{
-            lid: port.lid.unwrap().virt,
+            lid: lid,
         };
         debug!("Port attributes: {:#?}", output);
         Ok(HttpResponse::Ok().json(output))
