@@ -237,7 +237,7 @@ fn parse_request_set_port_attr(req: oveyd_req_pkt) -> Result<OveydReq, io::Error
         seq: req.seq,
         network: Uuid::from_bytes(req.network),
         device: Some(Uuid::from_bytes(req.device)),
-        port: None,
+        port: Some(req.port),
         query: Box::new(SetPortAttrQuery{
             lid: cmd.lid,
         }),
@@ -430,6 +430,7 @@ pub async fn cdev_thread(exit_work_loop: Arc<AtomicBool>) {
         let host = CONFIG.get_coordinator(&req.network)
             .expect("Coordinator not found for the network");
         let resp = process_request(req, host).await.unwrap();
+        println!("Response: {:#?}", resp);
         reply_request(&mut file, resp);
     }
     info!("Kernel request listening loop thread done. Consider restarting Ovey daemon.");

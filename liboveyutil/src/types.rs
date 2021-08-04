@@ -34,6 +34,7 @@ pub enum OveydCmdResp {
     SetPortAttr(SetPortAttrResp),
 }
 
+#[derive(Debug)]
 pub struct OveydResp {
     pub seq: u32,
     pub network: Uuid,

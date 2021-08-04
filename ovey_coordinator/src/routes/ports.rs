@@ -56,7 +56,7 @@ async fn route_port_attr_post(
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network(network_uuid, |network| {
-        debug!("Create gd: {}: {:#?} {:#?}", network_uuid, _req, query);
+        debug!("Set port attributes: {}: {:#?} {:#?}", network_uuid, _req, query);
 
         let port = network.devices.by_device(device_uuid)
             .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?
@@ -70,6 +70,7 @@ async fn route_port_attr_post(
         let output = SetPortAttrResp{
             lid: port.lid.unwrap().virt,
         };
-        Ok(HttpResponse::Created().json(output))
+        debug!("Port attributes: {:#?}", output);
+        Ok(HttpResponse::Ok().json(output))
     })
 }
