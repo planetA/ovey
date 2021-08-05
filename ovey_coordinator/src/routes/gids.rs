@@ -20,7 +20,7 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
 async fn route_gid_post(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid, port_id)): web::Path<(Uuid, Uuid, u16)>,
-    web::Query(query): web::Query<LeaseGidQuery>,
+    web::Json(query): web::Json<LeaseGidQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network(network_uuid, |network| {
@@ -35,25 +35,28 @@ async fn route_gid_post(
             .map(|e| e.virt.idx)
             .max()
             .and_then(|idx| Some(idx + 1)).or(Some(0)).unwrap();
-        let gid = GidEntry{
+        let entry = GidEntry{
             idx: idx,
-            subnet_prefix: random(),
-            interface_id: random(),
+            gid: Gid{
+                subnet_prefix: random(),
+                interface_id: random(),
+            },
         };
         port.add_gid(Virt{
-            virt: gid,
+            virt: entry,
             real: GidEntry{
                 idx: query.idx,
-                subnet_prefix: query.subnet_prefix,
-                interface_id: query.interface_id,
+                gid: Gid{
+                    subnet_prefix: query.gid.subnet_prefix,
+                    interface_id: query.gid.interface_id,
+                }
             }});
 
-        assert_eq!(gid.idx, query.idx);
+        assert_eq!(entry.idx, query.idx);
 
         let output = LeaseGidResp{
-            idx: gid.idx,
-            subnet_prefix: gid.subnet_prefix,
-            interface_id: gid.interface_id,
+            idx: entry.idx,
+            gid: entry.gid,
         };
         Ok(HttpResponse::Ok().json(output))
     })
@@ -63,23 +66,32 @@ async fn route_gid_post(
 async fn route_gid_put(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid, port_id)): web::Path<(Uuid, Uuid, u16)>,
-    web::Query(query): web::Query<SetGidQuery>,
+    web::Json(query): web::Json<SetGidQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network(network_uuid, |network| {
         let new_addr = Virt{
             virt: GidEntry{
                 idx: query.virt_idx,
-                subnet_prefix: query.virt_subnet_prefix,
-                interface_id: query.virt_interface_id,
+                gid: Gid{
+                    subnet_prefix: query.virt.subnet_prefix,
+                    interface_id: query.virt.interface_id,
+                },
             },
             real: GidEntry{
                 idx: query.real_idx,
-                subnet_prefix: query.real_subnet_prefix,
-                interface_id: query.real_interface_id,
+                gid: Gid{
+                    subnet_prefix: query.real.subnet_prefix,
+                    interface_id: query.real.interface_id,
+                },
             }};
 
         if !network.is_gid_unique(new_addr) {
+            debug!("GID conflict:\n\tNetwork: {}\n\tDevice: {}\n\tPort: {}\n\tAddr: {:#?}",
+                   network_uuid, device_uuid, port_id, new_addr);
+            for dev in network.devices.iter() {
+                debug!("Device: {:#?}", dev);
+            }
             return Err(CoordinatorRestError::GidConflict)
         }
 
@@ -94,11 +106,9 @@ async fn route_gid_put(
 
         let output = SetGidResp{
             real_idx: query.virt_idx,
-            real_subnet_prefix: query.virt_subnet_prefix,
-            real_interface_id: query.virt_interface_id,
+            real: query.real,
             virt_idx: query.real_idx,
-            virt_subnet_prefix: query.real_subnet_prefix,
-            virt_interface_id: query.real_interface_id,
+            virt: query.virt,
         };
         Ok(HttpResponse::Ok().json(output))
     })

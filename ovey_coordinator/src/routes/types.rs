@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 
 use uuid::Uuid;
 
+use liboveyutil::types::Gid;
 use crate::rest::errors::CoordinatorRestError;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -26,22 +27,20 @@ impl<T> Virt<T> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct GidEntry {
     pub(crate) idx: u32,
-    pub(crate) subnet_prefix: u64,
-    pub(crate) interface_id: u64,
+    pub(crate) gid: Gid,
 }
 
 impl GidEntry {
-    pub(crate) fn new(idx: u32, subnet_prefix: u64, interface_id: u64) -> Self {
+    pub(crate) fn new(idx: u32, gid: Gid) -> Self {
         GidEntry{
             idx: idx,
-            subnet_prefix,
-            interface_id,
+            gid: gid,
         }
     }
 
     pub(crate) fn is_same_addr(&self, other: &Self) -> bool {
-        self.subnet_prefix == other.subnet_prefix &&
-            self.interface_id == other.interface_id
+        self.gid.subnet_prefix == other.gid.subnet_prefix &&
+            self.gid.interface_id == other.gid.interface_id
     }
 }
 
@@ -112,10 +111,16 @@ impl PortEntry {
 }
 
 #[derive(Clone, Debug)]
+pub(crate) struct QpEntry {
+    pub(crate) qpn: Virt<u32>,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct DeviceEntry {
     pub(crate) device: Uuid,
     pub(crate) guid: Option<Virt<u64>>,
     ports: Vec<PortEntry>,
+    qps: Vec<QpEntry>,
     pub(crate) lease: Instant,
 }
 
@@ -126,12 +131,13 @@ impl DeviceEntry {
             lease: Instant::now(),
             guid: None,
             ports: Vec::new(),
+            qps: Vec::new(),
         }
     }
 
     pub(crate) fn is_gid_unique(&self, gid: Virt<GidEntry>) -> bool {
         self.ports.iter()
-            .find(|p| p.is_gid_unique(gid))
+            .find(|p| !p.is_gid_unique(gid))
             .is_none()
     }
 
@@ -158,6 +164,18 @@ impl DeviceEntry {
     pub(crate) fn iter_port(&self) -> std::slice::Iter<'_, PortEntry>
     {
         self.ports.iter()
+    }
+
+    pub(crate) fn add_qp(&mut self, qpn: Virt<u32>) -> &mut QpEntry {
+        self.qps.push(QpEntry{
+            qpn: qpn,
+        });
+        self.qps.last_mut().unwrap()
+    }
+
+    pub(crate) fn iter_qps(&self) -> std::slice::Iter<'_, QpEntry>
+    {
+        self.qps.iter()
     }
 }
 
@@ -196,7 +214,7 @@ impl NetworkState {
 
     pub(crate) fn is_gid_unique(&self, gid: Virt<GidEntry>) -> bool {
         self.devices.iter()
-            .find(|device| device.is_gid_unique(gid))
+            .find(|device| !device.is_gid_unique(gid))
             .is_none()
     }
 }

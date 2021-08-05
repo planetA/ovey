@@ -19,24 +19,33 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
 async fn route_resolve_gid(
     state: web::Data<CoordState>,
     web::Path(network_uuid): web::Path<Uuid>,
-    web::Query(query): web::Query<ResolveGidQuery>,
+    web::Json(query): web::Json<ResolveQpGidQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network(network_uuid, |network| {
-        let search_pattern = GidEntry::new(0, query.subnet_prefix, query.interface_id);
-        println!("{:#?}", search_pattern);
         println!("{:#?}", network.devices);
-        let gid = network.devices.iter()
-            .map(|device| device.iter_port())
-            .flatten()
+        println!("Query: {:#?}", query);
+        let device = network.devices.iter()
+            .find(|device| {
+                device.iter_port()
+                    .map(|port| port.iter_gid())
+                    .flatten()
+                    .find(|gid_entry| gid_entry.virt.gid == query.gid)
+                    .is_some()
+            })
+            .ok_or(CoordinatorRestError::GidNotFound(query.gid))?;
+        let gid_entry = device.iter_port()
             .map(|port| port.iter_gid())
             .flatten()
-            .find(|gid| gid.virt.is_same_addr(&search_pattern))
-            .ok_or(CoordinatorRestError::GidNotFound(query.subnet_prefix, query.interface_id))?;
+            .find(|gid| gid.virt.gid == query.gid)
+            .ok_or(CoordinatorRestError::GidNotFound(query.gid))?;
+        let qp = device.iter_qps()
+            .find(|qp| qp.qpn.virt == query.qpn)
+            .ok_or(CoordinatorRestError::QpNotFound(query.qpn))?;
 
-        let output = ResolveGidResp{
-            subnet_prefix: gid.real.subnet_prefix,
-            interface_id: gid.real.interface_id,
+        let output = ResolveQpGidResp{
+            gid: gid_entry.real.gid,
+            qpn: qp.qpn.real,
         };
         debug!("Resolve gid: {}: {:#?} {:#?} -> {:#?}", network_uuid, _req,
                query, output);

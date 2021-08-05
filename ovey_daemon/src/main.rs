@@ -24,16 +24,24 @@ extern crate log;
 enum OveydRequestType {
     LeaseDevice = 0,
     LeaseGid = 1,
-    ResolveGid = 2,
+    ResolveQpGid = 2,
     SetGid = 3,
     CreatePort = 4,
     SetPortAttr = 5,
+    CreateQp = 6,
 }
 
 // Big endian u64 type
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct U64Be(u64);
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct oveyd_gid {
+    subnet_prefix: U64Be,
+    interface_id: U64Be,
+}
 
 impl From<u64> for U64Be {
     fn from(val: u64) -> Self {
@@ -68,9 +76,10 @@ struct oveyd_set_gid {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct oveyd_resolve_gid {
+struct oveyd_resolve_qp_gid {
     subnet_prefix: U64Be,
     interface_id: U64Be,
+    qpn: u32,
 }
 
 #[repr(C)]
@@ -90,13 +99,20 @@ struct oveyd_set_port_attr {
 }
 
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct oveyd_create_qp {
+    qpn: u32,
+}
+
+#[repr(C)]
 union cmd_union {
     pub lease_device: oveyd_lease_device,
     pub lease_gid: oveyd_lease_gid,
-    pub resolve_gid: oveyd_resolve_gid,
+    pub resolve_qp_gid: oveyd_resolve_qp_gid,
     pub set_gid: oveyd_set_gid,
     pub create_port: oveyd_create_port,
     pub set_port_attr: oveyd_set_port_attr,
+    pub create_qp: oveyd_create_qp,
 }
 
 #[repr(C)]
@@ -125,10 +141,11 @@ impl TryFrom<u16> for OveydRequestType {
         match v {
             x if x == OveydRequestType::LeaseDevice as u16 => Ok(OveydRequestType::LeaseDevice),
             x if x == OveydRequestType::LeaseGid as u16 => Ok(OveydRequestType::LeaseGid),
-            x if x == OveydRequestType::ResolveGid as u16 => Ok(OveydRequestType::ResolveGid),
+            x if x == OveydRequestType::ResolveQpGid as u16 => Ok(OveydRequestType::ResolveQpGid),
             x if x == OveydRequestType::SetGid as u16 => Ok(OveydRequestType::SetGid),
             x if x == OveydRequestType::CreatePort as u16 => Ok(OveydRequestType::CreatePort),
             x if x == OveydRequestType::SetPortAttr as u16 => Ok(OveydRequestType::SetPortAttr),
+            x if x == OveydRequestType::CreateQp as u16 => Ok(OveydRequestType::CreateQp),
             _ => Err(()),
         }
     }
@@ -162,15 +179,17 @@ fn parse_request_lease_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
         port: Some(req.port),
         query: Box::new(LeaseGidQuery{
             idx: cmd.idx,
-            subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
-            interface_id: u64::from_be(cmd.interface_id.0),
+            gid: Gid{
+                subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
+                interface_id: u64::from_be(cmd.interface_id.0),
+            },
         }),
     })
 }
 
-fn parse_request_resolve_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
-    let cmd: oveyd_resolve_gid = unsafe {
-        req.cmd.resolve_gid
+fn parse_request_resolve_qp_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_resolve_qp_gid = unsafe {
+        req.cmd.resolve_qp_gid
     };
 
     Ok(OveydReq{
@@ -178,9 +197,12 @@ fn parse_request_resolve_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> 
         network: Uuid::from_bytes(req.network),
         device: None,
         port: None,
-        query: Box::new(ResolveGidQuery{
-            subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
-            interface_id: u64::from_be(cmd.interface_id.0),
+        query: Box::new(ResolveQpGidQuery{
+            gid: Gid{
+                subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
+                interface_id: u64::from_be(cmd.interface_id.0),
+            },
+            qpn: cmd.qpn
         }),
     })
 }
@@ -198,12 +220,16 @@ fn parse_request_set_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
         device: Some(Uuid::from_bytes(req.device)),
         port: Some(req.port),
         query: Box::new(SetGidQuery{
-            real_idx: cmd.real_idx,
             virt_idx: cmd.virt_idx,
-            virt_subnet_prefix: u64::from_be(cmd.virt_subnet_prefix.0),
-            virt_interface_id: u64::from_be(cmd.virt_interface_id.0),
-            real_subnet_prefix: u64::from_be(cmd.real_subnet_prefix.0),
-            real_interface_id: u64::from_be(cmd.real_interface_id.0),
+            real_idx: cmd.real_idx,
+            virt: Gid{
+                subnet_prefix: u64::from_be(cmd.virt_subnet_prefix.0),
+                interface_id: u64::from_be(cmd.virt_interface_id.0),
+            },
+            real: Gid{
+                subnet_prefix: u64::from_be(cmd.real_subnet_prefix.0),
+                interface_id: u64::from_be(cmd.real_interface_id.0),
+            },
         }),
     })
 }
@@ -244,6 +270,22 @@ fn parse_request_set_port_attr(req: oveyd_req_pkt) -> Result<OveydReq, io::Error
     })
 }
 
+fn parse_request_create_qp(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_create_qp = unsafe {
+        req.cmd.create_qp
+    };
+
+    Ok(OveydReq{
+        seq: req.seq,
+        network: Uuid::from_bytes(req.network),
+        device: Some(Uuid::from_bytes(req.device)),
+        port: None,
+        query: Box::new(CreateQpQuery{
+            qpn: cmd.qpn,
+        }),
+    })
+}
+
 fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     if buffer.len() < size_of::<oveyd_req_pkt>() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too short"));
@@ -256,13 +298,17 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     println!("Read {}: {:?} hdr", buffer.len(), buffer);
 
     println!("PKT: cmd {} len {} seq {}", pkt.cmd_type, pkt.len, pkt.seq);
+    println!("{:?} {:?} {:?}",
+             OveydRequestType::SetPortAttr as usize,
+             OveydRequestType::CreatePort as usize, OveydRequestType::CreateQp as usize);
     match pkt.cmd_type.try_into() {
         Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(pkt),
         Ok(OveydRequestType::LeaseGid) => parse_request_lease_gid(pkt),
-        Ok(OveydRequestType::ResolveGid) => parse_request_resolve_gid(pkt),
+        Ok(OveydRequestType::ResolveQpGid) => parse_request_resolve_qp_gid(pkt),
         Ok(OveydRequestType::SetGid) => parse_request_set_gid(pkt),
         Ok(OveydRequestType::CreatePort) => parse_request_create_port(pkt),
         Ok(OveydRequestType::SetPortAttr) => parse_request_set_port_attr(pkt),
+        Ok(OveydRequestType::CreateQp) => parse_request_create_qp(pkt),
         Err(_) => Err(io::Error::new(io::ErrorKind::InvalidInput, "UnknownType")),
     }
 }
@@ -300,21 +346,22 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                 cmd: cmd_union{
                     lease_gid: oveyd_lease_gid{
                         idx: cmd.idx,
-                        subnet_prefix: cmd.subnet_prefix.into(),
-                        interface_id: cmd.interface_id.into(),
+                        subnet_prefix: cmd.gid.subnet_prefix.into(),
+                        interface_id: cmd.gid.interface_id.into(),
                     },
                 },
             }
         },
-        OveydCmdResp::ResolveGid(cmd) => {
+        OveydCmdResp::ResolveQpGid(cmd) => {
             oveyd_resp_pkt{
-                cmd_type: OveydRequestType::ResolveGid as u16,
+                cmd_type: OveydRequestType::ResolveQpGid as u16,
                 len: size_of::<oveyd_resp_pkt>() as u16,
                 seq: resp.seq,
                 cmd: cmd_union{
-                    resolve_gid: oveyd_resolve_gid{
-                        subnet_prefix: cmd.subnet_prefix.into(),
-                        interface_id: cmd.interface_id.into(),
+                    resolve_qp_gid: oveyd_resolve_qp_gid{
+                        subnet_prefix: cmd.gid.subnet_prefix.into(),
+                        interface_id: cmd.gid.interface_id.into(),
+                        qpn: cmd.qpn,
                     },
                 },
             }
@@ -328,10 +375,10 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                     set_gid: oveyd_set_gid{
                         real_idx: cmd.real_idx,
                         virt_idx: cmd.virt_idx,
-                        virt_subnet_prefix: cmd.virt_subnet_prefix.into(),
-                        virt_interface_id: cmd.virt_interface_id.into(),
-                        real_subnet_prefix: cmd.real_subnet_prefix.into(),
-                        real_interface_id: cmd.real_interface_id.into(),
+                        virt_subnet_prefix: cmd.virt.subnet_prefix.into(),
+                        virt_interface_id: cmd.virt.interface_id.into(),
+                        real_subnet_prefix: cmd.real.subnet_prefix.into(),
+                        real_interface_id: cmd.real.interface_id.into(),
                     },
                 },
             }
@@ -364,6 +411,18 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                 },
             }
         },
+        OveydCmdResp::CreateQp(cmd) => {
+            oveyd_resp_pkt{
+                cmd_type: OveydRequestType::CreateQp as u16,
+                len: size_of::<oveyd_resp_pkt>() as u16,
+                seq: resp.seq,
+                cmd: cmd_union{
+                    create_qp: oveyd_create_qp{
+                        qpn: cmd.qpn,
+                    },
+                },
+            }
+        },
     };
     let buf = raw_byte_repr(&c_resp);
     let _ = file.write(buf).unwrap();
@@ -374,6 +433,8 @@ pub async fn process_request(req: OveydReq, host: String) -> Result<OveydResp, i
     let res = client
         .request(req.query.method(),
                  req.query.compile(Some(&host), req.network, req.device, req.port))
+        .header("content-type", "application/json")
+        .body(req.query.json())
         .send()
         .await
         .unwrap();

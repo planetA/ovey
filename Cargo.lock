@@ -1107,6 +1107,7 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "awc",
+ "byteorder",
  "enum_dispatch",
  "http",
  "regex",

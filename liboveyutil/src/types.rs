@@ -1,19 +1,33 @@
 //! Common Types used in Ovey.
+use std::fmt::Formatter;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::fmt;
-use serde_urlencoded;
 use http;
+use byteorder::{BigEndian, WriteBytesExt};
 
-/// A guid is a big endian encoded u64.
-pub type GuidInternalType = u64;
-/// Virtual GUID as String (e.g. dead:beef:affe:cafe) is the key.
-/// This is easier to read/write during development and overhead is neglible.
-pub type GuidString = String;
-/// Virtual LID as String (e.g. 0x41) is the key.
-/// This is easier to read/write during development and overhead is neglible.
-pub type LidString = String;
 use crate::urls::*;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Gid {
+    pub subnet_prefix: u64,
+    pub interface_id: u64,
+}
+
+impl std::fmt::Display for Gid {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let mut wtr = vec![];
+        wtr.write_u64::<BigEndian>(self.subnet_prefix).unwrap();
+        wtr.write_u64::<BigEndian>(self.interface_id).unwrap();
+        for (i, w) in wtr.iter().enumerate() {
+            if i > 0 && (i % 4 == 0) {
+                write!(f, ":")?;
+            }
+            write!(f, "{:01x}", w)?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct OveydReq {
@@ -28,10 +42,11 @@ pub struct OveydReq {
 pub enum OveydCmdResp {
     LeaseDevice(LeaseDeviceResp),
     LeaseGid(LeaseGidResp),
-    ResolveGid(ResolveGidResp),
+    ResolveQpGid(ResolveQpGidResp),
     SetGid(SetGidResp),
     CreatePort(CreatePortResp),
     SetPortAttr(SetPortAttrResp),
+    CreateQp(CreateQpResp),
 }
 
 #[derive(Debug)]
@@ -47,8 +62,8 @@ pub trait OveydQuery: fmt::Debug {
     /// Endpoint at the coordinator that processes the query
     fn endpoint(&self) -> &str;
 
-    /// Convert the query to urlencoded string
-    fn query(&self) -> String;
+    /// Convert the query to json
+    fn json(&self) -> String;
 
     fn compile(&self, host: Option<&str>, network: Uuid, device: Option<Uuid>, port: Option<u16>) -> String {
         let url = if let Some(port) = port {
@@ -59,9 +74,9 @@ pub trait OveydQuery: fmt::Debug {
             build_network_url(self.endpoint(), network)
         };
         if let Some(host) = host {
-            format!("{}{}?{}", host, url, self.query())
+            format!("{}{}", host, url)
         } else {
-            format!("{}?{}", url, self.query())
+            format!("{}", url)
         }
     }
 
@@ -88,8 +103,8 @@ impl OveydQuery for LeaseDeviceQuery {
         ROUTE_GUIDS_DEVICE
     }
 
-    fn query(&self) -> String {
-        serde_urlencoded::to_string(&self).unwrap()
+    fn json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -100,8 +115,7 @@ impl OveydQuery for LeaseDeviceQuery {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeaseGidQuery {
     pub idx: u32,
-    pub subnet_prefix: u64,
-    pub interface_id: u64,
+    pub gid: Gid,
 }
 
 impl OveydQuery for LeaseGidQuery {
@@ -113,8 +127,8 @@ impl OveydQuery for LeaseGidQuery {
         ROUTE_GIDS_PORT
     }
 
-    fn query(&self) -> String {
-        serde_urlencoded::to_string(&self).unwrap()
+    fn json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -126,18 +140,17 @@ impl OveydQuery for LeaseGidQuery {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeaseGidResp {
     pub idx: u32,
-    pub subnet_prefix: u64,
-    pub interface_id: u64,
+    pub gid: Gid,
 }
 
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ResolveGidQuery {
-    pub subnet_prefix: u64,
-    pub interface_id: u64,
+pub struct ResolveQpGidQuery {
+    pub gid: Gid,
+    pub qpn: u32,
 }
 
-impl OveydQuery for ResolveGidQuery {
+impl OveydQuery for ResolveQpGidQuery {
     fn method(&self) -> http::Method {
         http::Method::GET
     }
@@ -146,30 +159,28 @@ impl OveydQuery for ResolveGidQuery {
         ROUTE_GIDS_ALL
     }
 
-    fn query(&self) -> String {
-        serde_urlencoded::to_string(&self).unwrap()
+    fn json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
-        Ok(OveydCmdResp::ResolveGid(
-            serde_json::from_str::<ResolveGidResp>(&res)?))
+        Ok(OveydCmdResp::ResolveQpGid(
+            serde_json::from_str::<ResolveQpGidResp>(&res)?))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ResolveGidResp {
-    pub subnet_prefix: u64,
-    pub interface_id: u64,
+pub struct ResolveQpGidResp {
+    pub gid: Gid,
+    pub qpn: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetGidQuery {
     pub real_idx: u32,
     pub virt_idx: u32,
-    pub virt_subnet_prefix: u64,
-    pub virt_interface_id: u64,
-    pub real_subnet_prefix: u64,
-    pub real_interface_id: u64,
+    pub virt: Gid,
+    pub real: Gid,
 }
 
 impl OveydQuery for SetGidQuery {
@@ -181,8 +192,8 @@ impl OveydQuery for SetGidQuery {
         ROUTE_GIDS_PORT
     }
 
-    fn query(&self) -> String {
-        serde_urlencoded::to_string(&self).unwrap()
+    fn json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -193,12 +204,10 @@ impl OveydQuery for SetGidQuery {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetGidResp {
-    pub real_idx: u32,
     pub virt_idx: u32,
-    pub real_subnet_prefix: u64,
-    pub real_interface_id: u64,
-    pub virt_subnet_prefix: u64,
-    pub virt_interface_id: u64,
+    pub real_idx: u32,
+    pub virt: Gid,
+    pub real: Gid,
 }
 
 
@@ -221,8 +230,8 @@ impl OveydQuery for CreatePortQuery {
         ROUTE_PORTS_DEVICE
     }
 
-    fn query(&self) -> String {
-        serde_urlencoded::to_string(&self).unwrap()
+    fn json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -254,8 +263,8 @@ impl OveydQuery for SetPortAttrQuery {
         ROUTE_PORTS_ONE
     }
 
-    fn query(&self) -> String {
-        serde_urlencoded::to_string(&self).unwrap()
+    fn json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
@@ -267,4 +276,34 @@ impl OveydQuery for SetPortAttrQuery {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetPortAttrResp {
     pub lid: u32,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateQpQuery {
+    pub qpn: u32,
+}
+
+impl OveydQuery for CreateQpQuery {
+    fn method(&self) -> http::Method {
+        http::Method::POST
+    }
+
+    fn endpoint(&self) -> &str {
+        ROUTE_QPS_DEVICE
+    }
+
+    fn json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+
+    fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
+        Ok(OveydCmdResp::CreateQp(
+            serde_json::from_str::<CreateQpResp>(&res)?))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateQpResp {
+    pub qpn: u32,
 }

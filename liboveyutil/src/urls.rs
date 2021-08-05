@@ -15,6 +15,11 @@ pub const ROUTE_DEVICES_ONE: &str = "/networks/{network}/devices/{device}";
 pub const ROUTE_GUIDS_DEVICE: &str = "/networks/{network}/devices/{device}/guids";
 /// Endpoint to all ports of a device.
 pub const ROUTE_PORTS_DEVICE: &str = "/networks/{network}/devices/{device}/ports";
+/// Endpoint to all ports of a device.
+///
+/// XXX: That is kind of a hack. I must create a hierarchy device -> context ->
+/// PD -> QP, but I assume 1:1 relationship between device and PD.
+pub const ROUTE_QPS_DEVICE: &str = "/networks/{network}/devices/{device}/qps";
 /// Endpoint to a port of a device. Identifiend by 1-based inedx.
 pub const ROUTE_PORTS_ONE: &str = "/networks/{network}/devices/{device}/ports/{port}";
 /// Endpoint to all GIDs of a device. A device may have multiple GIDs.

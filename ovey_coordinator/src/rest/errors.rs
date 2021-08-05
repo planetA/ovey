@@ -3,6 +3,7 @@ use actix_web::{
 };
 use derive_more::Display;
 use uuid::Uuid;
+use liboveyutil::types::Gid;
 
 #[derive(Debug, Display)]
 pub enum CoordinatorRestError {
@@ -16,8 +17,10 @@ pub enum CoordinatorRestError {
     DeviceUuidNotFound(Uuid, Uuid),
     #[display(fmt = "Port '{}' not found inside device '{}'.", _1, _0)]
     PortNotFound(Uuid, u16),
-    #[display(fmt = "Gid '{:08x}:{:08x}' not found.", _0, _1)]
-    GidNotFound(u64, u64),
+    #[display(fmt = "Gid '{}' not found.", _0)]
+    GidNotFound(Gid),
+    #[display(fmt = "QP '{}' not found.", _0)]
+    QpNotFound(u32),
     #[display(fmt = "Real or virtual gid is not unique.")]
     GidConflict,
 }
@@ -34,6 +37,7 @@ impl error::ResponseError for CoordinatorRestError {
             CoordinatorRestError::DeviceUuidNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::PortNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::GidNotFound(..) => StatusCode::NOT_FOUND,
+            CoordinatorRestError::QpNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::GidConflict => StatusCode::CONFLICT,
         }
     }

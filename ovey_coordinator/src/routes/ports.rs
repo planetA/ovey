@@ -23,7 +23,7 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
 async fn route_port_post(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
-    web::Query(query): web::Query<CreatePortQuery>,
+    web::Json(query): web::Json<CreatePortQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network(network_uuid, |network| {
@@ -52,7 +52,7 @@ async fn route_port_post(
 async fn route_port_attr_post(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid, port_id)): web::Path<(Uuid, Uuid, u16)>,
-    web::Query(query): web::Query<SetPortAttrQuery>,
+    web::Json(query): web::Json<SetPortAttrQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network(network_uuid, |network| {
@@ -74,7 +74,7 @@ async fn route_port_attr_post(
                 }
             })
             .or_else(|| {
-                port.lid = Some(Virt::new(query.lid, random()));
+                port.lid = Some(Virt::new(query.lid, random::<u16>().into()));
                 Some(port.lid.unwrap().virt)
             }).unwrap();
 

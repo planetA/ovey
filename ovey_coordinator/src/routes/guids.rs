@@ -20,7 +20,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 async fn route_guid_post(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
-    web::Query(query): web::Query<LeaseDeviceQuery>,
+    web::Json(query): web::Json<LeaseDeviceQuery>,
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network_insert(network_uuid, |network| {
