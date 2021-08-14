@@ -40,7 +40,7 @@ async fn route_port_post(
         let output = CreatePortResp{
             port: port.id.virt,
 	          pkey_tbl_len: query.pkey_tbl_len,
-	          gid_tbl_len: query.gid_tbl_len,
+	          gid_tbl_len: 2,
 	          core_cap_flags: query.core_cap_flags,
 	          max_mad_size: query.max_mad_size,
         };
