@@ -17,6 +17,17 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     );
 }
 
+/// GUIDs have actual structure. The uppermost bytes of the GUID are the prefix
+/// that is assigned per vendor (see more here:
+/// http://standards-oui.ieee.org/oui/oui.txt). I chose some value from an
+/// unoccupied range.
+static OVEY_GUID_PREFIX_UMASK : u64 = 0x000000FFFFFFFFFF;
+static OVEY_GUID_PREFIX : u64 = 0x2513400000000000;
+
+fn create_ovey_guid() -> u64 {
+    (random::<u64>() & OVEY_GUID_PREFIX_UMASK) | OVEY_GUID_PREFIX
+}
+
 async fn route_guid_post(
     state: web::Data<CoordState>,
     web::Path((network_uuid, device_uuid)): web::Path<(Uuid, Uuid)>,
@@ -32,7 +43,7 @@ async fn route_guid_post(
             let device = DeviceEntry::new(device_uuid)
                 .set_guid(Virt{
                     real: query.guid,
-                    virt: random::<u64>(),
+                    virt: create_ovey_guid(),
                 }).to_owned();
             let virt = device.guid.unwrap().virt;
             network.devices.insert(device);
