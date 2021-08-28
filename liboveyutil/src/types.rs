@@ -14,6 +14,20 @@ pub struct Gid {
     pub interface_id: u64,
 }
 
+impl Gid {
+    /// A reserved address has interface ID set to zero (4.1.1 6) and should not
+    /// be used for addressing
+    pub fn is_reserved(&self) -> bool {
+        self.interface_id == 0
+    }
+
+    /// A loopback address has interface ID set to ::1 (4.1.1 6) and should not
+    /// be used for virtualisation by the coordinator
+    pub fn is_loopback(&self) -> bool {
+        self.interface_id == 1
+    }
+}
+
 impl std::fmt::Display for Gid {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut wtr = vec![];

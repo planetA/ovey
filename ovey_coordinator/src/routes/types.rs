@@ -85,17 +85,17 @@ impl PortEntry {
         self
     }
 
-    pub(crate) fn add_gid(&mut self, gid: Virt<GidEntry>) -> &mut Self {
+    pub(crate) fn add_gid(&mut self, gid: Virt<GidEntry>) -> Result<(), CoordinatorRestError> {
         if !self.is_gid_unique(gid) {
-            panic!("Duplicate gid");
+            return Err(CoordinatorRestError::GidConflict);
         }
 
         if self.gid.len() >= self.gid_tbl_len.try_into().unwrap() {
-            panic!("GID table is too long")
+            return Err(CoordinatorRestError::GidConflict);
         }
 
         self.gid.push(gid);
-        self
+        Ok(())
     }
 
     pub(crate) fn is_gid_unique(&self, gid: Virt<GidEntry>) -> bool {
@@ -107,6 +107,11 @@ impl PortEntry {
     pub(crate) fn iter_gid(&self) -> std::slice::Iter<'_, Virt<GidEntry>>
     {
         self.gid.iter()
+    }
+
+    pub(crate) fn iter_gid_mut(&mut self) -> std::slice::IterMut<'_, Virt<GidEntry>>
+    {
+        self.gid.iter_mut()
     }
 }
 

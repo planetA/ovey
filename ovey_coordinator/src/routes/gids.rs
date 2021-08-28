@@ -16,6 +16,8 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
     );
 }
 
+pub(crate) static DEFULT_GID_PREFIX : u64 = 0xfe80000000000000;
+
 /// The coordinator assign new translation address
 async fn route_gid_post(
     state: web::Data<CoordState>,
@@ -24,6 +26,10 @@ async fn route_gid_post(
     _req: HttpRequest) -> Result<actix_web::HttpResponse, CoordinatorRestError>
 {
     state.with_network(network_uuid, |network| {
+        if query.gid.is_reserved() && query.gid.is_loopback() {
+            return Err(CoordinatorRestError::GidReserved);
+        }
+
         let port : &mut PortEntry = network
             .devices.by_device(device_uuid)
             .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?
@@ -38,7 +44,7 @@ async fn route_gid_post(
         let entry = GidEntry{
             idx: idx,
             gid: Gid{
-                subnet_prefix: random(),
+                subnet_prefix: DEFULT_GID_PREFIX,
                 interface_id: random(),
             },
         };
@@ -50,7 +56,7 @@ async fn route_gid_post(
                     subnet_prefix: query.gid.subnet_prefix,
                     interface_id: query.gid.interface_id,
                 }
-            }});
+            }})?;
 
         assert_eq!(entry.idx, query.idx);
 
@@ -86,6 +92,28 @@ async fn route_gid_put(
                 },
             }};
 
+        debug!("Setting an address {:#?}", new_addr);
+
+        // Check if the virtual address has been assigned to the device already.
+        // If yes, update the real address mapping.
+        if let Some(old_addr) = network
+            .devices.by_device(device_uuid)
+            .ok_or(CoordinatorRestError::DeviceUuidNotFound(network_uuid, device_uuid))?
+            .get_port_mut(port_id)
+            .ok_or(CoordinatorRestError::PortNotFound(device_uuid, port_id))?
+            .iter_gid_mut()
+            .find(|e| e.virt == new_addr.virt) {
+                debug!("The entry is already known");
+                old_addr.real = new_addr.real;
+                let output = SetGidResp{
+                    real_idx: new_addr.real.idx,
+                    real: new_addr.real.gid,
+                    virt_idx: new_addr.virt.idx,
+                    virt: new_addr.virt.gid,
+                };
+                return Ok(HttpResponse::Ok().json(output));
+            }
+
         if !network.is_gid_unique(new_addr) {
             debug!("GID conflict:\n\tNetwork: {}\n\tDevice: {}\n\tPort: {}\n\tAddr: {:#?}",
                    network_uuid, device_uuid, port_id, new_addr);
@@ -102,12 +130,12 @@ async fn route_gid_put(
             .ok_or(CoordinatorRestError::PortNotFound(device_uuid, port_id))?;
         debug!("Let gd: {}: {:#?} {:#?}", network_uuid, _req, query);
 
-        port.add_gid(new_addr);
+        port.add_gid(new_addr)?;
 
         let output = SetGidResp{
-            real_idx: query.virt_idx,
+            real_idx: query.real_idx,
             real: query.real,
-            virt_idx: query.real_idx,
+            virt_idx: query.virt_idx,
             virt: query.virt,
         };
         Ok(HttpResponse::Ok().json(output))

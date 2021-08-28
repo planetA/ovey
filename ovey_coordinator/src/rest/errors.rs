@@ -23,6 +23,8 @@ pub enum CoordinatorRestError {
     QpNotFound(u32),
     #[display(fmt = "Real or virtual gid is not unique.")]
     GidConflict,
+    #[display(fmt = "Attempt to store reserved address.")]
+    GidReserved,
 }
 
 // IDE tells that Display is not implemented for CoordinatorRestError, but it gets implemented
@@ -39,6 +41,7 @@ impl error::ResponseError for CoordinatorRestError {
             CoordinatorRestError::GidNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::QpNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::GidConflict => StatusCode::CONFLICT,
+            CoordinatorRestError::GidReserved => StatusCode::CONFLICT,
         }
     }
 

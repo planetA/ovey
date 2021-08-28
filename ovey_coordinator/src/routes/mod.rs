@@ -39,6 +39,8 @@ mod tests {
     use liboveyutil::types::*;
     use rand::prelude::*;
     use serde_json::Result;
+    use gids::DEFULT_GID_PREFIX;
+    use guids::{OVEY_GUID_PREFIX_UMASK, OVEY_GUID_PREFIX};
 
     const GUID: u64 = 444;
 
@@ -127,6 +129,8 @@ mod tests {
             do_request_device(&mut app, network, device,
                               &query, StatusCode::CREATED).await.unwrap();
         assert_ne!(GUID, resp1_struct.guid);
+        println!("GUID {:#08x}", resp1_struct.guid);
+        assert_eq!(resp1_struct.guid & !OVEY_GUID_PREFIX_UMASK, OVEY_GUID_PREFIX);
 
         let resp2_struct: LeaseDeviceResp =
             do_request_device(&mut app, network, device,
@@ -145,7 +149,7 @@ mod tests {
         let network_uuid = Uuid::new_v4();
         let device_uuid = Uuid::new_v4();
         let real = Gid{
-            subnet_prefix: 4,
+            subnet_prefix: DEFULT_GID_PREFIX,
             interface_id: 5,
         };
 
@@ -214,7 +218,6 @@ mod tests {
                             &query, StatusCode::OK).await.unwrap();
         println!("{:#?}", gid_struct);
         assert_eq!(gid_struct.idx, query.idx);
-        assert_ne!(gid_struct.gid.subnet_prefix, query.gid.subnet_prefix);
         assert_ne!(gid_struct.gid.interface_id, query.gid.interface_id);
 
         let qp_query = CreateQpQuery{
@@ -256,6 +259,52 @@ mod tests {
                 }});
             Ok(())
         }).unwrap();
+
+        let query = SetGidQuery {
+            real_idx: 0,
+            virt_idx: gid_struct.idx,
+            real: real,
+            virt: gid_struct.gid,
+        };
+        let put_resp: SetGidResp =
+            do_request_port(&mut app,
+                            network_uuid, device_uuid, port.port,
+                            &query, StatusCode::OK).await.unwrap();
+        println!("{:#?}", put_resp);
+        assert_eq!(put_resp.virt_idx, query.virt_idx);
+        assert_eq!(put_resp.real_idx, query.real_idx);
+        assert_eq!(put_resp.real, query.real);
+        assert_eq!(put_resp.virt, query.virt);
+
+        let query = SetGidQuery {
+            real_idx: 1,
+            virt_idx: 15,
+            real: real,
+            virt: gid_struct.gid,
+        };
+        let err_resp: Result<SetGidResp> =
+            do_request_port(&mut app,
+                            network_uuid, device_uuid, port.port,
+                            &query, StatusCode::CONFLICT).await;
+        assert_eq!(err_resp.is_err(), true);
+
+        let query = SetGidQuery {
+            real_idx: 1,
+            virt_idx: gid_struct.idx,
+            real: Gid{
+                subnet_prefix: DEFULT_GID_PREFIX,
+                interface_id: 5,
+            },
+            virt: gid_struct.gid,
+        };
+        let gid_resp: SetGidResp =
+            do_request_port(&mut app,
+                            network_uuid, device_uuid, port.port,
+                            &query, StatusCode::OK).await.unwrap();
+        assert_eq!(gid_resp.virt_idx, query.virt_idx);
+        assert_eq!(gid_resp.real_idx, query.real_idx);
+        assert_eq!(gid_resp.real, query.real);
+        assert_eq!(gid_resp.virt, query.virt);
     }
 
     #[actix_rt::test]
@@ -292,7 +341,7 @@ mod tests {
             virt_idx: 0,
             real_idx: 0,
             virt: Gid{
-                subnet_prefix: 10,
+                subnet_prefix: DEFULT_GID_PREFIX,
                 interface_id: 11,
             },
             real: Gid{
@@ -312,7 +361,7 @@ mod tests {
             virt_idx: 1,
             real_idx: 1,
             virt: Gid{
-                subnet_prefix: 0,
+                subnet_prefix: DEFULT_GID_PREFIX,
                 interface_id: 14,
             },
             real: Gid{
@@ -339,7 +388,7 @@ mod tests {
 
         let query = ResolveQpGidQuery{
             gid: Gid{
-                subnet_prefix: 0,
+                subnet_prefix: DEFULT_GID_PREFIX,
                 interface_id: 14,
             },
             qpn: qp_resp.qpn,
@@ -363,7 +412,7 @@ mod tests {
                        .virt.is_same_addr(&GidEntry{
                            idx: 44,
                            gid: Gid{
-                               subnet_prefix: 0,
+                               subnet_prefix: DEFULT_GID_PREFIX,
                                interface_id: 14,
                            },
             }), true);
@@ -444,7 +493,7 @@ mod tests {
             virt_idx: 0,
             real_idx: 0,
             virt: Gid{
-                subnet_prefix: random(),
+                subnet_prefix: DEFULT_GID_PREFIX,
                 interface_id: random(),
             },
             real: Gid{
@@ -462,7 +511,7 @@ mod tests {
             virt_idx: 0,
             real_idx: 0,
             virt: Gid{
-                subnet_prefix: random(),
+                subnet_prefix: DEFULT_GID_PREFIX,
                 interface_id: random(),
             },
             real: Gid{

@@ -8,6 +8,8 @@ use liboveyutil::types::*;
 use crate::rest::errors::CoordinatorRestError;
 use crate::routes::types::*;
 
+static GID_TABLE_LEN: u32 = 4;
+
 pub(crate) fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource(ROUTE_PORTS_DEVICE)
@@ -40,7 +42,7 @@ async fn route_port_post(
         let output = CreatePortResp{
             port: port.id.virt,
 	          pkey_tbl_len: query.pkey_tbl_len,
-	          gid_tbl_len: 2,
+	          gid_tbl_len: GID_TABLE_LEN,
 	          core_cap_flags: query.core_cap_flags,
 	          max_mad_size: query.max_mad_size,
         };

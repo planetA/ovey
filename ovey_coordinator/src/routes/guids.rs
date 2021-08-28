@@ -21,8 +21,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 /// that is assigned per vendor (see more here:
 /// http://standards-oui.ieee.org/oui/oui.txt). I chose some value from an
 /// unoccupied range.
-static OVEY_GUID_PREFIX_UMASK : u64 = 0x000000FFFFFFFFFF;
-static OVEY_GUID_PREFIX : u64 = 0x2513400000000000;
+pub(crate) static OVEY_GUID_PREFIX_UMASK : u64 = 0x000000FFFFFFFFFF;
+pub(crate) static OVEY_GUID_PREFIX : u64 = 0x2513400000000000;
 
 fn create_ovey_guid() -> u64 {
     (random::<u64>() & OVEY_GUID_PREFIX_UMASK) | OVEY_GUID_PREFIX
