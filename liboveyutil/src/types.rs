@@ -5,10 +5,11 @@ use uuid::Uuid;
 use std::fmt;
 use http;
 use byteorder::{BigEndian, WriteBytesExt};
+use derive_builder::Builder;
 
 use crate::urls::*;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct Gid {
     pub subnet_prefix: u64,
     pub interface_id: u64,
@@ -56,7 +57,7 @@ pub struct OveydReq {
 pub enum OveydCmdResp {
     LeaseDevice(LeaseDeviceResp),
     LeaseGid(LeaseGidResp),
-    ResolveQpGid(ResolveQpGidResp),
+    ResolveQp(ResolveQpResp),
     SetGid(SetGidResp),
     CreatePort(CreatePortResp),
     SetPortAttr(SetPortAttrResp),
@@ -158,13 +159,15 @@ pub struct LeaseGidResp {
 }
 
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ResolveQpGidQuery {
-    pub gid: Gid,
-    pub qpn: u32,
+#[derive(Debug, Serialize, Deserialize, Builder, Default)]
+#[builder(setter(strip_option), default)]
+pub struct ResolveQpQuery {
+    pub gid: Option<Gid>,
+    pub qpn: Option<u32>,
+    pub lid: Option<u32>,
 }
 
-impl OveydQuery for ResolveQpGidQuery {
+impl OveydQuery for ResolveQpQuery {
     fn method(&self) -> http::Method {
         http::Method::GET
     }
@@ -178,15 +181,16 @@ impl OveydQuery for ResolveQpGidQuery {
     }
 
     fn parse_response(&self, res: String) -> Result<OveydCmdResp, std::io::Error> {
-        Ok(OveydCmdResp::ResolveQpGid(
-            serde_json::from_str::<ResolveQpGidResp>(&res)?))
+        Ok(OveydCmdResp::ResolveQp(
+            serde_json::from_str::<ResolveQpResp>(&res)?))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ResolveQpGidResp {
-    pub gid: Gid,
-    pub qpn: u32,
+pub struct ResolveQpResp {
+    pub gid: Option<Gid>,
+    pub qpn: Option<u32>,
+    pub lid: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

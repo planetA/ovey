@@ -24,7 +24,7 @@ extern crate log;
 enum OveydRequestType {
     LeaseDevice = 0,
     LeaseGid = 1,
-    ResolveQpGid = 2,
+    ResolveQp = 2,
     SetGid = 3,
     CreatePort = 4,
     SetPortAttr = 5,
@@ -74,12 +74,18 @@ struct oveyd_set_gid {
     virt_interface_id: U64Be,
 }
 
+static OVEYDR_RESOLVE_QP_GID : u64 = 1 << 0;
+static OVEYDR_RESOLVE_QP_QPN : u64 = 1 << 1;
+static OVEYDR_RESOLVE_QP_LID : u64 = 1 << 2;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct oveyd_resolve_qp_gid {
+struct oveyd_resolve_qp {
+    attr_mask: u64,
     subnet_prefix: U64Be,
     interface_id: U64Be,
     qpn: u32,
+    lid: u32,
 }
 
 #[repr(C)]
@@ -108,7 +114,7 @@ struct oveyd_create_qp {
 union cmd_union {
     pub lease_device: oveyd_lease_device,
     pub lease_gid: oveyd_lease_gid,
-    pub resolve_qp_gid: oveyd_resolve_qp_gid,
+    pub resolve_qp: oveyd_resolve_qp,
     pub set_gid: oveyd_set_gid,
     pub create_port: oveyd_create_port,
     pub set_port_attr: oveyd_set_port_attr,
@@ -141,7 +147,7 @@ impl TryFrom<u16> for OveydRequestType {
         match v {
             x if x == OveydRequestType::LeaseDevice as u16 => Ok(OveydRequestType::LeaseDevice),
             x if x == OveydRequestType::LeaseGid as u16 => Ok(OveydRequestType::LeaseGid),
-            x if x == OveydRequestType::ResolveQpGid as u16 => Ok(OveydRequestType::ResolveQpGid),
+            x if x == OveydRequestType::ResolveQp as u16 => Ok(OveydRequestType::ResolveQp),
             x if x == OveydRequestType::SetGid as u16 => Ok(OveydRequestType::SetGid),
             x if x == OveydRequestType::CreatePort as u16 => Ok(OveydRequestType::CreatePort),
             x if x == OveydRequestType::SetPortAttr as u16 => Ok(OveydRequestType::SetPortAttr),
@@ -187,9 +193,9 @@ fn parse_request_lease_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
     })
 }
 
-fn parse_request_resolve_qp_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
-    let cmd: oveyd_resolve_qp_gid = unsafe {
-        req.cmd.resolve_qp_gid
+fn parse_request_resolve_qp(req: oveyd_req_pkt) -> Result<OveydReq, io::Error> {
+    let cmd: oveyd_resolve_qp = unsafe {
+        req.cmd.resolve_qp
     };
 
     Ok(OveydReq{
@@ -197,12 +203,16 @@ fn parse_request_resolve_qp_gid(req: oveyd_req_pkt) -> Result<OveydReq, io::Erro
         network: Uuid::from_bytes(req.network),
         device: None,
         port: None,
-        query: Box::new(ResolveQpGidQuery{
-            gid: Gid{
-                subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
-                interface_id: u64::from_be(cmd.interface_id.0),
-            },
-            qpn: cmd.qpn
+        query: Box::new(ResolveQpQuery{
+            gid: (cmd.attr_mask & OVEYDR_RESOLVE_QP_GID != 0)
+                .then(|| Gid{
+                    subnet_prefix: u64::from_be(cmd.subnet_prefix.0),
+                    interface_id: u64::from_be(cmd.interface_id.0),
+                }),
+            qpn: (cmd.attr_mask & OVEYDR_RESOLVE_QP_QPN != 0)
+                .then(|| cmd.qpn),
+            lid: (cmd.attr_mask & OVEYDR_RESOLVE_QP_LID != 0)
+                .then(|| cmd.lid),
         }),
     })
 }
@@ -304,7 +314,7 @@ fn parse_request(buffer: Vec<u8>) -> Result<OveydReq, io::Error> {
     match pkt.cmd_type.try_into() {
         Ok(OveydRequestType::LeaseDevice) => parse_request_lease_device(pkt),
         Ok(OveydRequestType::LeaseGid) => parse_request_lease_gid(pkt),
-        Ok(OveydRequestType::ResolveQpGid) => parse_request_resolve_qp_gid(pkt),
+        Ok(OveydRequestType::ResolveQp) => parse_request_resolve_qp(pkt),
         Ok(OveydRequestType::SetGid) => parse_request_set_gid(pkt),
         Ok(OveydRequestType::CreatePort) => parse_request_create_port(pkt),
         Ok(OveydRequestType::SetPortAttr) => parse_request_set_port_attr(pkt),
@@ -352,16 +362,21 @@ fn reply_request(file: &mut std::fs::File, resp: OveydResp) {
                 },
             }
         },
-        OveydCmdResp::ResolveQpGid(cmd) => {
+        OveydCmdResp::ResolveQp(cmd) => {
             oveyd_resp_pkt{
-                cmd_type: OveydRequestType::ResolveQpGid as u16,
+                cmd_type: OveydRequestType::ResolveQp as u16,
                 len: size_of::<oveyd_resp_pkt>() as u16,
                 seq: resp.seq,
                 cmd: cmd_union{
-                    resolve_qp_gid: oveyd_resolve_qp_gid{
-                        subnet_prefix: cmd.gid.subnet_prefix.into(),
-                        interface_id: cmd.gid.interface_id.into(),
-                        qpn: cmd.qpn,
+                    resolve_qp: oveyd_resolve_qp{
+                        attr_mask:
+                        (cmd.gid.and(Some(OVEYDR_RESOLVE_QP_GID)).unwrap_or_default()) |
+                        (cmd.qpn.and(Some(OVEYDR_RESOLVE_QP_QPN)).unwrap_or_default()) |
+                        (cmd.lid.and(Some(OVEYDR_RESOLVE_QP_LID)).unwrap_or_default()),
+                        subnet_prefix: cmd.gid.unwrap_or_default().subnet_prefix.into(),
+                        interface_id: cmd.gid.unwrap_or_default().interface_id.into(),
+                        qpn: cmd.qpn.unwrap_or_default(),
+                        lid: cmd.lid.unwrap_or_default(),
                     },
                 },
             }

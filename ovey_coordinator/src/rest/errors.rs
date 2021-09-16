@@ -19,6 +19,8 @@ pub enum CoordinatorRestError {
     PortNotFound(Uuid, u16),
     #[display(fmt = "Gid '{}' not found.", _0)]
     GidNotFound(Gid),
+    #[display(fmt = "LID '{}' not found.", _0)]
+    LidNotFound(u32),
     #[display(fmt = "QP '{}' not found.", _0)]
     QpNotFound(u32),
     #[display(fmt = "Real or virtual gid is not unique.")]
@@ -39,6 +41,7 @@ impl error::ResponseError for CoordinatorRestError {
             CoordinatorRestError::DeviceUuidNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::PortNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::GidNotFound(..) => StatusCode::NOT_FOUND,
+            CoordinatorRestError::LidNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::QpNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::GidConflict => StatusCode::CONFLICT,
             CoordinatorRestError::GidReserved => StatusCode::CONFLICT,
