@@ -560,18 +560,32 @@ mod tests {
                 .app_data(state.clone())
                 .configure(config)).await;
         let network_uuid = Uuid::new_v4();
-        let device_uuid = Uuid::new_v4();
+        let device_uuid_a = Uuid::new_v4();
+        let device_uuid_b = Uuid::new_v4();
         let guid_a: u64 = random();
+        let guid_b: u64 = random();
         let lid_a: u32 = (random::<u32>() + 1) % (1 << 24);
+        let lid_b: u32 = (random::<u32>() + 1) % (1 << 24);
 
+        // Device A
         let query = LeaseDeviceQuery{
             guid: guid_a,
         };
-        let guid_struct: LeaseDeviceResp =
-            do_request_device(&mut app, network_uuid, device_uuid,
+        let guid_struct_a: LeaseDeviceResp =
+            do_request_device(&mut app, network_uuid, device_uuid_a,
                               &query, StatusCode::CREATED).await.unwrap();
-        assert_ne!(guid_a, guid_struct.guid);
+        assert_ne!(guid_a, guid_struct_a.guid);
 
+        // Device B
+        let query = LeaseDeviceQuery{
+            guid: guid_b,
+        };
+        let guid_struct_b: LeaseDeviceResp =
+            do_request_device(&mut app, network_uuid, device_uuid_b,
+                              &query, StatusCode::CREATED).await.unwrap();
+        assert_ne!(guid_b, guid_struct_b.guid);
+
+        // Device A
         let query = CreatePortQuery{
             port: 1,
 	          pkey_tbl_len: 16,
@@ -581,7 +595,7 @@ mod tests {
         };
         let port_resp: CreatePortResp =
             do_request_device(&mut app,
-                              network_uuid, device_uuid,
+                              network_uuid, device_uuid_a,
                               &query, StatusCode::CREATED).await.unwrap();
 
         let set_port_a = SetPortAttrQuery{
@@ -589,7 +603,7 @@ mod tests {
         };
         let set_port_resp_a: SetPortAttrResp =
             do_request_port(&mut app,
-                            network_uuid, device_uuid, port_resp.port,
+                            network_uuid, device_uuid_a, port_resp.port,
                             &set_port_a, StatusCode::OK).await.unwrap();
         assert_ne!(set_port_resp_a.lid, 0);
 
@@ -607,11 +621,55 @@ mod tests {
         };
         let resp: SetGidResp =
             do_request_port(&mut app,
-                            network_uuid, device_uuid, port_resp.port,
+                            network_uuid, device_uuid_a, port_resp.port,
                             &query, StatusCode::OK).await.unwrap();
         assert_eq!(resp.virt, query.virt);
         assert_eq!(resp.real, query.real);
         assert_ne!(resp.real, query.virt);
+
+        // Device B
+        let query = CreatePortQuery{
+            port: 1,
+	          pkey_tbl_len: 16,
+	          gid_tbl_len: 16,
+	          core_cap_flags: 0,
+	          max_mad_size: 16,
+        };
+        let port_resp: CreatePortResp =
+            do_request_device(&mut app,
+                              network_uuid, device_uuid_b,
+                              &query, StatusCode::CREATED).await.unwrap();
+
+        let set_port_b = SetPortAttrQuery{
+            lid: lid_b,
+        };
+        let set_port_resp_b: SetPortAttrResp =
+            do_request_port(&mut app,
+                            network_uuid, device_uuid_b, port_resp.port,
+                            &set_port_b, StatusCode::OK).await.unwrap();
+        assert_ne!(set_port_resp_b.lid, 0);
+
+        let query = SetGidQuery{
+            virt_idx: 0,
+            real_idx: 0,
+            virt: Gid{
+                subnet_prefix: DEFULT_GID_PREFIX,
+                interface_id: 21,
+            },
+            real: Gid{
+                subnet_prefix: 22,
+                interface_id: 23,
+            },
+        };
+        let resp: SetGidResp =
+            do_request_port(&mut app,
+                            network_uuid, device_uuid_b, port_resp.port,
+                            &query, StatusCode::OK).await.unwrap();
+        assert_eq!(resp.virt, query.virt);
+        assert_eq!(resp.real, query.real);
+        assert_ne!(resp.real, query.virt);
+
+        // Device A
 
         let query = SetGidQuery{
             virt_idx: 1,
@@ -627,7 +685,7 @@ mod tests {
         };
         let resp: SetGidResp =
             do_request_port(&mut app,
-                            network_uuid, device_uuid, port_resp.port,
+                            network_uuid, device_uuid_a, port_resp.port,
                             &query, StatusCode::OK).await.unwrap();
         assert_eq!(resp.virt, query.virt);
         assert_eq!(resp.real, query.real);
@@ -638,7 +696,7 @@ mod tests {
         };
         let qp_resp: CreateQpResp =
             do_request_device(&mut app,
-                              network_uuid, device_uuid,
+                              network_uuid, device_uuid_a,
                               &qp_query, StatusCode::CREATED).await.unwrap();
         assert_ne!(qp_resp.qpn, qp_query.qpn);
 
@@ -661,11 +719,50 @@ mod tests {
         assert_eq!(resolve_struct.qpn.unwrap(), qp_query.qpn);
         assert_eq!(resolve_struct.lid.unwrap(), lid_a);
 
+        // Device A
+        let query = ResolveQpQueryBuilder::default()
+            .qpn(qp_resp.qpn)
+            .lid(set_port_resp_a.lid)
+            .build()
+            .unwrap();
+        let resolve_struct: ResolveQpResp =
+            do_request_network(&mut app,
+                               network_uuid,
+                               &query, StatusCode::OK).await.unwrap();
+        println!("{:#?}", resolve_struct);
+        assert_eq!(resolve_struct.gid.is_none(), true);
+        assert_eq!(resolve_struct.qpn.unwrap(), qp_query.qpn);
+        assert_eq!(resolve_struct.lid.unwrap(), lid_a);
+
+        // Device B
+        let qp_query = CreateQpQuery{
+            qpn: 45,
+        };
+        let qp_resp: CreateQpResp =
+            do_request_device(&mut app,
+                              network_uuid, device_uuid_b,
+                              &qp_query, StatusCode::CREATED).await.unwrap();
+        assert_ne!(qp_resp.qpn, qp_query.qpn);
+
+        let query = ResolveQpQueryBuilder::default()
+            .qpn(qp_resp.qpn)
+            .lid(set_port_resp_b.lid)
+            .build()
+            .unwrap();
+        let resolve_struct: ResolveQpResp =
+            do_request_network(&mut app,
+                               network_uuid,
+                               &query, StatusCode::OK).await.unwrap();
+        println!("{:#?}", resolve_struct);
+        assert_eq!(resolve_struct.gid.is_none(), true);
+        assert_eq!(resolve_struct.qpn.unwrap(), qp_query.qpn);
+        assert_eq!(resolve_struct.lid.unwrap(), lid_b);
+
         state.with_network(network_uuid, |network| {
             let dev = &network.devices.iter().next().unwrap();
             println!("{:#?}", dev);
 
-            assert_eq!(dev.guid, Some(Virt::<u64>{real: guid_a, virt: guid_struct.guid}));
+            assert_eq!(dev.guid, Some(Virt::<u64>{real: guid_a, virt: guid_struct_a.guid}));
             assert_eq!(dev.iter_port().next().unwrap()
                        .iter_gid().take(2).last().unwrap()
                        .virt.is_same_addr(&GidEntry{

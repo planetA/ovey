@@ -27,6 +27,8 @@ pub enum CoordinatorRestError {
     GidConflict,
     #[display(fmt = "Attempt to store reserved address.")]
     GidReserved,
+    #[display(fmt = "Addresses resolve to conflicting devices.")]
+    DeviceConflict,
 }
 
 // IDE tells that Display is not implemented for CoordinatorRestError, but it gets implemented
@@ -45,6 +47,7 @@ impl error::ResponseError for CoordinatorRestError {
             CoordinatorRestError::QpNotFound(..) => StatusCode::NOT_FOUND,
             CoordinatorRestError::GidConflict => StatusCode::CONFLICT,
             CoordinatorRestError::GidReserved => StatusCode::CONFLICT,
+            CoordinatorRestError::DeviceConflict => StatusCode::CONFLICT,
         }
     }
 
