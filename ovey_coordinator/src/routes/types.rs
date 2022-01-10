@@ -3,13 +3,14 @@ use std::sync::Mutex;
 use std::time::Instant;
 use std::convert::TryInto;
 use std::convert::TryFrom;
+use serde::Serialize;
 
 use uuid::Uuid;
 
 use liboveyutil::types::Gid;
 use crate::rest::errors::CoordinatorRestError;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize)]
 pub(crate) struct Virt<T> {
     pub(crate) real: T,
     pub(crate) virt: T,
@@ -24,7 +25,7 @@ impl<T> Virt<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct GidEntry {
     pub(crate) idx: u32,
     pub(crate) gid: Gid,
@@ -44,7 +45,7 @@ impl GidEntry {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub(crate) struct PortEntry {
     pub(crate) id: Virt<u16>,
     pub(crate) lid: Option<Virt<u32>>,
@@ -115,17 +116,18 @@ impl PortEntry {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub(crate) struct QpEntry {
     pub(crate) qpn: Virt<u32>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub(crate) struct DeviceEntry {
     pub(crate) device: Uuid,
     pub(crate) guid: Option<Virt<u64>>,
     ports: Vec<PortEntry>,
     qps: Vec<QpEntry>,
+    #[serde(skip_serializing)]
     pub(crate) lease: Instant,
 }
 
@@ -184,7 +186,7 @@ impl DeviceEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct DeviceTable(Vec<DeviceEntry>);
 
 impl DeviceTable {

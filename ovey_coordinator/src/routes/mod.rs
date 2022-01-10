@@ -9,6 +9,7 @@ mod gids;
 mod network;
 mod ports;
 mod qp;
+mod devices;
 
 use types::*;
 
@@ -22,6 +23,7 @@ pub(crate) fn config(cfg: &mut web::ServiceConfig) {
     network::config(cfg);
     ports::config(cfg);
     qp::config(cfg);
+    devices::config(cfg);
 }
 
 #[cfg(test)]
